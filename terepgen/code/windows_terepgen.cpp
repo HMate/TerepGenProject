@@ -179,12 +179,16 @@ WinMain(HINSTANCE Instance,
             
             Persistence = 0.4f;
             
-			terrain Terrain;
-            Terrain.Color = color{1.0f, 1.0f, 1.0f, 1.0f};
-            Terrain.Initialize(DXResources, GlobalSeed, Persistence);
+			// terrain Terrain;
+            // Terrain.Color = color{1.0f, 1.0f, 1.0f, 1.0f};
+            // Terrain.Initialize(GlobalSeed, Persistence);
                         
-            // terrain3D Terrain3D;
-            // Terrain3D.Initialize(DXResources, GlobalSeed, Persistence);
+            terrain3D Terrain3D;
+            Terrain3D.Initialize(GlobalSeed, Persistence);
+            
+            terrainRenderer TRenderer;
+            // TRenderer.Initialize(DXResources, Terrain.FinalVertexCount);
+            TRenderer.Initialize(DXResources, Terrain3D.FinalVertexCount);
             
             while(GlobalRunning)
             {
@@ -212,6 +216,9 @@ WinMain(HINSTANCE Instance,
                 GlobalInput.MouseY = -MouseP.y;
                 
                 Camera.Update(GlobalInput);
+                // Terrain.Update(GlobalSeed, Persistence);
+                Terrain3D.Update(GlobalSeed, Persistence);
+                
                 DXResources.LoadResource(Camera.SceneConstantBuffer,
                               &Camera.SceneConstants, sizeof(Camera.SceneConstants));
                 
@@ -219,8 +226,8 @@ WinMain(HINSTANCE Instance,
                 //color BackgroundColor = {0.3f, 0.3f, 0.3f, 1.0f}; //grey
                 DXResources.DeviceContext->ClearRenderTargetView(DXResources.BackBuffer, BackgroundColor.C);
                 
-                Terrain.UpdateAndDrawWireframe(DXResources, GlobalSeed, Persistence);
-                // Terrain3D.UpdateAndDrawWireframe(DXResources, GlobalSeed, Persistence);
+                // TRenderer.DrawWireframe(DXResources, Terrain.Vertices);
+                TRenderer.DrawWireframe(DXResources, Terrain3D.Vertices);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 
                 DXResources.SwapChain->Present(0, 0);

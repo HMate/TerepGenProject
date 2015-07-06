@@ -134,20 +134,10 @@ GetGridVertex(grid2D *Grid, v3 GridPos, uint32 GridX, uint32 GridY, color Color)
     return Result;
 }
 
-void terrain::UpdateAndDrawWireframe(dx_resource &DXResources, uint32 Seed, real32 Persistence)
-{
-    if(LastSeed != Seed || Persistence != LastPersistence)
-    {
-        GenerateTerrain(Seed, Persistence);
-        LastSeed = Seed;
-        LastPersistence = Persistence;
-    }
-    DrawWireframe(DXResources);
-}
 
-void terrain::DrawWireframe(dx_resource &DXResources)
+std::shared_ptr<vertex> terrain::CreateRenderVertices()
 {
-    vertex *Vertices = new vertex[FinalVertexCount];
+    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[FinalVertexCount]);
     uint32 VertexCount = 0;
     v3 GridPos = v3{10.0f, -10.0f, 10.0f};
     for(uint32 GridY = 0;
@@ -160,63 +150,30 @@ void terrain::DrawWireframe(dx_resource &DXResources)
         {
             if((GridY + 1) < TerrainGrid.Dimension)
             {
-                Vertices[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY, Color);
-                Vertices[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY+1, Color);
+                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY, Color);
+                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY+1, Color);
             }                                                        
             if((GridX + 1) < TerrainGrid.Dimension)                            
             {                                                        
-                Vertices[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY, Color);
-                Vertices[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY, Color);
+                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY, Color);
+                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY, Color);
             }
             if(((GridX + 1) < TerrainGrid.Dimension) && ((GridY + 1) < TerrainGrid.Dimension))
             {
-                Vertices[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY+1, Color);
-                Vertices[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY+1, Color);
-                Vertices[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY+1, Color);
-                Vertices[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY, Color);
+                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY+1, Color);
+                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY+1, Color);
+                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY+1, Color);
+                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY, Color);
             }
         }
     }
     Assert(FinalVertexCount == VertexCount);
-       
-    DXResources.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-       
-    uint32 stride = sizeof(vertex);
-    uint32 offset = 0;
-    DXResources.LoadResource(VertexBuffer, Vertices, sizeof(vertex) * FinalVertexCount);    
     
-    DXResources.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResources.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    DXResources.DeviceContext->Draw(FinalVertexCount, 0);
-    
-    delete[] Vertices;
+    return Vertices;
 }
 
-void terrain::Initialize(dx_resource &DXResources, uint32 Seed, real32 Persistence)
-{    
-    Released = false;
-    ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, 0,
-                                             0, 1, 0, 0,
-                                             0, 0, 1, 0,
-                                             0, 0, 0, 1);
-                                           
-    D3D11_BUFFER_DESC ObjectCBDesc = {};
-    ObjectCBDesc.ByteWidth = sizeof( object_constants );
-    ObjectCBDesc.Usage = D3D11_USAGE_DYNAMIC;
-    ObjectCBDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    ObjectCBDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    ObjectCBDesc.MiscFlags = 0;
-    ObjectCBDesc.StructureByteStride = 0;
-    
-    D3D11_SUBRESOURCE_DATA ObjCBufferData;
-    ObjCBufferData.pSysMem = &ObjectConstants;
-    ObjCBufferData.SysMemPitch = 0;
-    ObjCBufferData.SysMemSlicePitch = 0;
-    
-    DXResources.Device->CreateBuffer(&ObjectCBDesc, &ObjCBufferData, 
-                               &ObjectConstantBuffer);
-    DXResources.DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer);  
-    
+void terrain::Initialize(uint32 Seed, real32 Persistence)
+{        
     TerrainDimension = 128;
     TerrainGrid = grid2D{TerrainDimension};
     
@@ -224,87 +181,39 @@ void terrain::Initialize(dx_resource &DXResources, uint32 Seed, real32 Persisten
     uint32 ColumnCount = TerrainDimension;
     FinalVertexCount = 2 * (4 * (RowCount-1) * (ColumnCount-1) + RowCount + ColumnCount - 2);
     
-    D3D11_BUFFER_DESC BufferDesc;
-    ZeroMemory(&BufferDesc, sizeof(BufferDesc));
-    BufferDesc.Usage = D3D11_USAGE_DYNAMIC;            
-    BufferDesc.ByteWidth = sizeof(vertex) * FinalVertexCount;        
-    BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;   
-    BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-    DXResources.Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
-    
     GenerateTerrain(Seed, Persistence);
     LastSeed = Seed;
     LastPersistence = Persistence;
+    Vertices = CreateRenderVertices();
 }
 
-void terrain::Release()
+void terrain::Update(uint32 Seed, real32 Persistence)
 {
-    ObjectConstantBuffer->Release();
-    VertexBuffer->Release();
-    Released = true;
+    if(LastSeed != Seed || Persistence != LastPersistence)
+    {
+        GenerateTerrain(Seed, Persistence);
+        LastSeed = Seed;
+        LastPersistence = Persistence;
+        Vertices = CreateRenderVertices();
+    }
 }
-   
-terrain::~terrain()
-{
-    if(!Released) Release();
-}
-
-
 
 
 // Terrain 3D
 
 
-void terrain3D::Initialize(dx_resource &DXResources, uint32 Seed, real32 Persistence)
+void terrain3D::Initialize(uint32 Seed, real32 Persistence)
 {    
     
     TerrainDimension = 64;
     TerrainGrid = grid3D{TerrainDimension};
     
-    // uint32 RowCount = TerrainDimension;
-    // uint32 ColumnCount = TerrainDimension;
-    // FinalVertexCount = 2 * (4 * (RowCount-1) * (ColumnCount-1) + RowCount + ColumnCount - 2);
     FinalVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*18;
     
     GenerateTerrain(Seed, Persistence);
     LastSeed = Seed;
     LastPersistence = Persistence;
     Vertices = CreateRenderVertices();
-
-    DXReleased = false;
-    ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, 0,
-                                             0, 1, 0, 0,
-                                             0, 0, 1, 0,
-                                             0, 0, 0, 1);
-                                           
-    D3D11_BUFFER_DESC ObjectCBDesc = {};
-    ObjectCBDesc.ByteWidth = sizeof( object_constants );
-    ObjectCBDesc.Usage = D3D11_USAGE_DYNAMIC;
-    ObjectCBDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    ObjectCBDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    ObjectCBDesc.MiscFlags = 0;
-    ObjectCBDesc.StructureByteStride = 0;
-    
-    D3D11_SUBRESOURCE_DATA ObjCBufferData;
-    ObjCBufferData.pSysMem = &ObjectConstants;
-    ObjCBufferData.SysMemPitch = 0;
-    ObjCBufferData.SysMemSlicePitch = 0;
-    
-    DXResources.Device->CreateBuffer(&ObjectCBDesc, &ObjCBufferData, 
-                               &ObjectConstantBuffer);
-    DXResources.DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer);  
-    
-    D3D11_BUFFER_DESC BufferDesc;
-    ZeroMemory(&BufferDesc, sizeof(BufferDesc));
-    BufferDesc.Usage = D3D11_USAGE_DYNAMIC;  
-    // TODO: Instead of FinalVertexCount, i should use the count from CreateRenderVertices here.
-    // Its more precise, but then i cant change the number of vertices.
-    BufferDesc.ByteWidth = sizeof(vertex) * FinalVertexCount;        
-    BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;   
-    BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-    DXResources.Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
 }
 
 bool32 internal
@@ -650,7 +559,7 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
     return Vertices;
 }
 
-void terrain3D::UpdateAndDrawWireframe(dx_resource &DXResources, uint32 Seed, real32 Persistence)
+void terrain3D::Update(uint32 Seed, real32 Persistence)
 {
     if(LastSeed != Seed || Persistence != LastPersistence)
     {
@@ -659,99 +568,6 @@ void terrain3D::UpdateAndDrawWireframe(dx_resource &DXResources, uint32 Seed, re
         LastPersistence = Persistence;
         Vertices = CreateRenderVertices();
     }
-    DrawWireframe(DXResources);
-}
-
-void terrain3D::DrawWireframe(dx_resource &DXResources)
-{
-    
-    DXResources.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-       
-    uint32 stride = sizeof(vertex);
-    uint32 offset = 0;
-    DXResources.LoadResource(VertexBuffer, Vertices.get(), sizeof(vertex) * FinalVertexCount);    
-    
-    DXResources.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResources.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    DXResources.DeviceContext->Draw(FinalVertexCount, 0);
-    
-    //delete[] Vertices;
-}
-
-void terrain3D::UpdateAndDrawPoints(dx_resource &DXResources, uint32 Seed, real32 Persistence)
-{
-    if(LastSeed != Seed || Persistence != LastPersistence)
-    {
-        GenerateTerrain(Seed, Persistence);
-        LastSeed = Seed;
-        LastPersistence = Persistence;
-    }
-    DrawPoints(DXResources);
-}
-
-void terrain3D::DrawPoints(dx_resource &DXResources)
-{
-    vertex *Vertices = new vertex[FinalVertexCount];
-    uint32 VertexCount = 0;
-    v3 GridPos = v3{-10.0f, -10.0f, -10.0f};
-    v3 GridPosdX = GridPos + v3{0.2f, 0.0f, 0.0f};
-    v3 GridPosdX2 = GridPos - v3{0.2f, 0.0f, 0.0f};
-    v3 GridPosdY = GridPos + v3{0.0f, 0.2f, 0.0f};
-    v3 GridPosdY2 = GridPos - v3{0.0f, 0.2f, 0.0f};
-    v3 GridPosdZ = GridPos + v3{0.0f, 0.0f, 0.2f};
-    v3 GridPosdZ2 = GridPos - v3{0.0f, 0.0f, 0.2f};
-    for(uint32 GridZ = 0;
-        GridZ < TerrainGrid.Dimension;
-        ++GridZ)
-    {
-        for(uint32 GridY = 0;
-            GridY < TerrainGrid.Dimension;
-            ++GridY)
-        {
-            for(uint32 GridX = 0;
-                GridX < TerrainGrid.Dimension;
-                ++GridX)
-            {
-                real32 TerrainValue = TerrainGrid[GridZ][GridY][GridX];
-                color PointColor = {TerrainValue, TerrainValue, TerrainValue, 1.0f};
-                if(TerrainValue < 0.05f)
-                {
-                    PointColor = color{0.0, 1.0f, 0.0f, 1.0f};
-                }
-                Vertices[VertexCount++] = Get3DGridVertex(GridPosdX, GridX, GridY, GridZ, PointColor); 
-                Vertices[VertexCount++] = Get3DGridVertex(GridPosdX2, GridX, GridY, GridZ, PointColor); 
-                Vertices[VertexCount++] = Get3DGridVertex(GridPosdY, GridX, GridY, GridZ, PointColor); 
-                Vertices[VertexCount++] = Get3DGridVertex(GridPosdY2, GridX, GridY, GridZ, PointColor); 
-                Vertices[VertexCount++] = Get3DGridVertex(GridPosdZ, GridX, GridY, GridZ, PointColor); 
-                Vertices[VertexCount++] = Get3DGridVertex(GridPosdZ2, GridX, GridY, GridZ, PointColor);             
-            }
-        }
-    }
-    //Assert(FinalVertexCount == VertexCount);
-       
-    DXResources.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-       
-    uint32 stride = sizeof(vertex);
-    uint32 offset = 0;
-    DXResources.LoadResource(VertexBuffer, Vertices, sizeof(vertex) * FinalVertexCount);    
-    
-    DXResources.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResources.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    DXResources.DeviceContext->Draw(FinalVertexCount, 0);
-    
-    delete[] Vertices;
-}
-
-void terrain3D::Release()
-{
-    ObjectConstantBuffer->Release();
-    VertexBuffer->Release();
-    DXReleased = true;
-}
-   
-terrain3D::~terrain3D()
-{
-    if(!DXReleased) Release();
 }
 
 

@@ -55,19 +55,13 @@ struct terrain
     color Color;
     uint32 LastSeed;
     real32 LastPersistence;
-    uint32 FinalVertexCount;    
+    uint32 FinalVertexCount;   
+    std::shared_ptr<vertex> Vertices; 
     
-    ID3D11Buffer *ObjectConstantBuffer;
-    object_constants ObjectConstants;
-    ID3D11Buffer *VertexBuffer; 
-    bool32 Released;
-    
-    ~terrain();
-    void Initialize(dx_resource &DXResources, uint32 Seed, real32 Persistence);
+    void Initialize(uint32 Seed, real32 Persistence);
     virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
-    void DrawWireframe(dx_resource &DXResources);
-    void UpdateAndDrawWireframe(dx_resource &DXResources, uint32 Seed, real32 Persistence);
-    void Release();
+    std::shared_ptr<vertex> CreateRenderVertices();
+    void Update(uint32 Seed, real32 Persistence);
 };
 
 struct terrain3D
@@ -75,29 +69,36 @@ struct terrain3D
     uint32 TerrainDimension;
     grid3D TerrainGrid;
     color Color;
-    uint32 LastSeed;
-    real32 LastPersistence;
+    
     uint32 FinalVertexCount;  
     std::shared_ptr<v3> VertexLocations;
     uint32 VertexLocationCount;
     std::shared_ptr<vertex> Vertices;
     
+    uint32 LastSeed;
+    real32 LastPersistence;
+    
+    void Initialize(uint32 Seed, real32 Persistence);
+    virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
+    std::shared_ptr<vertex> CreateRenderVertices();
+    
+    void Update(uint32 Seed, real32 Persistence);
+};
+
+struct terrainRenderer
+{
     ID3D11Buffer *ObjectConstantBuffer;
     object_constants ObjectConstants;
     ID3D11Buffer *VertexBuffer; 
+    uint32 FinalVertexCount;
     bool32 DXReleased;
     
-    ~terrain3D();
+    void Initialize(dx_resource &DXResources, uint32 FinalVertexCount);
+    ~terrainRenderer();
     void Release();
-    void Initialize(dx_resource &DXResources, uint32 Seed, real32 Persistence);
-    virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
     
-    std::shared_ptr<vertex> CreateRenderVertices();
-    
-    void DrawWireframe(dx_resource &DXResources);
-    void UpdateAndDrawWireframe(dx_resource &DXResources, uint32 Seed, real32 Persistence);
-    void DrawPoints(dx_resource &DXResources);
-    void UpdateAndDrawPoints(dx_resource &DXResources, uint32 Seed, real32 Persistence);
+    void DrawWireframe(dx_resource &DXResources, std::shared_ptr<vertex> Vertices);
+    void DrawPoints(dx_resource &DXResources, std::shared_ptr<vertex> Vertices);
 };
 
 struct RandomGeneratorVariables
