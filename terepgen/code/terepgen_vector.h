@@ -1,7 +1,5 @@
 #if !defined(TEREPGEN_VECTOR_H)
-/*
-    Terep generátor by Hidvégi Máté
-*/
+
 
 
 struct v3
