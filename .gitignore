@@ -28,6 +28,13 @@
 *.app
 
 # =========================
+# Visual Studio Files
+#==========================
+*.sln
+*.pdb
+*.suo
+
+# =========================
 # Operating System Files
 # =========================
 
@@ -73,3 +80,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# ==== Project Specific Files========
+misc/

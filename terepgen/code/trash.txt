@@ -1,0 +1,468 @@
+
+
+struct endaverage_terrain : terrain
+{
+    void GenerateTerrain(uint32 Seed) override;
+};
+void endaverage_terrain::GenerateTerrain(uint32 Seed)
+{
+    TerrainGrid.ZeroOutGridPoints();
+    RandomGenerator Rng(Seed);
+        
+    real32 Persistence = 0.7f;
+    uint32 OctaveCount = log2(TerrainDimension);
+    
+    for(uint32 Octaves = 0;
+        Octaves < OctaveCount;
+        ++Octaves)
+    {
+        // float freq = 2^i;
+        // float amplitude = persistence^i;
+        
+        real32 Weight = pow(Persistence, OctaveCount-Octaves-1);
+        uint32 WaveLength = pow2(Octaves);
+        uint32 PGDimension = TerrainDimension/WaveLength;
+        
+        grid2D PerlinGrid = {PGDimension};
+        for(uint32 Row = 0;
+            Row < PGDimension;
+            ++Row)
+        {
+            for(uint32 Column = 0;
+                Column < PGDimension;
+                ++Column)
+            {
+                PerlinGrid.GetXY(Row, Column) = 
+                    Rng.RandomFloat(Row*WaveLength, Column*WaveLength) * Weight;
+            }
+        }
+        
+        for(uint32 Row = 0;
+            Row < TerrainGrid.Dimension;
+            ++Row)
+        {
+            for(uint32 Column = 0;
+                Column < TerrainGrid.Dimension;
+                ++Column)
+            {
+                uint32 PGRow = Row/WaveLength;
+                uint32 PGColumn = Column/WaveLength;
+                TerrainGrid.GetXY(Row, Column) += PerlinGrid.GetXY(PGRow, PGColumn);
+            }
+        }
+    }
+    
+    grid2D SmoothGrid = {TerrainDimension};
+    MakeSmoothedGrid(SmoothGrid, TerrainGrid);
+    
+    TerrainGrid = SmoothGrid;
+}
+
+struct simple_terrain : terrain
+{
+    void GenerateTerrain(uint32 Seed, real32 Persistence) override;
+};
+
+void simple_terrain::GenerateTerrain(uint32 Seed, real32 Persistence)
+{
+    TerrainGrid.ZeroOutGridPoints();
+    RandomGenerator Rng(Seed);
+        
+    uint32 OctaveCount = log2(TerrainDimension);
+    
+    for(uint32 Octaves = 0;
+        Octaves < OctaveCount;
+        ++Octaves)
+    {
+        // float freq = 2^i;
+        // float amplitude = persistence^i;
+        
+        real32 Weight = pow(Persistence, OctaveCount-Octaves-1);
+        uint32 WaveLength = pow2(Octaves);
+        uint32 PGDimension = TerrainDimension/WaveLength;
+        
+        grid2D PerlinGrid = {PGDimension};
+        for(uint32 Row = 0;
+            Row < PGDimension;
+            ++Row)
+        {
+            for(uint32 Column = 0;
+                Column < PGDimension;
+                ++Column)
+            {
+                PerlinGrid.GetXY(Row, Column) = 
+                    Rng.RandomFloat(Row*WaveLength, Column*WaveLength) * Weight;
+            }
+        }
+        
+        for(uint32 Row = 0;
+            Row < TerrainGrid.Dimension;
+            ++Row)
+        {
+            for(uint32 Column = 0;
+                Column < TerrainGrid.Dimension;
+                ++Column)
+            {
+                uint32 PGRow = Row/WaveLength;
+                uint32 PGColumn = Column/WaveLength;
+                TerrainGrid.GetXY(Row, Column) += PerlinGrid.GetXY(PGRow, PGColumn);
+            }
+        }
+    }
+}
+
+
+inline float
+InterpolatePointsLinearly(grid2D &Grid, uint32 Row, uint32 Column,
+                          uint32 TerrainDimension)
+{
+                
+    real32 RowRatio = (real32)Row * (Grid.Dimension-1) / (TerrainDimension - 1);
+    uint32 PGRow = (uint32)RowRatio;
+    RowRatio = RowRatio - (real32)PGRow;
+    real32 ColumnRatio = (real32)Column * (Grid.Dimension-1) / (TerrainDimension - 1);
+    uint32 PGColumn = (uint32)ColumnRatio;
+    ColumnRatio = ColumnRatio - (real32)PGColumn;
+    
+    float Result =
+        (((1.0f-ColumnRatio) * Grid[PGRow][PGColumn] + 
+          ColumnRatio * Grid[PGRow][PGColumn+1]) * (1.0f-RowRatio)) +
+        ((((1.0f-ColumnRatio) * Grid[PGRow+1][PGColumn]) + 
+         (ColumnRatio * Grid[PGRow+1][PGColumn+1])) * RowRatio);
+    return Result;
+}
+
+/////// OLD Functional 2D Terrains
+
+
+            // functional_terrain BSplineTerrain;
+            // BSplineTerrain.InterpolatingFunction = 
+                // [](InterpolatingFunctionVariables& Vars)
+                // {
+                    // grid2D &Grid = *(Vars.PerlinGrid);
+                    // uint32 TerrainDimension = Vars.TerrainGrid->Dimension;
+                    
+                    // real32 RowRatio = (real32)Vars.Row * (Grid.Dimension-1) / (TerrainDimension - 1);
+                    // int32 PGRow = (int32)RowRatio;
+                    // RowRatio = RowRatio - (real32)PGRow;
+                    // real32 ColumnRatio = (real32)Vars.Column * (Grid.Dimension-1) / (TerrainDimension - 1);
+                    // int32 PGColumn = (int32)ColumnRatio;
+                    // ColumnRatio = ColumnRatio - (real32)PGColumn;
+                    
+                    // auto BsplineFunc = [](real32 Amplitude, real32 X) -> real32
+                    // {
+                        // if(X<0.0f) X = -X;
+                        // if(X < 1.0f)
+                        // {
+                            // real32 Result =
+                                // Amplitude * ((0.5f * X*X*X) - (X*X) + (2.0f/3.0f));
+                            // return Result;
+                        // }
+                        // else if(X < 2.0f)
+                        // {
+                            // real32 Result =
+                                // Amplitude * ((-1.0f/6.0f * X*X*X) + (X*X) - (2.0f * X) + (4.0f/3.0f));
+                            // return Result;
+                        // }
+                        // else
+                        // {
+                            // return 0.0f;
+                        // }
+                    // };
+                    
+                    // real32 Result =
+                        // BsplineFunc(
+                            // BsplineFunc(Grid[PGRow-1][PGColumn-1], ColumnRatio+1.0f) +
+                            // BsplineFunc(Grid[PGRow-1][PGColumn], ColumnRatio) +
+                            // BsplineFunc(Grid[PGRow-1][PGColumn+1], ColumnRatio-1.0f) +
+                            // BsplineFunc(Grid[PGRow-1][PGColumn+2], ColumnRatio-2.0f),
+                            // RowRatio + 1.0f) +
+                        // BsplineFunc(
+                            // BsplineFunc(Grid[PGRow][PGColumn-1], ColumnRatio+1.0f) +
+                            // BsplineFunc(Grid[PGRow][PGColumn], ColumnRatio) +
+                            // BsplineFunc(Grid[PGRow][PGColumn+1], ColumnRatio-1.0f) +
+                            // BsplineFunc(Grid[PGRow][PGColumn+2], ColumnRatio-2.0f),
+                            // RowRatio) +
+                        // BsplineFunc(
+                            // BsplineFunc(Grid[PGRow+1][PGColumn-1], ColumnRatio+1.0f) +
+                            // BsplineFunc(Grid[PGRow+1][PGColumn], ColumnRatio) +
+                            // BsplineFunc(Grid[PGRow+1][PGColumn+1], ColumnRatio-1.0f) +
+                            // BsplineFunc(Grid[PGRow+1][PGColumn+2], ColumnRatio-2.0f),
+                            // RowRatio - 1.0f) +
+                        // BsplineFunc(
+                            // BsplineFunc(Grid[PGRow+2][PGColumn-1], ColumnRatio+1.0f) +
+                            // BsplineFunc(Grid[PGRow+2][PGColumn], ColumnRatio) +
+                            // BsplineFunc(Grid[PGRow+2][PGColumn+1], ColumnRatio-1.0f) +
+                            // BsplineFunc(Grid[PGRow+2][PGColumn+2], ColumnRatio-2.0f),
+                            // RowRatio - 2.0f);
+                    // return Result;
+                // };
+            // BSplineTerrain.Color = color{1.0f, 0.0f, 0.0f, 1.0f};
+            // BSplineTerrain.Initialize(DXResources, GlobalSeed, Persistence);
+            
+            // functional_terrain BsplineSmoothedTerrain;
+            // BsplineSmoothedTerrain.SmoothingFunction = 
+                // [](SmoothingFunctionVariables &Vars)
+                // {
+                    // grid2D &Grid = *(Vars.StrechedGrid);
+                    // uint32 Row = Vars.Row;
+                    // uint32 Column = Vars.Column;
+                    // real32 Corners, Sides, Center;
+                    // Corners = (Grid.GetXY(Row-1, Column-1) +
+                               // Grid.GetXY(Row+1, Column-1) +
+                               // Grid.GetXY(Row+1, Column+1) +
+                               // Grid.GetXY(Row-1, Column+1)) / 36.0f;
+                    // Sides = (Grid.GetXY(Row-1, Column) +
+                             // Grid.GetXY(Row, Column-1) +
+                             // Grid.GetXY(Row+1, Column) +
+                             // Grid.GetXY(Row, Column+1)) / 9.0f;
+                    // Center = Grid.GetXY(Row, Column) * 4.0f / 9.0f;
+                    
+                    // return Corners + Sides + Center;
+                // };
+            // BsplineSmoothedTerrain.Color = color{0.0f, 0.3f, 0.8f, 1.0f};
+            // BsplineSmoothedTerrain.Initialize(DXResources, GlobalSeed, Persistence);
+            
+            // functional_terrain EndAverageTerrain;
+            // EndAverageTerrain.InterpolatingFunction = 
+                // [](InterpolatingFunctionVariables& Vars)
+                // {
+                    // grid2D &Grid = *Vars.PerlinGrid;
+                    // return Grid.GetXY(Vars.Row/Vars.WaveLength, Vars.Column/Vars.WaveLength);
+                // };
+            // EndAverageTerrain.Color = color{1.0f, 0.0f, 0.0f, 1.0f};
+            // EndAverageTerrain.Initialize(DXResources, GlobalSeed, Persistence);
+            
+            // functional_terrain SimpleTerrain;
+            // SimpleTerrain.InterpolatingFunction = 
+                // [](InterpolatingFunctionVariables& Vars)
+                // {
+                    // grid2D &Grid = *Vars.PerlinGrid;
+                    // return Grid.GetXY(Vars.Row/Vars.WaveLength, Vars.Column/Vars.WaveLength);
+                // };
+            // SimpleTerrain.SmoothingFunction = 
+                // [](SmoothingFunctionVariables &Vars)
+                // {
+                    // return Vars.StrechedGrid->GetXY(Vars.Row, Vars.Column);
+                // };
+            // SimpleTerrain.Color = color{0.8f, 1.0f, 1.0f, 1.0f};
+            // SimpleTerrain.Initialize(DXResources, GlobalSeed, Persistence);
+
+
+/////// OLD GRID
+
+
+struct grid2D
+{
+    uint32 Dimension;
+    std::shared_ptr<real32> Elements;
+    
+    grid2D()
+    {
+        this->Dimension = 0;
+        Elements = nullptr;
+    }
+    
+    grid2D(uint32 Dimension)
+    {
+        this->Dimension = Dimension;
+        Elements = std::shared_ptr<real32>(new real32[Dimension * Dimension]);
+    }
+    
+    // grid2D(const grid2D &OtherGrid)
+    // {
+        // if(*this != OtherGrid)
+        // {
+            // this->Dimension = OtherGrid.Dimension;
+            // this->Elements = OtherGrid.Elements;
+        // }
+    // }
+    
+    // grid2D& operator=(grid2D &OtherGrid)
+    // {
+        // if(*this != OtherGrid)
+        // {
+            // this->Dimension = OtherGrid.Dimension;
+            // this->Elements = OtherGrid.Elements;
+        // }
+        // return *this;
+    // }
+    
+    bool32 operator==(const grid2D &OtherGrid)
+    {
+        bool32 Result = true;
+        if(this->Dimension != OtherGrid.Dimension) Result = false;
+        else if(this->Elements != OtherGrid.Elements) Result = false;
+        return Result;
+    }
+    
+    bool32 operator!=(const grid2D &OtherGrid)
+    {
+        return !(*this == OtherGrid);
+    }
+    
+    grid2D& operator +=(grid2D& OtherGrid)
+    {
+        for(uint32 Row = 0;
+            Row < Dimension;
+            ++Row)
+        {
+            for(uint32 Column = 0;
+                Column < Dimension;
+                ++Column)
+            {
+                GetXY(Row, Column) += OtherGrid.GetXY(Row, Column);
+            }
+        }
+        return *this;
+    }
+    
+    real32& GetXY(int32 Row, int32 Column)
+    {
+        if(Row < 0) Row = 0;
+        else if(Row > Dimension - 1) Row = Dimension - 1;
+        if(Column < 0) Column = 0;
+        else if(Column > Dimension - 1) Column = Dimension - 1;
+        return Elements.get()[Row * Dimension + Column];
+    }
+    
+    void ZeroOutGridPoints()
+    {
+        for(uint32 Row = 0;
+            Row < Dimension;
+            ++Row)
+        {
+            for(uint32 Column = 0;
+                Column < Dimension;
+                ++Column)
+            {
+                GetXY(Row, Column) = 0.0f;
+            }
+        }
+    }
+    
+    struct GridRow
+    {
+        float* Elem;
+        uint32 Dimension;
+        GridRow(float *Elem, uint32 Dimension) : Elem(Elem), Dimension(Dimension){}
+        float& operator[](int32 Index)
+        {
+            if(Index < 0) Index = 0;
+            else if(Index > Dimension-1) Index = Dimension-1;
+            return *(Elem+Index);
+        }
+    };
+    
+    GridRow operator[](int32 Index)
+    {
+        if(Index < 0) Index = 0;
+        else if(Index > Dimension-1) Index = Dimension-1;
+        float *Elem = &(Elements.get()[Index*Dimension]);
+        return GridRow(Elem, Dimension);
+    }
+};
+
+//VECTOR GRID
+
+
+#if 0
+// NOTE: std::vector much slower than shared_pointer in debug build.
+// TODO: test under release build.
+struct grid2D
+{
+    uint32 Dimension;
+    std::vector<std::vector<real32>> Elements;
+    
+    grid2D()
+    {
+        this->Dimension = 0;
+        Elements = std::vector<std::vector<real32>>();
+    }
+    
+    grid2D(uint32 Dimension)
+    {
+        this->Dimension = Dimension;
+        Elements = std::vector<std::vector<real32>>(Dimension);
+        Assert(Elements.size() == Dimension);
+        for(auto& Row : Elements)
+        {
+            Row = std::vector<real32>(Dimension);
+        }
+    }
+    
+    bool32 operator==(const grid2D &OtherGrid)
+    {
+        bool32 Result = true;
+        if(this->Dimension != OtherGrid.Dimension) Result = false;
+        // TODO: What does operator!= for std::vector does? 
+        else if(this->Elements != OtherGrid.Elements) Result = false;
+        return Result;
+    }
+    
+    bool32 operator!=(const grid2D &OtherGrid)
+    {
+        return !(*this == OtherGrid);
+    }
+    
+    grid2D& operator +=(grid2D& OtherGrid)
+    {
+        for(uint32 Row = 0;
+            Row < Dimension;
+            ++Row)
+        {
+            for(uint32 Column = 0;
+                Column < Dimension;
+                ++Column)
+            {
+                GetXY(Row, Column) += OtherGrid.GetXY(Row, Column);
+            }
+        }
+        return *this;
+    }
+    
+    real32& GetXY(int32 Row, int32 Column)
+    {
+        if(Row < 0) Row = 0;
+        else if(Row > Dimension - 1) Row = Dimension - 1;
+        if(Column < 0) Column = 0;
+        else if(Column > Dimension - 1) Column = Dimension - 1;
+        return Elements[Row][Column];
+    }
+    
+    void ZeroOutGridPoints()
+    {
+        for(uint32 Row = 0;
+            Row < Dimension;
+            ++Row)
+        {
+            for(uint32 Column = 0;
+                Column < Dimension;
+                ++Column)
+            {
+                Elements[Row][Column] = 0.0f;
+            }
+        }
+    }
+    
+    struct GridRow
+    {
+        std::vector<real32> &Row;
+        GridRow(std::vector<real32> &Row) : Row(Row){}
+        real32& operator[](int32 Index)
+        {
+            if(Index < 0) Index = 0;
+            else if(Index > Row.size()-1) Index = Row.size()-1;
+            return Row[Index];
+        }
+    };
+    
+    GridRow operator[](int32 Index)
+    {
+        if(Index < 0) Index = 0;
+        else if(Index > Dimension-1) Index = Dimension-1;
+        std::vector<real32> &Row = Elements[Index];
+        Assert(Row.size() == Dimension);
+        return GridRow(Row);
+    }
+};
