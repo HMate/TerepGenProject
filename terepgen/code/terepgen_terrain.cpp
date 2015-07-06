@@ -297,7 +297,9 @@ void terrain3D::Initialize(dx_resource &DXResources, uint32 Seed, real32 Persist
     
     D3D11_BUFFER_DESC BufferDesc;
     ZeroMemory(&BufferDesc, sizeof(BufferDesc));
-    BufferDesc.Usage = D3D11_USAGE_DYNAMIC;            
+    BufferDesc.Usage = D3D11_USAGE_DYNAMIC;  
+    // TODO: Instead of FinalVertexCount, i should use the count from CreateRenderVertices here.
+    // Its more precise, but then i cant change the number of vertices.
     BufferDesc.ByteWidth = sizeof(vertex) * FinalVertexCount;        
     BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;   
     BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -443,6 +445,8 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
         TerrainGrid += StrechedPerlinGrid;
     }
         
+    // NOTE: VertexLocations is an array, that conatins those vertices only, that makes the terrain
+    //       without the any particular order.
     // TODO: FinalVertexCount can be 0 here!
     VertexLocations = std::shared_ptr<v3>(new v3[FinalVertexCount]);
     uint32 VertexCount = 0;
