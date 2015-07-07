@@ -138,7 +138,7 @@ WinMain(HINSTANCE Instance,
         HINSTANCE PrevInstance,
         LPSTR CommandLine,
         int ShowCode)
-{    
+{
     WNDCLASS WindowClass = {};
     
     WindowClass.style = CS_HREDRAW|CS_VREDRAW;

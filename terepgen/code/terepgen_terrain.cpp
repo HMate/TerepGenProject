@@ -4,6 +4,7 @@
 */
 
 #include "terepgen_terrain.h"
+#include "terepgen_marching_cubes.cpp"
 
 inline real32 pow(real32 A, uint32 N)
 {
@@ -216,62 +217,6 @@ void terrain3D::Initialize(uint32 Seed, real32 Persistence)
     Vertices = CreateRenderVertices();
 }
 
-bool32 internal
-IsBoundaryPoint(grid3D TerrainGrid, uint32 Plane, uint32 Row, uint32 Column)
-{
-    bool32 Result = false;
-    if(TerrainGrid.GetPRC(Plane, Row, Column) < 0.05f)
-    {
-        // for(int32 InnerPlane = ((int32)Plane)-1;
-            // (InnerPlane < (int32)Plane+2)&&(Result == false);
-            // ++InnerPlane)
-        // {
-            // for(int32 InnerRow = ((int32)Row)-1;
-                // (InnerRow < (int32)Row+2)&&(Result == false);
-                // ++InnerRow)
-            // {
-                // for(int32 InnerColumn = ((int32)Column)-1;
-                    // (InnerColumn < (int32)Column+2)&&(Result == false);
-                    // ++InnerColumn)
-                // {
-                    // if(TerrainGrid.GetPRC(InnerPlane, InnerRow, InnerColumn) >= 0.05f)
-                    // {
-                        // Result = true;
-                    // }
-                // }
-            // }
-        // }
-        int32 InnerPlane = Plane;
-        int32 InnerRow = Row;
-        int32 InnerColumn = Column;
-        if(TerrainGrid.GetPRC(InnerPlane+1, InnerRow, InnerColumn) >= 0.05f)
-        {
-            Result = true;
-        }
-        else if(TerrainGrid.GetPRC(InnerPlane-1, InnerRow, InnerColumn) >= 0.05f)
-        {
-            Result = true;
-        }
-        else if(TerrainGrid.GetPRC(InnerPlane, InnerRow+1, InnerColumn) >= 0.05f)
-        {
-            Result = true;
-        }
-        else if(TerrainGrid.GetPRC(InnerPlane, InnerRow-1, InnerColumn) >= 0.05f)
-        {
-            Result = true;
-        }
-        else if(TerrainGrid.GetPRC(InnerPlane, InnerRow, InnerColumn+1) >= 0.05f)
-        {
-            Result = true;
-        }
-        else if(TerrainGrid.GetPRC(InnerPlane, InnerRow, InnerColumn-1) >= 0.05f)
-        {
-            Result = true;
-        }
-    }
-    return Result;
-}
-
 void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
 {
     TerrainGrid.ZeroOutGridPoints();
@@ -353,208 +298,70 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
         
         TerrainGrid += StrechedPerlinGrid;
     }
-        
-    // NOTE: VertexLocations is an array, that conatins those vertices only, that makes the terrain
-    //       without the any particular order.
-    // TODO: FinalVertexCount can be 0 here!
-    VertexLocations = std::shared_ptr<v3>(new v3[FinalVertexCount]);
-    uint32 VertexCount = 0;
-    for(int32 Plane = 0;
-            Plane < TerrainGrid.Dimension;
-            ++Plane)
-    {
-        for(int32 Row = 0;
-            Row < TerrainGrid.Dimension;
-            ++Row)
-        {
-            for(int32 Column = 0;
-                Column < TerrainGrid.Dimension;
-                ++Column)
-            {                
-                if(IsBoundaryPoint(TerrainGrid, Plane, Row, Column))
-                {
-                    VertexLocations.get()[VertexCount++] = v3{Column, Plane, Row};
-                }
-                
-            }
-        }
-    }
-    VertexLocationCount = VertexCount;
-}
-
-internal vertex
-Get3DGridVertex(v3 GridPos, uint32 GridX, uint32 GridY, uint32 GridZ, color Color)
-{
-    real32 Scale = 1.0f;
-    vertex Result = {GridPos.X + (Scale * (real32)GridX), 
-                     GridPos.Y + (Scale * (real32)GridZ), 
-                     GridPos.Z + (Scale * (real32)GridY), 
-                     Color};
-    return Result;
 }
 
 internal vertex
 Get3DGridVertex(v3 GridPos, v3 LocalPos, color Color)
 {
     real32 Scale = 1.0f;
-    vertex Result = {GridPos.X + (Scale * (real32)LocalPos.X), 
-                     GridPos.Y + (Scale * (real32)LocalPos.Y), 
-                     GridPos.Z + (Scale * (real32)LocalPos.Z), 
+    vertex Result = {GridPos.X + (Scale * LocalPos.X), 
+                     GridPos.Y + (Scale * LocalPos.Y), 
+                     GridPos.Z + (Scale * LocalPos.Z), 
                      Color};
     return Result;
 }
 
-internal bool32
-IsInVertices(grid3D TerrainGrid,
-             uint32 X, uint32 Y, uint32 Z)
-{
-    return IsBoundaryPoint(TerrainGrid, Y, Z, X);
-}
-
 std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
 {
-    // vertex *Vertices = new vertex[FinalVertexCount];
     std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[FinalVertexCount]);
-    uint32 VertexCount = 0;
+    color PointColor = color{0.0, 1.0f, 0.0f, 1.0f};
     v3 GridPos = v3{-10.0f, -10.0f, -10.0f};
-    for(uint32 VertexLocationIndex = 0;
-        VertexLocationIndex < VertexLocationCount;
-        ++VertexLocationIndex)
+    
+    uint32 VertexCount = 0;
+    for(uint32 Plane = 0;
+            Plane < TerrainGrid.Dimension-1;
+            ++Plane)
     {
-        v3 LocalPos = VertexLocations.get()[VertexLocationIndex];
-        color PointColor = color{0.0, 1.0f, 0.0f, 1.0f};
-        // if(VertexLocationIndex % 13 == 0) PointColor = color{1.0f, 0.0f, 0.0f, 1.0f};
-        
-        for(int32 NeighbourX = LocalPos.X;
-            NeighbourX < LocalPos.X+2;
-            ++NeighbourX)
+        for(uint32 Row = 0;
+            Row < TerrainGrid.Dimension-1;
+            ++Row)
         {
-            // NOTE: We have to skip cooridnates that go out from the grid
-            // less than 0 or bigger than the grid size.
-            if(NeighbourX < 0 || NeighbourX >= TerrainDimension) continue;
-            for(int32 NeighbourY = LocalPos.Y-1;
-                NeighbourY < LocalPos.Y+2;
-                ++NeighbourY)
-            {
-                if(NeighbourY < 0 || NeighbourY >= TerrainDimension) continue;
-                for(int32 NeighbourZ = LocalPos.Z-1;
-                    NeighbourZ < LocalPos.Z+2;
-                    ++NeighbourZ)
+            for(uint32 Column = 0;
+                Column < TerrainGrid.Dimension-1;
+                ++Column)
+            {                
+                GRIDCELL Cell;
+                Cell.p[0] = v3{Plane ,  Row+1, Column  };
+                Cell.p[1] = v3{Plane ,  Row+1, Column+1};
+                Cell.p[2] = v3{Plane ,  Row  , Column+1};
+                Cell.p[3] = v3{Plane ,  Row  , Column  };
+                Cell.p[4] = v3{Plane+1, Row+1, Column  };
+                Cell.p[5] = v3{Plane+1, Row+1, Column+1};
+                Cell.p[6] = v3{Plane+1, Row  , Column+1};
+                Cell.p[7] = v3{Plane+1, Row  , Column  };
+                Cell.val[0] = TerrainGrid.GetPRC(Plane  , Row+1, Column   );
+                Cell.val[1] = TerrainGrid.GetPRC(Plane  , Row+1, Column+1 );
+                Cell.val[2] = TerrainGrid.GetPRC(Plane  , Row  , Column+1 );
+                Cell.val[3] = TerrainGrid.GetPRC(Plane  , Row  , Column   );
+                Cell.val[4] = TerrainGrid.GetPRC(Plane+1, Row+1, Column   );
+                Cell.val[5] = TerrainGrid.GetPRC(Plane+1, Row+1, Column+1 );
+                Cell.val[6] = TerrainGrid.GetPRC(Plane+1, Row  , Column+1 );
+                Cell.val[7] = TerrainGrid.GetPRC(Plane+1, Row  , Column   );
+                TRIANGLE Triangles[5];
+                uint32 TriangleCount = Polygonise(Cell, 0.05f, Triangles);
+                
+                for(uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
                 {
-                    if(NeighbourZ < 0 || NeighbourZ >= TerrainDimension) continue;
-                    // NOTE: Skip body diagonals
-                    if(NeighbourX != LocalPos.X && NeighbourY != LocalPos.Y && NeighbourZ != LocalPos.Z)
-                        continue;
-                    if(IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ))
-                    {
-                        Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, LocalPos, PointColor); 
-                        Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, v3{NeighbourX, NeighbourY, NeighbourZ}, PointColor); 
-                    }
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[0], PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[1], PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[1], PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[2], PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[2], PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[0], PointColor);
                 }
             }
         }
-            
-        // int32 TopX = LocalPos.X+1;
-        // int32 TopY = LocalPos.Y+1;
-        // int32 TopZ = LocalPos.Z+1;
-        // for(int32 NeighbourX = LocalPos.X;
-            // NeighbourX <= TopX;
-            // ++NeighbourX)
-        // {
-            // if(NeighbourX < 0 || NeighbourX >= TerrainDimension) continue;
-            // for(int32 NeighbourY = LocalPos.Y;
-                // NeighbourY <= TopY;
-                // ++NeighbourY)
-            // {
-                // if(NeighbourY < 0 || NeighbourY >= TerrainDimension) continue;
-                // for(int32 NeighbourZ = LocalPos.Z;
-                    // NeighbourZ <= TopZ;
-                    // ++NeighbourZ)
-                // {
-                    // if(NeighbourZ < 0 || NeighbourZ >= TerrainDimension) continue;
-                    // if(IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ))
-                    // {
-                        // if(NeighbourX == TopX && NeighbourY == TopY && NeighbourZ == TopZ)
-                        // {
-                            // if(IsInVertices(TerrainGrid, NeighbourX-1, NeighbourY, NeighbourZ)) continue;
-                            // if(IsInVertices(TerrainGrid, NeighbourX, NeighbourY-1, NeighbourZ-1)) continue;
-                        // }
-                        // Vertices[VertexCount++] = Get3DGridVertex(GridPos, LocalPos, PointColor); 
-                        // Vertices[VertexCount++] = Get3DGridVertex(GridPos, v3{NeighbourX, NeighbourY, NeighbourZ}, PointColor); 
-                    // }
-                // }
-            // }
-        // }
-        
-        // PointColor = color{0.0f, 0.0f, 1.0f, 1.0f};
-        
-        // int32 NeighbourX = LocalPos.X-1;
-        // int32 NeighbourY = LocalPos.Y;
-        // int32 NeighbourZ = LocalPos.Z+1;
-        // if(NeighbourX >=0 && NeighbourZ < TerrainDimension &&
-           // IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ) &&
-           // !IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ - 1))
-        // {
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, LocalPos, PointColor); 
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, v3{NeighbourX, NeighbourY, NeighbourZ}, PointColor); 
-        // }
-        // NeighbourX = LocalPos.X;
-        // NeighbourY = LocalPos.Y-1;
-        // NeighbourZ = LocalPos.Z+1;
-        // if(NeighbourY >=0 && NeighbourZ < TerrainDimension &&
-           // IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ) &&
-           // (IsInVertices(TerrainGrid, NeighbourX, NeighbourY + 1, NeighbourZ)^
-            // IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ - 1)) )
-        // {
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, LocalPos, PointColor); 
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, v3{NeighbourX, NeighbourY, NeighbourZ}, PointColor); 
-        // }
-        // NeighbourX = LocalPos.X-1;
-        // NeighbourY = LocalPos.Y+1;
-        // NeighbourZ = LocalPos.Z;
-        // if(NeighbourX >=0 && NeighbourY < TerrainDimension &&
-           // IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ) &&
-           // !IsInVertices(TerrainGrid, NeighbourX, NeighbourY - 1, NeighbourZ))
-        // {
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, LocalPos, PointColor); 
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, v3{NeighbourX, NeighbourY, NeighbourZ}, PointColor); 
-        // }
-        // NeighbourX = LocalPos.X-1;
-        // NeighbourY = LocalPos.Y+1;
-        // NeighbourZ = LocalPos.Z+1;
-        // if(NeighbourX >=0 && NeighbourY < TerrainDimension && NeighbourZ < TerrainDimension &&
-           // IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ) &&
-           // !IsInVertices(TerrainGrid, NeighbourX, NeighbourY - 1, NeighbourZ) &&
-           // !IsInVertices(TerrainGrid, NeighbourX + 1, NeighbourY, NeighbourZ - 1))
-        // {
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, LocalPos, PointColor); 
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, v3{NeighbourX, NeighbourY, NeighbourZ}, PointColor); 
-        // }
-        // NeighbourX = LocalPos.X+1;
-        // NeighbourY = LocalPos.Y-1;
-        // NeighbourZ = LocalPos.Z+1;
-        // if(NeighbourY >=0 && NeighbourX < TerrainDimension && NeighbourZ < TerrainDimension &&
-           // IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ) &&
-           // !IsInVertices(TerrainGrid, NeighbourX, NeighbourY + 1, NeighbourZ) &&
-           // !IsInVertices(TerrainGrid, NeighbourX - 1, NeighbourY, NeighbourZ - 1))
-        // {
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, LocalPos, PointColor); 
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, v3{NeighbourX, NeighbourY, NeighbourZ}, PointColor); 
-        // }
-        // NeighbourX = LocalPos.X+1;
-        // NeighbourY = LocalPos.Y+1;
-        // NeighbourZ = LocalPos.Z-1;
-        // if(NeighbourZ >=0 && NeighbourX < TerrainDimension && NeighbourY < TerrainDimension &&
-           // IsInVertices(TerrainGrid, NeighbourX, NeighbourY, NeighbourZ) &&
-           // !IsInVertices(TerrainGrid, NeighbourX, NeighbourY - 1, NeighbourZ) &&
-           // !IsInVertices(TerrainGrid, NeighbourX - 1, NeighbourY, NeighbourZ + 1))
-        // {
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, LocalPos, PointColor); 
-            // Vertices[VertexCount++] = Get3DGridVertex(GridPos, v3{NeighbourX, NeighbourY, NeighbourZ}, PointColor); 
-        // }
-        
     }
-    //Assert(FinalVertexCount == VertexCount);
     
     return Vertices;
 }
@@ -570,135 +377,3 @@ void terrain3D::Update(uint32 Seed, real32 Persistence)
     }
 }
 
-
-
-//Functional Terrain
-    
-functional_terrain::functional_terrain()
-{
-    // NOTE: Default Random generation. Not used currently
-    // TODO: Rng now gets destroyed, when this callback is used.
-    //       Fix RandomGenerator, so that its passed into the lambda properly.
-    RandomGenerator Rng(0);
-    RandomGeneratorFunction = [&Rng](RandomGeneratorVariables& Vars)
-    {
-        Rng.Seed = Vars.Seed;
-        return Rng.RandomFloat(Vars.Row, Vars.Column);
-    };
-    // NOTE: Default is linear interpolating between grid points
-    InterpolatingFunction = [](InterpolatingFunctionVariables& Vars)
-    {
-        grid2D &Grid = *(Vars.PerlinGrid);
-        uint32 TerrainDimension = Vars.TerrainGrid->Dimension;
-        
-        real32 RowRatio = (real32)Vars.Row * (Grid.Dimension-1) / (TerrainDimension - 1);
-        uint32 PGRow = (uint32)RowRatio;
-        RowRatio = RowRatio - (real32)PGRow;
-        real32 ColumnRatio = (real32)Vars.Column * (Grid.Dimension-1) / (TerrainDimension - 1);
-        uint32 PGColumn = (uint32)ColumnRatio;
-        ColumnRatio = ColumnRatio - (real32)PGColumn;
-        
-        real32 Result =
-            (((1.0f-ColumnRatio) * Grid.GetXY(PGRow, PGColumn) + 
-             (ColumnRatio) * Grid.GetXY(PGRow, PGColumn+1)) * (1.0f-RowRatio)) +
-            ((((1.0f-ColumnRatio) * Grid.GetXY(PGRow+1, PGColumn)) + 
-             ((ColumnRatio) * Grid.GetXY(PGRow+1, PGColumn+1))) * (RowRatio));
-        return Result;
-    };
-    // NOTE: Default is linear smoothing between grid points
-    SmoothingFunction = [](SmoothingFunctionVariables &Vars)
-    {
-        grid2D &Grid = *(Vars.StrechedGrid);
-        uint32 Row = Vars.Row;
-        uint32 Column = Vars.Column;
-        real32 Corners, Sides, Center;
-        Corners = (Grid.GetXY(Row-1, Column-1) +
-                   Grid.GetXY(Row+1, Column-1) +
-                   Grid.GetXY(Row+1, Column+1) +
-                   Grid.GetXY(Row-1, Column+1)) / 16.0f;
-        Sides = (Grid.GetXY(Row-1, Column) +
-                 Grid.GetXY(Row, Column-1) +
-                 Grid.GetXY(Row+1, Column) +
-                 Grid.GetXY(Row, Column+1)) / 8.0f;
-        Center = Grid.GetXY(Row, Column) / 4.0f;
-        
-        return Corners + Sides + Center;
-    }; 
-}
-
-void functional_terrain::GenerateTerrain(uint32 Seed, real32 Persistence)
-{
-    TerrainGrid.ZeroOutGridPoints();
-    RandomGenerator Rng(Seed);
-        
-    uint32 OctaveCount = log2(TerrainDimension);
-    
-    for(uint32 Octaves = 0;
-        Octaves < OctaveCount;
-        ++Octaves)
-    {
-        // float freq = 2^i;
-        // float amplitude = persistence^i;
-        
-        real32 Weight = pow(Persistence, OctaveCount-Octaves-1);
-        uint32 WaveLength = pow2(Octaves);
-        uint32 PGDimension = (TerrainDimension/WaveLength);
-        
-        grid2D PerlinGrid = {PGDimension};
-        SmoothingFunctionVariables Variables;
-        Variables.Seed = Seed;
-        Variables.Persistence = Persistence;
-        Variables.OctaveCount = OctaveCount;
-        Variables.OctaveIndex = Octaves;
-        Variables.Weight = Weight;
-        Variables.WaveLength = WaveLength;
-        Variables.PerlinGrid = &PerlinGrid;
-        Variables.TerrainGrid = &TerrainGrid;
-        for(uint32 Row = 0;
-            Row < PerlinGrid.Dimension;
-            ++Row)
-        {
-            for(uint32 Column = 0;
-                Column < PerlinGrid.Dimension;
-                ++Column)
-            {
-                PerlinGrid[Row][Column] = 
-                    Rng.RandomFloat(Row*WaveLength, Column*WaveLength) * Weight;
-            }
-        }
-        
-        grid2D StrechedPerlinGrid = {TerrainDimension};
-        Variables.StrechedGrid = &StrechedPerlinGrid;
-        for(uint32 Row = 0;
-            Row < TerrainGrid.Dimension;
-            ++Row)
-        {
-            for(uint32 Column = 0;
-                Column < TerrainGrid.Dimension;
-                ++Column)
-            {
-                Variables.Row = Row;
-                Variables.Column = Column;
-                StrechedPerlinGrid[Row][Column] = InterpolatingFunction(Variables);
-            }
-        }
-        
-        grid2D SmoothGrid = {TerrainDimension};
-        Variables.SmoothGrid = &SmoothGrid;
-        for(uint32 Row = 0;
-            Row < SmoothGrid.Dimension;
-            ++Row)
-        {
-            for(uint32 Column = 0;
-                Column < SmoothGrid.Dimension;
-                ++Column)
-            {
-                Variables.Row = Row;
-                Variables.Column = Column;
-                SmoothGrid[Row][Column] = SmoothingFunction(Variables);
-            }
-        }
-        
-        TerrainGrid += SmoothGrid;
-    }
-}
