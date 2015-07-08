@@ -9,6 +9,7 @@
 void terrainRenderer::Initialize(dx_resource &DXResources, uint32 FinalVertexCount)
 {
     DXReleased = false;
+    this->DXResource = DXResources;
     this->FinalVertexCount = FinalVertexCount;
     ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, 0,
                                              0, 1, 0, 0,
@@ -44,22 +45,30 @@ void terrainRenderer::Initialize(dx_resource &DXResources, uint32 FinalVertexCou
     DXResources.Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
 }
 
-void terrainRenderer::DrawWireframe(dx_resource &DXResources, std::shared_ptr<vertex> Vertices)
+void terrainRenderer::DrawWireframe(std::shared_ptr<vertex> Vertices)
 {
-    DXResources.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DXResource.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
        
     uint32 stride = sizeof(vertex);
     uint32 offset = 0;
-    DXResources.LoadResource(VertexBuffer, Vertices.get(), sizeof(vertex) * FinalVertexCount);    
-    
-    DXResources.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResources.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    DXResources.DeviceContext->Draw(FinalVertexCount, 0);
+    DXResource.LoadResource(VertexBuffer, Vertices.get(), sizeof(vertex) * FinalVertexCount);    
+             
+    DXResource.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DXResource.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    DXResource.DeviceContext->Draw(FinalVertexCount, 0);
 }
 
-void terrainRenderer::DrawPoints(dx_resource &DXResources, std::shared_ptr<vertex> Vertices)
+void terrainRenderer::DrawTriangles(std::shared_ptr<vertex> Vertices)
 { 
+    DXResource.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+       
+    uint32 stride = sizeof(vertex);
+    uint32 offset = 0;
+    DXResource.LoadResource(VertexBuffer, Vertices.get(), sizeof(vertex) * FinalVertexCount);    
     
+    DXResource.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DXResource.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    DXResource.DeviceContext->Draw(FinalVertexCount, 0);
 }
 
 void terrainRenderer::Release()

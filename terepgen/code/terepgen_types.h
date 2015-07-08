@@ -44,12 +44,16 @@ struct screen_info
 
 struct input
 {
-    bool32 moveLeft;
-    bool32 moveRight;
-    bool32 moveForward;
-    bool32 moveBack;
-    bool32 moveUp;
-    bool32 moveDown;
+    bool32 MoveLeft;
+    bool32 MoveRight;
+    bool32 MoveForward;
+    bool32 MoveBack;
+    bool32 MoveUp;
+    bool32 MoveDown;
+    bool32 SpeedUp;
+    bool32 SpeedDown;
+    
+    uint32 RenderMode;
     
     int32 MouseX;
     int32 MouseY;

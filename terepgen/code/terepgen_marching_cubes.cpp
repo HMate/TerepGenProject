@@ -322,11 +322,11 @@ v3 VertexInterp(real32 isolevel, v3 p1, v3 p2, real32 valp1, real32 valp2)
    real32 mu;
    v3 p;
 
-   if (ABS(isolevel-valp1) < 0.00001)
+   if (ABS(isolevel-valp1) < 0.001)
       return(p1);
-   if (ABS(isolevel-valp2) < 0.00001)
+   if (ABS(isolevel-valp2) < 0.001)
       return(p2);
-   if (ABS(valp1-valp2) < 0.00001)
+   if (ABS(valp1-valp2) < 0.0001)
       return(p1);
    mu = (isolevel - valp1) / (valp2 - valp1);
    p.X = p1.X + mu * (p2.X - p1.X);
@@ -353,14 +353,14 @@ uint32 Polygonise(GRIDCELL grid, real32 isolevel, TRIANGLE *triangles)
       tells us which vertices are inside of the surface
    */
    uint32 cubeindex = 0;
-   if (grid.val[0] < isolevel) cubeindex |= 1;
-   if (grid.val[1] < isolevel) cubeindex |= 2;
-   if (grid.val[2] < isolevel) cubeindex |= 4;
-   if (grid.val[3] < isolevel) cubeindex |= 8;
-   if (grid.val[4] < isolevel) cubeindex |= 16;
-   if (grid.val[5] < isolevel) cubeindex |= 32;
-   if (grid.val[6] < isolevel) cubeindex |= 64;
-   if (grid.val[7] < isolevel) cubeindex |= 128;
+   if (grid.val[0] > isolevel) cubeindex |= 1;
+   if (grid.val[1] > isolevel) cubeindex |= 2;
+   if (grid.val[2] > isolevel) cubeindex |= 4;
+   if (grid.val[3] > isolevel) cubeindex |= 8;
+   if (grid.val[4] > isolevel) cubeindex |= 16;
+   if (grid.val[5] > isolevel) cubeindex |= 32;
+   if (grid.val[6] > isolevel) cubeindex |= 64;
+   if (grid.val[7] > isolevel) cubeindex |= 128;
 
    /* Cube is entirely in/out of the surface */
    if (edgeTable[cubeindex] == 0)

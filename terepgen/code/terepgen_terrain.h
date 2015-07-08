@@ -6,6 +6,7 @@
 
 #include <random>
 
+#include "terepgen_types.h"
 #include "terepgen_dxresources.h"
 #include "terepgen_grid.h"
 #include "terepgen_vector.h"
@@ -28,6 +29,7 @@ struct RandomGenerator
         this->Seed = Seed;
     }
     
+    // Gives a random float in the (-1, 1) range based on 2d coordinates
     float RandomFloat(uint32 Row, uint32 Column)
     {
         uint32 ColumnSeed = _rotr(((Seed + Column) * 6529), Row);
@@ -37,6 +39,7 @@ struct RandomGenerator
         return Result;
     }
     
+    // Gives a random float in the (-1, 1) range based on 3d coordinates
     float RandomFloat(uint32 Table, uint32 Row, uint32 Column)
     {
         uint32 ColumnSeed = _rotr(((Seed + Column) * 6529), Row);
@@ -46,6 +49,30 @@ struct RandomGenerator
         real32 Result = UniformRng(Rng);
         return Result;
     }
+};
+
+struct terrainRenderer
+{
+    dx_resource DXResource;
+    ID3D11Buffer *ObjectConstantBuffer;
+    object_constants ObjectConstants;
+    ID3D11Buffer *VertexBuffer; 
+    uint32 FinalVertexCount;
+    bool32 DXReleased;
+    
+    void Initialize(dx_resource &DXResources, uint32 FinalVertexCount);
+    ~terrainRenderer();
+    void Release();
+    
+    void DrawWireframe(std::shared_ptr<vertex> Vertices);
+    void DrawTriangles(std::shared_ptr<vertex> Vertices);
+};
+
+enum class terrain_render_mode
+{
+    Triangles = 0,
+    Wireframe = 1,
+    Points = 2
 };
 
 struct terrain
@@ -77,28 +104,16 @@ struct terrain3D
     
     uint32 LastSeed;
     real32 LastPersistence;
+    terrain_render_mode LastRenderMode;
     
     void Initialize(uint32 Seed, real32 Persistence);
     virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
     std::shared_ptr<vertex> CreateRenderVertices();
+    std::shared_ptr<vertex> CreateVerticesForPointRendering();
+    std::shared_ptr<vertex> CreateVerticesForWireframeRendering();
     
-    void Update(uint32 Seed, real32 Persistence);
-};
-
-struct terrainRenderer
-{
-    ID3D11Buffer *ObjectConstantBuffer;
-    object_constants ObjectConstants;
-    ID3D11Buffer *VertexBuffer; 
-    uint32 FinalVertexCount;
-    bool32 DXReleased;
-    
-    void Initialize(dx_resource &DXResources, uint32 FinalVertexCount);
-    ~terrainRenderer();
-    void Release();
-    
-    void DrawWireframe(dx_resource &DXResources, std::shared_ptr<vertex> Vertices);
-    void DrawPoints(dx_resource &DXResources, std::shared_ptr<vertex> Vertices);
+    void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode);
+    void Draw(terrainRenderer &Renderer);
 };
 
 struct RandomGeneratorVariables

@@ -97,6 +97,15 @@ struct dx_resource
         DeviceContext->IASetInputLayout(InputLayout);
     }
 
+    void LoadResource(ID3D11Buffer *Buffer, void *Resource, uint32 ResourceSize)
+    {
+        D3D11_MAPPED_SUBRESOURCE MappedSubresource;
+        DeviceContext->Map(Buffer, NULL,
+                        D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
+        memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
+        DeviceContext->Unmap(Buffer, NULL);
+    } 
+
     void Release()
     {     
         VertexShader->Release();
@@ -135,15 +144,6 @@ struct dx_resource
             DeviceContext->RSSetViewports( 1, &ViewPort);
         }
     }
-
-    void LoadResource(ID3D11Buffer *Buffer, void *Resource, uint32 ResourceSize)
-    {
-        D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-        DeviceContext->Map(Buffer, NULL,
-                        D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
-        memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
-        DeviceContext->Unmap(Buffer, NULL);
-    } 
 };
 
 struct camera
@@ -199,32 +199,44 @@ struct camera
     {
         XMFLOAT3 dCameraPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
         XMVECTOR TargetDirection =  XMLoadFloat3(&TargetPos) - XMLoadFloat3(&Position);
-        if(Input.moveForward) 
+        if(Input.SpeedUp) 
+        {
+            CameraSpeed *= 2.0f;
+        }
+        if(Input.SpeedDown) 
+        {
+            CameraSpeed *= 0.5f;
+        }
+        if(Input.MoveForward) 
         {
             XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) + TargetDirection * CameraSpeed);
         }
-        if(Input.moveBack) 
+        if(Input.MoveForward) 
+        {
+            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) + TargetDirection * CameraSpeed);
+        }
+        if(Input.MoveBack) 
         {
             XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) - TargetDirection * CameraSpeed);
         }
-        if(Input.moveLeft) 
+        if(Input.MoveLeft) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) -
                 XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * CameraSpeed);
         }
-        if(Input.moveRight) 
+        if(Input.MoveRight) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) +
                 XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * CameraSpeed);
         }
-        if(Input.moveUp) 
+        if(Input.MoveUp) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) + XMLoadFloat3(&UpDirection) * CameraSpeed);
         }
-        if(Input.moveDown) 
+        if(Input.MoveDown) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) - XMLoadFloat3(&UpDirection) * CameraSpeed);

@@ -70,27 +70,35 @@ WindowProc(HWND Window,
             {
                 if(KeyCode == 'W')
                 {
-                    GlobalInput.moveForward = !GlobalInput.moveForward;
+                    GlobalInput.MoveForward = !GlobalInput.MoveForward;
                 }
                 else if(KeyCode == 'A')
                 {
-                    GlobalInput.moveLeft = !GlobalInput.moveLeft;
+                    GlobalInput.MoveLeft = !GlobalInput.MoveLeft;
                 }
                 else if(KeyCode == 'S')
                 {
-                    GlobalInput.moveBack = !GlobalInput.moveBack;
+                    GlobalInput.MoveBack = !GlobalInput.MoveBack;
                 }
                 else if(KeyCode == 'D')
                 {
-                    GlobalInput.moveRight = !GlobalInput.moveRight;
+                    GlobalInput.MoveRight = !GlobalInput.MoveRight;
                 }
                 else if(KeyCode == 'E' || KeyCode == VK_SPACE)
                 {
-                    GlobalInput.moveUp = !GlobalInput.moveUp;
+                    GlobalInput.MoveUp = !GlobalInput.MoveUp;
                 }
                 else if(KeyCode == 'Q')
                 {
-                    GlobalInput.moveDown = !GlobalInput.moveDown;
+                    GlobalInput.MoveDown = !GlobalInput.MoveDown;
+                }
+                else if(KeyCode == VK_ADD && !KeyIsUp)
+                {
+                    GlobalInput.SpeedUp = !GlobalInput.SpeedUp;
+                }
+                else if(KeyCode == VK_SUBTRACT && !KeyIsUp)
+                {
+                    GlobalInput.SpeedDown = !GlobalInput.SpeedDown;
                 }
                 else if(KeyCode == VK_NUMPAD1 && !KeyIsUp)
                 {
@@ -99,6 +107,14 @@ WindowProc(HWND Window,
                 else if((KeyCode == VK_NUMPAD2 || KeyCode == 'T') && !KeyIsUp)
                 {
                    DrawTerrain2 = !DrawTerrain2;
+                }
+                else if(KeyCode == 'R' && !KeyIsUp)
+                {
+                    GlobalInput.RenderMode++;
+                    if(GlobalInput.RenderMode > 2) 
+                    {
+                        GlobalInput.RenderMode = 0;
+                    }
                 }
                 else if(KeyCode == VK_ESCAPE && !KeyIsUp)
                 {
@@ -217,7 +233,7 @@ WinMain(HINSTANCE Instance,
                 
                 Camera.Update(GlobalInput);
                 // Terrain.Update(GlobalSeed, Persistence);
-                Terrain3D.Update(GlobalSeed, Persistence);
+                Terrain3D.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 DXResources.LoadResource(Camera.SceneConstantBuffer,
                               &Camera.SceneConstants, sizeof(Camera.SceneConstants));
@@ -227,7 +243,7 @@ WinMain(HINSTANCE Instance,
                 DXResources.DeviceContext->ClearRenderTargetView(DXResources.BackBuffer, BackgroundColor.C);
                 
                 // TRenderer.DrawWireframe(DXResources, Terrain.Vertices);
-                TRenderer.DrawWireframe(DXResources, Terrain3D.Vertices);
+                Terrain3D.Draw(TRenderer);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 
                 DXResources.SwapChain->Present(0, 0);
