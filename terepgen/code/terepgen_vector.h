@@ -36,6 +36,30 @@ struct v3
     }
 };
 
+internal 
+v3 Normalize(v3 Vec)
+{
+    real32 Length = Vec.X*Vec.X + Vec.Y*Vec.Y + Vec.Z*Vec.Z; 
+    return v3{Vec.X/Length, Vec.Y/Length, Vec.Z/Length};
+}
+
+internal
+real32 DotProduct(v3 A, v3 B)
+{
+    real32 Result = A.X*B.X + A.Y*B.Y + A.Z*B.Z;
+    return Result;
+}
+
+internal 
+v3 Cross(v3 A, v3 B)
+{
+    v3 Result;
+    Result.X = A.Y*B.Z - A.Z*B.Y;
+    Result.Y = A.Z*B.X - A.X*B.Z;
+    Result.Z = A.X*B.Y - A.Y*B.X;
+    return Result;
+}
+
 // v3 v3::operator+(v3 &Other)
 // {
     // v3 Result = {this->X + Other.X, this->Y + Other.Y, this->Z + Other.Z};

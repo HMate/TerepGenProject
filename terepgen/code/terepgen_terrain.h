@@ -13,7 +13,12 @@
 
 struct vertex
 {
-    real32 X, Y, Z;
+    // NOTE: position is in left handed coordinate system
+    // +X points right initially, -X points left
+    // +Y is vertical axis and points up 
+    // -Z points through screen to user initially, +Z points toward screen 
+    real32 X, Y, Z, W;
+    real32 NX, NY, NZ, NW;
     color Color;
 };
 
@@ -95,6 +100,7 @@ struct terrain3D
 {
     uint32 TerrainDimension;
     grid3D TerrainGrid;
+    v3 GridPos = v3{-10.0f, -10.0f, -10.0f};
     color Color;
     
     uint32 FinalVertexCount;  

@@ -89,10 +89,11 @@ struct dx_resource
         
         D3D11_INPUT_ELEMENT_DESC ElementDesc[] = 
         {
-            {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-            {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+            {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+            {"NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+            {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
         };
-        Device->CreateInputLayout(ElementDesc, 2, 
+        Device->CreateInputLayout(ElementDesc, ArrayCount(ElementDesc), 
                     Vs->GetBufferPointer(), Vs->GetBufferSize(), &InputLayout);
         DeviceContext->IASetInputLayout(InputLayout);
     }
@@ -151,7 +152,7 @@ struct camera
     XMFLOAT3 Position = XMFLOAT3(0, 0, 0);
     XMFLOAT3 TargetPos = XMFLOAT3(0, 0, 1);
     XMFLOAT3 UpDirection = XMFLOAT3(0, 1, 0);
-    float CameraSpeed = 1.6f;
+    real32 CameraSpeed = 1.6f;
     
     XMFLOAT4X4 ViewMx;
     XMFLOAT4X4 ProjMx;
@@ -201,23 +202,22 @@ struct camera
         XMVECTOR TargetDirection =  XMLoadFloat3(&TargetPos) - XMLoadFloat3(&Position);
         if(Input.SpeedUp) 
         {
-            CameraSpeed *= 2.0f;
+            if(CameraSpeed < 0.001f) 
+                CameraSpeed = 0.1f;
+            else CameraSpeed *= 1.2f;
         }
         if(Input.SpeedDown) 
         {
-            CameraSpeed *= 0.5f;
+            CameraSpeed *= 0.9f;
         }
+        // NOTE: Gather where to move with camera
         if(Input.MoveForward) 
         {
-            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) + TargetDirection * CameraSpeed);
-        }
-        if(Input.MoveForward) 
-        {
-            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) + TargetDirection * CameraSpeed);
+            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) + (TargetDirection * CameraSpeed));
         }
         if(Input.MoveBack) 
         {
-            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) - TargetDirection * CameraSpeed);
+            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) - (TargetDirection * CameraSpeed));
         }
         if(Input.MoveLeft) 
         {
@@ -242,17 +242,18 @@ struct camera
                 XMLoadFloat3(&dCameraPos) - XMLoadFloat3(&UpDirection) * CameraSpeed);
         }
         
-        bool32 MouseLeftIsDown = GetKeyState(VK_LBUTTON) & (1 << 15);
-        bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
-        
-        auto dMouseX = Input.MouseX - Input.OldMouseX;
-        auto dMouseY = Input.MouseY - Input.OldMouseY;
-        
+        // NOTE: move camera in pressed directions
         XMStoreFloat3(&Position,
             XMLoadFloat3(&Position) + XMLoadFloat3(&dCameraPos));
         XMStoreFloat3(&TargetPos,
             XMLoadFloat3(&TargetPos) + XMLoadFloat3(&dCameraPos));
         
+        bool32 MouseLeftIsDown = GetKeyState(VK_LBUTTON) & (1 << 15);
+        bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
+        
+        // NOTE: rotate camera
+        auto dMouseX = Input.MouseX - Input.OldMouseX;
+        auto dMouseY = Input.MouseY - Input.OldMouseY;
         if(MouseLeftIsDown && (dMouseX != 0 || dMouseY != 0))
         {
             XMVECTOR NewTargetDir = TargetDirection;

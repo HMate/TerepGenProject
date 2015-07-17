@@ -27,6 +27,10 @@ typedef double real64;
 #define ArrayCount(Array) ((sizeof(Array))/sizeof(*Array))
 #define Assert(Test) if(!(Test)){*(int *)0 = 0;}
 
+#define KILOBYTE(Size) ((Size)*1024)
+#define MEGABYTE(Size) ((Size)*1024*1024)
+#define GIGABYTE(Size) ((Size)*1024*1024*1024)
+
 union color
 {
     struct

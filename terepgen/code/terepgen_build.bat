@@ -13,10 +13,13 @@ set CommonCompilerFlags= -MTd -nologo -Od -Z7 -EHsc
 REM -opt:ref Eliminates functions and data that are not referenced
 set CommonLinkerFlags= -incremental:no -opt:ref user32.lib d3d11.lib d3dcompiler.lib
 
+REM List the cpp files to compile here
+set CompiledFiles= ..\code\windows_terepgen.cpp ..\code\terepgen_terrain.cpp^
+    ..\code\terepgen_terrain_renderer.cpp
+
 if not exist ..\build mkdir ..\build
 pushd ..\build
-cl %CommonCompilerFlags% ..\code\windows_terepgen.cpp ..\code\terepgen_terrain.cpp^
- ..\code\terepgen_terrain_renderer.cpp /link %CommonLinkerFlags%
+cl %CommonCompilerFlags% %CompiledFiles% /link %CommonLinkerFlags%
 popd
 
 echo TerepGen compile ended at %TIME%

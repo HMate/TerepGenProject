@@ -92,11 +92,11 @@ WindowProc(HWND Window,
                 {
                     GlobalInput.MoveDown = !GlobalInput.MoveDown;
                 }
-                else if(KeyCode == VK_ADD && !KeyIsUp)
+                else if(KeyCode == VK_ADD)
                 {
                     GlobalInput.SpeedUp = !GlobalInput.SpeedUp;
                 }
-                else if(KeyCode == VK_SUBTRACT && !KeyIsUp)
+                else if(KeyCode == VK_SUBTRACT)
                 {
                     GlobalInput.SpeedDown = !GlobalInput.SpeedDown;
                 }
@@ -164,8 +164,10 @@ WinMain(HINSTANCE Instance,
     WindowClass.lpszClassName = "TerepGenWindowClass";
     
     screen_info ScreenInfo;
-    ScreenInfo.Width = 1280;
-    ScreenInfo.Height = 800;
+    // ScreenInfo.Width = 1280;
+	// ScreenInfo.Height = 800;
+	ScreenInfo.Width = 800;
+	ScreenInfo.Height = 600;
     
     if(RegisterClassA(&WindowClass))
     {
@@ -175,7 +177,7 @@ WinMain(HINSTANCE Instance,
                             "TerepGen",
                             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                             200,
-                            150,
+                            50,
                             ScreenInfo.Width,
                             ScreenInfo.Height,
                             0, 0,

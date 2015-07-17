@@ -130,11 +130,11 @@ GetGridVertex(grid2D *Grid, v3 GridPos, uint32 GridX, uint32 GridY, color Color)
     real32 Height = Scale * 15.0f;
     vertex Result = {GridPos.X + (Scale * (real32)GridX), 
                      GridPos.Y + Height * Grid->GetXY(GridY, GridX), 
-                     GridPos.Z + (Scale * (real32)GridY), 
+                     GridPos.Z + (Scale * (real32)GridY), 1.0f, 
+                     0.0f, 0.0f, 0.0f, 1.0f,
                      Color};
     return Result;
 }
-
 
 std::shared_ptr<vertex> terrain::CreateRenderVertices()
 {
@@ -202,14 +202,13 @@ void terrain::Update(uint32 Seed, real32 Persistence)
 
 // Terrain 3D
 
-
 void terrain3D::Initialize(uint32 Seed, real32 Persistence)
-{    
-    
+{      
     TerrainDimension = 64;
     TerrainGrid = grid3D{TerrainDimension};
     
-    FinalVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*18;
+    // NOTE: above 120MB vx buffer size dx11 crashes
+    FinalVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*8;
     
     Update(Seed, Persistence, terrain_render_mode::Triangles);
 }
@@ -298,12 +297,13 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
 }
 
 internal vertex
-Get3DGridVertex(v3 GridPos, v3 LocalPos, color Color)
+Get3DGridVertex(v3 GridPos, v3 LocalPos, v3 Normal, color Color)
 {
     real32 Scale = 1.0f;
     vertex Result = {GridPos.X + (Scale * LocalPos.X), 
                      GridPos.Y + (Scale * LocalPos.Y), 
-                     GridPos.Z + (Scale * LocalPos.Z), 
+                     GridPos.Z + (Scale * LocalPos.Z), 1.0f, 
+                     Normal.X, Normal.Y, Normal.Z, 1.0f,
                      Color};
     return Result;
 }
@@ -312,12 +312,12 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
 {
     std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[FinalVertexCount]);
     color PointColor0 = color{0.0, 1.0f, 0.0f, 1.0f};
-    v3 GridPos = v3{-10.0f, -10.0f, -10.0f};
+    v3 Normal = v3{0.0f, 1.0f, 0.0f};
     
     uint32 VertexCount = 0;
     for(uint32 Plane = 0;
-            Plane < TerrainGrid.Dimension-1;
-            ++Plane)
+        Plane < TerrainGrid.Dimension-1;
+        ++Plane)
     {
         for(uint32 Row = 0;
             Row < TerrainGrid.Dimension-1;
@@ -337,12 +337,12 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
                     PointColor = color{0.0f, 1.0f, 0.0f, 1.0f};
                 else
                     PointColor = color{1.0f, 1.0f, 1.0f, 1.0f};
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos + dPosPlane, PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos - dPosPlane, PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos + dPosRow, PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos - dPosRow, PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos + dPosColumn, PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos - dPosColumn, PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos + dPosPlane,  Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos - dPosPlane,  Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos + dPosRow,    Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos - dPosRow,    Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos + dPosColumn, Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos - dPosColumn, Normal ,PointColor);
                     
             }
         }
@@ -358,12 +358,11 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForWireframeRendering()
     color PointColor0 = color{1.0, 0.0f, 0.0f, 1.0f};
     color PointColor1 = color{0.0, 1.0f, 0.0f, 1.0f};
     color PointColor2 = color{0.0, 0.0f, 1.0f, 1.0f};
-    v3 GridPos = v3{-10.0f, -10.0f, -10.0f};
     
     uint32 VertexCount = 0;
     for(uint32 Plane = 0;
-            Plane < TerrainGrid.Dimension-1;
-            ++Plane)
+        Plane < TerrainGrid.Dimension-1;
+        ++Plane)
     {
         for(uint32 Row = 0;
             Row < TerrainGrid.Dimension-1;
@@ -395,12 +394,16 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForWireframeRendering()
                 
                 for(uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
                 {
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[0], PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[1], PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[1], PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[2], PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[2], PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[0], PointColor);
+                    v3 Point0 = Triangles[TriangleIndex].p[0];
+                    v3 Point1 = Triangles[TriangleIndex].p[1];
+                    v3 Point2 = Triangles[TriangleIndex].p[2];
+                    v3 Normal = Cross(Point2 - Point1, Point0 - Point1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point0, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point1, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point1, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point2, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point2, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point0, Normal, PointColor);
                 }
             }
         }
@@ -416,12 +419,11 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
     color PointColor0 = color{1.0, 0.0f, 0.0f, 1.0f};
     color PointColor1 = color{0.0, 1.0f, 0.0f, 1.0f};
     color PointColor2 = color{0.0, 0.0f, 1.0f, 1.0f};
-    v3 GridPos = v3{-10.0f, -10.0f, -10.0f};
     
     uint32 VertexCount = 0;
     for(uint32 Plane = 0;
-            Plane < TerrainGrid.Dimension-1;
-            ++Plane)
+        Plane < TerrainGrid.Dimension-1;
+        ++Plane)
     {
         for(uint32 Row = 0;
             Row < TerrainGrid.Dimension-1;
@@ -453,9 +455,13 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
                 
                 for(uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
                 {
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[0], PointColor1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[1], PointColor1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Triangles[TriangleIndex].p[2], PointColor1);
+                    v3 Point0 = Triangles[TriangleIndex].p[0];
+                    v3 Point1 = Triangles[TriangleIndex].p[1];
+                    v3 Point2 = Triangles[TriangleIndex].p[2];
+                    v3 Normal = Cross(Point2 - Point1, Point0 - Point1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point0, Normal, PointColor1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point1, Normal, PointColor1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point2, Normal, PointColor1);
                 }
             }
         }
@@ -472,15 +478,20 @@ void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode Rend
         LastSeed = Seed;
         LastPersistence = Persistence;
         LastRenderMode = RenderMode;
-        if(RenderMode == terrain_render_mode::Triangles) Vertices = CreateRenderVertices();
-        else if(RenderMode == terrain_render_mode::Points) Vertices = CreateVerticesForPointRendering();
-        else Vertices = CreateVerticesForWireframeRendering();
+        if(RenderMode == terrain_render_mode::Triangles) 
+            Vertices = CreateRenderVertices();
+        else if(RenderMode == terrain_render_mode::Points) 
+            Vertices = CreateVerticesForPointRendering();
+        else 
+            Vertices = CreateVerticesForWireframeRendering();
         
     }
 }
 
 void terrain3D::Draw(terrainRenderer &Renderer)
 {
-    if(LastRenderMode != terrain_render_mode::Triangles) Renderer.DrawWireframe(Vertices);
-    else Renderer.DrawTriangles(Vertices);
+    if(LastRenderMode != terrain_render_mode::Triangles) 
+        Renderer.DrawWireframe(Vertices);
+    else 
+        Renderer.DrawTriangles(Vertices);
 }
