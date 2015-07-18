@@ -189,7 +189,11 @@ WinMain(HINSTANCE Instance,
             DrawTerrain1 = true;
             GlobalSeed = 1000;
             dx_resource DXResources;
-            DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height);
+            if(FAILED(DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height)))
+            {
+                DXResources.Release();
+                return 1;
+            }
             
             camera Camera;
             Camera.Initialize(DXResources, ScreenInfo);

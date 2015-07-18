@@ -23,19 +23,20 @@ struct object_constants
 
 struct dx_resource
 {
-    IDXGISwapChain *SwapChain;
-    ID3D11Device *Device;
-    ID3D11DeviceContext *DeviceContext;
-    ID3D11RenderTargetView *BackBuffer;
-    ID3D11VertexShader *VertexShader;
-    ID3D11PixelShader *PixelShader;
-    ID3D11InputLayout *InputLayout;
+    IDXGISwapChain *SwapChain = nullptr;
+    ID3D11Device *Device = nullptr;
+    ID3D11DeviceContext *DeviceContext = nullptr;
+    ID3D11RenderTargetView *BackBuffer = nullptr;
+    ID3D11VertexShader *VertexShader = nullptr;
+    ID3D11PixelShader *PixelShader = nullptr;
+    ID3D11InputLayout *InputLayout = nullptr;
     
-    void Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
+    HRESULT Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
     {
+        HRESULT HResult;
+        
         DXGI_SWAP_CHAIN_DESC SwapChainDesc;
         ZeroMemory(&SwapChainDesc, sizeof(SwapChainDesc));
-        
         SwapChainDesc.BufferCount = 1;
         SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -49,23 +50,31 @@ struct dx_resource
                                               D3D_FEATURE_LEVEL_10_0};
         D3D_FEATURE_LEVEL UsedFeatureLevel;
         
-        D3D11CreateDeviceAndSwapChain(NULL,
-                                      D3D_DRIVER_TYPE_HARDWARE,
-                                      NULL,
-                                      NULL,
-                                      (D3D_FEATURE_LEVEL *)FeatureLevels,
-                                      ArrayCount(FeatureLevels),
-                                      D3D11_SDK_VERSION,
-                                      &SwapChainDesc,
-                                      &SwapChain,
-                                      &Device,
-                                      &UsedFeatureLevel,
-                                      &DeviceContext);
-                                      
+        HResult = D3D11CreateDeviceAndSwapChain(NULL,
+                                               D3D_DRIVER_TYPE_HARDWARE,
+                                               NULL,
+                                               NULL,
+                                               (D3D_FEATURE_LEVEL *)FeatureLevels,
+                                               ArrayCount(FeatureLevels),
+                                               D3D11_SDK_VERSION,
+                                               &SwapChainDesc,
+                                               &SwapChain,
+                                               &Device,
+                                               &UsedFeatureLevel,
+                                               &DeviceContext);
+        if(FAILED(HResult))
+            return HResult;
+        
         ID3D11Texture2D *BackBufferTexture;
-        SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID *)&BackBufferTexture);
-        Device->CreateRenderTargetView(BackBufferTexture, 0, &BackBuffer);
+        HResult = SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID *)&BackBufferTexture);
+        if(FAILED(HResult))
+            return HResult;
+        
+        HResult = Device->CreateRenderTargetView(BackBufferTexture, 0, &BackBuffer);
         BackBufferTexture->Release();
+        if(FAILED(HResult))
+            return HResult;
+        
         DeviceContext->OMSetRenderTargets(1, &BackBuffer, 0);
         
         D3D11_VIEWPORT Viewport;
@@ -77,11 +86,33 @@ struct dx_resource
         Viewport.Height = ScreenHeight;
         DeviceContext->RSSetViewports(1, &Viewport);
         
-        ID3D10Blob *Vs, *Ps;
-        D3DCompileFromFile(L"shaders.shader", 0, 0, "VShader", "vs_4_0", 0, 0, &Vs, 0);
-        D3DCompileFromFile(L"shaders.shader", 0, 0, "PShader", "ps_4_0", 0, 0, &Ps, 0);
-        Device->CreateVertexShader(Vs->GetBufferPointer(), Vs->GetBufferSize(), 0, &VertexShader);
-        Device->CreatePixelShader(Ps->GetBufferPointer(), Ps->GetBufferSize(), 0, &PixelShader);
+        ID3D10Blob *BlobVs, *BlobPs;
+        ID3D10Blob *BlobError = nullptr;
+        
+        HResult = D3DCompileFromFile(L"shaders.shader", 0, 0, "VShader", "vs_4_0", 0, 0, &BlobVs, &BlobError);
+        if(FAILED(HResult))
+        {
+            if(BlobError != nullptr)
+            {
+                OutputDebugStringA((char*)BlobError->GetBufferPointer());
+                BlobError->Release();
+                return HResult;
+            }
+        }
+        Device->CreateVertexShader(BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), 0, &VertexShader);
+        
+        HResult = D3DCompileFromFile(L"shaders.shader", 0, 0, "PShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
+        if(FAILED(HResult))
+        {
+            if(BlobError != nullptr)
+            {
+                OutputDebugStringA((char*)BlobError->GetBufferPointer());
+                BlobError->Release();
+                return HResult;
+            }
+        }
+        Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &PixelShader);
+        BlobPs->Release();
         
         DeviceContext->VSSetShader(VertexShader, 0, 0);
         DeviceContext->PSSetShader(PixelShader, 0, 0);
@@ -93,9 +124,14 @@ struct dx_resource
             {"NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
             {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
         };
-        Device->CreateInputLayout(ElementDesc, ArrayCount(ElementDesc), 
-                    Vs->GetBufferPointer(), Vs->GetBufferSize(), &InputLayout);
+        HResult = Device->CreateInputLayout(ElementDesc, ArrayCount(ElementDesc), 
+                    BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), &InputLayout);
+        BlobVs->Release();
+        if(FAILED(HResult))
+            return HResult;
         DeviceContext->IASetInputLayout(InputLayout);
+        
+        return HResult;
     }
 
     void LoadResource(ID3D11Buffer *Buffer, void *Resource, uint32 ResourceSize)
@@ -109,12 +145,12 @@ struct dx_resource
 
     void Release()
     {     
-        VertexShader->Release();
-        PixelShader->Release();
-        SwapChain->Release();
-        BackBuffer->Release();
-        Device->Release();
-        DeviceContext->Release();
+        if(VertexShader) VertexShader->Release();
+        if(PixelShader) PixelShader->Release();
+        if(SwapChain) SwapChain->Release();
+        if(BackBuffer) BackBuffer->Release();
+        if(Device) Device->Release();
+        if(DeviceContext) DeviceContext->Release();
     }
     
     void Resize(uint32 ScreenWidth, uint32 ScreenHeight)

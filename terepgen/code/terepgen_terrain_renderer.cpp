@@ -78,6 +78,7 @@ void terrainRenderer::DrawTriangles(std::shared_ptr<vertex> Vertices)
     DXResource.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
     DXResource.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     DXResource.DeviceContext->Draw(FinalVertexCount, 0);
+    DXResource.SwapChain->Present(0, 0);
 }
 
 void terrainRenderer::Release()

@@ -34,8 +34,7 @@ VOut VShader(VIn input)
 
     return output;
 }
-
-    
+  
 float4 PShader(VOut input) : SV_TARGET
 {
     /*const float4 sunDir = {-0.333f, -0.333f, -0.333f, 0.0f};*/
