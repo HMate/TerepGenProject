@@ -189,8 +189,11 @@ WinMain(HINSTANCE Instance,
             DrawTerrain1 = true;
             GlobalSeed = 1000;
             dx_resource DXResources;
-            if(FAILED(DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height)))
+            HRESULT HResult;
+            HResult = DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height);
+            if(FAILED(HResult))
             {
+                //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
                 DXResources.Release();
                 return 1;
             }
@@ -246,9 +249,11 @@ WinMain(HINSTANCE Instance,
                 
                 color BackgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
                 //color BackgroundColor = {0.3f, 0.3f, 0.3f, 1.0f}; //grey
+                DXResources.DeviceContext->ClearDepthStencilView(DXResources.DepthStencilView, 
+                    D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, 1.0f, 0);
                 DXResources.DeviceContext->ClearRenderTargetView(DXResources.BackBuffer, BackgroundColor.C);
                 
-                // TRenderer.DrawWireframe(DXResources, Terrain.Vertices);
+                // TRenderer.DrawDebugTriangle();
                 Terrain3D.Draw(TRenderer);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 

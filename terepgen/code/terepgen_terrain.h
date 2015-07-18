@@ -71,6 +71,7 @@ struct terrainRenderer
     
     void DrawWireframe(std::shared_ptr<vertex> Vertices);
     void DrawTriangles(std::shared_ptr<vertex> Vertices);
+    void DrawDebugTriangle();
 };
 
 enum class terrain_render_mode

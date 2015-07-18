@@ -30,6 +30,8 @@ struct dx_resource
     ID3D11VertexShader *VertexShader = nullptr;
     ID3D11PixelShader *PixelShader = nullptr;
     ID3D11InputLayout *InputLayout = nullptr;
+    ID3D11DepthStencilView *DepthStencilView = nullptr;
+    ID3D11Texture2D *DepthStencilBuffer = nullptr;    
     
     HRESULT Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
     {
@@ -65,6 +67,18 @@ struct dx_resource
         if(FAILED(HResult))
             return HResult;
         
+        D3D11_VIEWPORT Viewport;
+        ZeroMemory(&Viewport, sizeof(D3D11_VIEWPORT));
+
+        Viewport.TopLeftX = 0;
+        Viewport.TopLeftY = 0;
+        Viewport.Width = ScreenWidth;
+        Viewport.Height = ScreenHeight;
+        Viewport.MinDepth = 0.0f;
+        Viewport.MaxDepth = 1.0f;
+        DeviceContext->RSSetViewports(1, &Viewport);
+        
+        // NOTE: Create Render Target View
         ID3D11Texture2D *BackBufferTexture;
         HResult = SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID *)&BackBufferTexture);
         if(FAILED(HResult))
@@ -73,19 +87,57 @@ struct dx_resource
         HResult = Device->CreateRenderTargetView(BackBufferTexture, 0, &BackBuffer);
         BackBufferTexture->Release();
         if(FAILED(HResult))
-            return HResult;
+            return HResult;        
         
-        DeviceContext->OMSetRenderTargets(1, &BackBuffer, 0);
+        //NOTE: Create Depth Stencil
+        // D3D11_TEXTURE2D_DESC DepthStencilDesc;
+        // DepthStencilDesc.Width     = ScreenWidth;
+        // DepthStencilDesc.Height    = ScreenHeight;
+        // DepthStencilDesc.MipLevels = 1;
+        // DepthStencilDesc.ArraySize = 1;
+        // DepthStencilDesc.Format    = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        // DepthStencilDesc.SampleDesc.Count   = 1;
+        // DepthStencilDesc.SampleDesc.Quality = 0;
+        // DepthStencilDesc.Usage          = D3D11_USAGE_DEFAULT;
+        // DepthStencilDesc.BindFlags      = D3D11_BIND_DEPTH_STENCIL;
+        // DepthStencilDesc.CPUAccessFlags = 0; 
+        // DepthStencilDesc.MiscFlags      = 0;
         
-        D3D11_VIEWPORT Viewport;
-        ZeroMemory(&Viewport, sizeof(D3D11_VIEWPORT));
+        // HResult = Device->CreateTexture2D(&DepthStencilDesc, nullptr, &DepthStencilBuffer);
+        // if(FAILED(HResult)) return HResult;
+        // HResult = Device->CreateDepthStencilView(DepthStencilBuffer, nullptr, &DepthStencilView);
+        // if(FAILED(HResult)) return HResult;
+        
+        DeviceContext->OMSetRenderTargets(1, &BackBuffer, DepthStencilView);
+        
+        D3D11_DEPTH_STENCIL_DESC dsDesc;
 
-        Viewport.TopLeftX = 0;
-        Viewport.TopLeftY = 0;
-        Viewport.Width = ScreenWidth;
-        Viewport.Height = ScreenHeight;
-        DeviceContext->RSSetViewports(1, &Viewport);
+        // Depth test parameters
+        dsDesc.DepthEnable = true;
+        dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+        dsDesc.DepthFunc = D3D11_COMPARISON_GREATER;//D3D11_COMPARISON_LESS;
+        // Stencil test parameters
+        dsDesc.StencilEnable = false;
+        dsDesc.StencilReadMask = 0xFF;
+        dsDesc.StencilWriteMask = 0xFF;
+
+        // Stencil operations if pixel is front-facing
+        dsDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        dsDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR;
+        dsDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+        dsDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+
+        // Stencil operations if pixel is back-facing
+        dsDesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        dsDesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR;
+        dsDesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+        dsDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+
+        // Create depth stencil state
+        ID3D11DepthStencilState *DSState;
+        Device->CreateDepthStencilState(&dsDesc, &DSState);
         
+        // NOTE: Compile Shaders
         ID3D10Blob *BlobVs, *BlobPs;
         ID3D10Blob *BlobError = nullptr;
         
@@ -95,6 +147,8 @@ struct dx_resource
             if(BlobError != nullptr)
             {
                 OutputDebugStringA((char*)BlobError->GetBufferPointer());
+                MessageBox(Window, (char*)BlobError->GetBufferPointer(),	
+                    "Error in vertex shader", MB_OK | MB_ICONERROR);
                 BlobError->Release();
                 return HResult;
             }
@@ -107,6 +161,8 @@ struct dx_resource
             if(BlobError != nullptr)
             {
                 OutputDebugStringA((char*)BlobError->GetBufferPointer());
+                MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),	
+                    "Error in pixel shader", MB_OK | MB_ICONERROR);
                 BlobError->Release();
                 return HResult;
             }
@@ -117,7 +173,7 @@ struct dx_resource
         DeviceContext->VSSetShader(VertexShader, 0, 0);
         DeviceContext->PSSetShader(PixelShader, 0, 0);
         
-        
+        // NOTE: Create Input Layout
         D3D11_INPUT_ELEMENT_DESC ElementDesc[] = 
         {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
@@ -127,8 +183,7 @@ struct dx_resource
         HResult = Device->CreateInputLayout(ElementDesc, ArrayCount(ElementDesc), 
                     BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), &InputLayout);
         BlobVs->Release();
-        if(FAILED(HResult))
-            return HResult;
+        if(FAILED(HResult)) return HResult;
         DeviceContext->IASetInputLayout(InputLayout);
         
         return HResult;
@@ -136,17 +191,24 @@ struct dx_resource
 
     void LoadResource(ID3D11Buffer *Buffer, void *Resource, uint32 ResourceSize)
     {
+        // NOTE: This kind of resource mapping is optimized for per frame updating 
+        //      for resources with D3D11_USAGE_DYNAMIC
+        // SOURCE: https://msdn.microsoft.com/en-us/library/windows/desktop/ff476259%28v=vs.85%29.aspx
         D3D11_MAPPED_SUBRESOURCE MappedSubresource;
         DeviceContext->Map(Buffer, NULL,
                         D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
         memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
         DeviceContext->Unmap(Buffer, NULL);
+        
+        // DeviceContext->UpdateSubresource(Buffer, 0, NULL, Resource, 0, ResourceSize);
     } 
 
     void Release()
     {     
         if(VertexShader) VertexShader->Release();
         if(PixelShader) PixelShader->Release();
+        if(DepthStencilView) DepthStencilView->Release();
+        if(DepthStencilBuffer) DepthStencilBuffer->Release();
         if(SwapChain) SwapChain->Release();
         if(BackBuffer) BackBuffer->Release();
         if(Device) Device->Release();
@@ -169,16 +231,16 @@ struct dx_resource
             
             BackBufferTexture->Release();
 
-            DeviceContext->OMSetRenderTargets(1, &BackBuffer, NULL );
+            DeviceContext->OMSetRenderTargets(1, &BackBuffer, DepthStencilView);
 
-            D3D11_VIEWPORT ViewPort;
-            ViewPort.Width = ScreenWidth;
-            ViewPort.Height = ScreenHeight;
-            ViewPort.MinDepth = 0.0f;
-            ViewPort.MaxDepth = 1.0f;
-            ViewPort.TopLeftX = 0;
-            ViewPort.TopLeftY = 0;
-            DeviceContext->RSSetViewports( 1, &ViewPort);
+            D3D11_VIEWPORT Viewport;
+            Viewport.Width = ScreenWidth;
+            Viewport.Height = ScreenHeight;
+            Viewport.MinDepth = 0.0f;
+            Viewport.MaxDepth = 1.0f;
+            Viewport.TopLeftX = 0;
+            Viewport.TopLeftY = 0;
+            DeviceContext->RSSetViewports( 1, &Viewport);
         }
     }
 };
@@ -202,7 +264,7 @@ struct camera
         XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
             XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));
         XMStoreFloat4x4(&ProjMx, 
-            XMMatrixPerspectiveFovLH(45, Screen.Width/Screen.Height, 0.1f, 2000.0f));
+            XMMatrixPerspectiveFovLH(45, Screen.Width/Screen.Height, 1.0f, 2000.0f));
         XMStoreFloat4x4(&ViewProjMx,
             XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
                                       XMLoadFloat4x4(&ProjMx)));

@@ -344,7 +344,7 @@ v3 VertexInterp(real32 isolevel, v3 p1, v3 p2, real32 valp1, real32 valp2)
 	0 will be returned if the grid cell is either totally above
    of totally below the isolevel.
    
-   triangle points are stored in counterclockwise 
+   triangle points are stored in clockwise 
 */
 uint32 Polygonise(GRIDCELL grid, real32 isolevel, TRIANGLE *triangles)
 {
