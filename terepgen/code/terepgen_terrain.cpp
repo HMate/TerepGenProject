@@ -208,7 +208,7 @@ void terrain3D::Initialize(uint32 Seed, real32 Persistence)
     TerrainGrid = grid3D{TerrainDimension};
     
     // NOTE: above 120MB vx buffer size dx11 crashes
-    FinalVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*8;
+    FinalVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*6;
     
     Update(Seed, Persistence, terrain_render_mode::Triangles);
 }
@@ -458,7 +458,8 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
                     v3 Point0 = Triangles[TriangleIndex].p[0];
                     v3 Point1 = Triangles[TriangleIndex].p[1];
                     v3 Point2 = Triangles[TriangleIndex].p[2];
-                    v3 Normal = Cross(Point2 - Point1, Point0 - Point1);
+                    // TODO: Ths is the inverse of the real normal but this works properly, why?
+                    v3 Normal = Cross(Point1 - Point0, Point2 - Point0);
                     Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point0, Normal, PointColor1);
                     Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point1, Normal, PointColor1);
                     Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point2, Normal, PointColor1);

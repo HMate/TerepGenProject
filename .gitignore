@@ -83,3 +83,4 @@ $RECYCLE.BIN/
 
 # ==== Project Specific Files========
 misc/
+build/

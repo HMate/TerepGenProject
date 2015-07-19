@@ -51,18 +51,7 @@ void terrainRenderer::Initialize(dx_resource &DXResources, uint32 FinalVertexCou
     DXResource.Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
 }
 
-internal vertex
-Get3DVertex(v3 LocalPos, color Color)
-{
-    real32 Scale = 1.0f;
-    vertex Result = {LocalPos.X, 
-                     LocalPos.Y, 
-                     LocalPos.Z, 1.0f, 
-                     0.0f, 1.0f, 0.0f, 1.0f,
-                     Color};
-    return Result;
-}
-
+// TODO: Instead of this, use rsterizer state
 void terrainRenderer::DrawWireframe(std::shared_ptr<vertex> Vertices)
 {
     DXResource.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
@@ -77,9 +66,7 @@ void terrainRenderer::DrawWireframe(std::shared_ptr<vertex> Vertices)
     DXResource.DeviceContext->Draw(FinalVertexCount, 0);
 }
 
-//TODO: Sometimes rednering acts weird, and triangles from specific angles dont appear
-// maybe the order of vertices in buffer matter, and later triangles always appear ?
-// maybe just the triangulization is bad?
+//TODO: triangulization have holes
 void terrainRenderer::DrawTriangles(std::shared_ptr<vertex> Vertices)
 {           
     DXResource.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
@@ -92,16 +79,25 @@ void terrainRenderer::DrawTriangles(std::shared_ptr<vertex> Vertices)
     DXResource.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
     DXResource.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     DXResource.DeviceContext->Draw(FinalVertexCount, 0);
-    DXResource.SwapChain->Present(0, 0);
+}
+
+internal vertex
+Get3DVertex(v3 LocalPos, color Color)
+{
+    real32 Scale = 1.0f;
+    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 1.0f, 
+                     0.0f, 1.0f, 0.0f, 1.0f,
+                     Color};
+    return Result;
 }
 
 void terrainRenderer::DrawDebugTriangle()
 { 
     const uint32 FalseCount = 3;
     color Color{1.0f, 0.0f, 0.0f, 1.0f};
-    vertex FalseVertices[FalseCount]={Get3DVertex(v3{1.0f, 0.55f, 1.0f}, Color),
+    vertex FalseVertices[FalseCount]={Get3DVertex(v3{1.0f , 0.55f, 1.0f}, Color),
                                       Get3DVertex(v3{-0.8f, -0.7f, 1.0f}, Color),
-                                      Get3DVertex(v3{-1.0f, 0.0f, 1.0f}, Color)};
+                                      Get3DVertex(v3{-1.0f, 0.0f , 1.0f}, Color)};
                                       
     DXResource.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
     DXResource.DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
@@ -113,7 +109,6 @@ void terrainRenderer::DrawDebugTriangle()
     DXResource.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
     DXResource.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     DXResource.DeviceContext->Draw(FalseCount, 0);
-    DXResource.SwapChain->Present(0, 0);
 }
 
 void terrainRenderer::Release()

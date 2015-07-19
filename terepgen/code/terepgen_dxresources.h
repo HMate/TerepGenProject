@@ -31,7 +31,9 @@ struct dx_resource
     ID3D11PixelShader *PixelShader = nullptr;
     ID3D11InputLayout *InputLayout = nullptr;
     ID3D11DepthStencilView *DepthStencilView = nullptr;
-    ID3D11Texture2D *DepthStencilBuffer = nullptr;    
+    ID3D11Texture2D *DepthStencilBuffer = nullptr;
+    ID3D11DepthStencilState *DepthStencilState = nullptr;   
+    ID3D11RasterizerState *RasterizerState = nullptr;
     
     HRESULT Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
     {
@@ -40,6 +42,8 @@ struct dx_resource
         DXGI_SWAP_CHAIN_DESC SwapChainDesc;
         ZeroMemory(&SwapChainDesc, sizeof(SwapChainDesc));
         SwapChainDesc.BufferCount = 1;
+        SwapChainDesc.BufferDesc.Width = ScreenWidth;
+        SwapChainDesc.BufferDesc.Height = ScreenHeight;
         SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         SwapChainDesc.OutputWindow = Window;
@@ -52,10 +56,12 @@ struct dx_resource
                                               D3D_FEATURE_LEVEL_10_0};
         D3D_FEATURE_LEVEL UsedFeatureLevel;
         
+        uint32 DeviceFlags;
+        DeviceFlags = D3D11_CREATE_DEVICE_DEBUG;//|D3D11_CREATE_DEVICE_DEBUGGABLE;
         HResult = D3D11CreateDeviceAndSwapChain(NULL,
                                                D3D_DRIVER_TYPE_HARDWARE,
                                                NULL,
-                                               NULL,
+                                               DeviceFlags,
                                                (D3D_FEATURE_LEVEL *)FeatureLevels,
                                                ArrayCount(FeatureLevels),
                                                D3D11_SDK_VERSION,
@@ -89,34 +95,34 @@ struct dx_resource
         if(FAILED(HResult))
             return HResult;        
         
-        //NOTE: Create Depth Stencil
-        // D3D11_TEXTURE2D_DESC DepthStencilDesc;
-        // DepthStencilDesc.Width     = ScreenWidth;
-        // DepthStencilDesc.Height    = ScreenHeight;
-        // DepthStencilDesc.MipLevels = 1;
-        // DepthStencilDesc.ArraySize = 1;
-        // DepthStencilDesc.Format    = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        // DepthStencilDesc.SampleDesc.Count   = 1;
-        // DepthStencilDesc.SampleDesc.Quality = 0;
-        // DepthStencilDesc.Usage          = D3D11_USAGE_DEFAULT;
-        // DepthStencilDesc.BindFlags      = D3D11_BIND_DEPTH_STENCIL;
-        // DepthStencilDesc.CPUAccessFlags = 0; 
-        // DepthStencilDesc.MiscFlags      = 0;
+        // NOTE: Create Depth Stencil
+        // NOTE: SampleDesc have to be the same as the SwapChain's, or nothing will render 
+        D3D11_TEXTURE2D_DESC DepthStencilDesc;
+        DepthStencilDesc.Width     = ScreenWidth;
+        DepthStencilDesc.Height    = ScreenHeight;
+        DepthStencilDesc.MipLevels = 1;
+        DepthStencilDesc.ArraySize = 1;
+        DepthStencilDesc.Format    = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        DepthStencilDesc.SampleDesc.Count   = 4;
+        DepthStencilDesc.SampleDesc.Quality = 0;
+        DepthStencilDesc.Usage          = D3D11_USAGE_DEFAULT;
+        DepthStencilDesc.BindFlags      = D3D11_BIND_DEPTH_STENCIL;
+        DepthStencilDesc.CPUAccessFlags = 0; 
+        DepthStencilDesc.MiscFlags      = 0;
         
-        // HResult = Device->CreateTexture2D(&DepthStencilDesc, nullptr, &DepthStencilBuffer);
-        // if(FAILED(HResult)) return HResult;
-        // HResult = Device->CreateDepthStencilView(DepthStencilBuffer, nullptr, &DepthStencilView);
-        // if(FAILED(HResult)) return HResult;
+        HResult = Device->CreateTexture2D(&DepthStencilDesc, nullptr, &DepthStencilBuffer);
+        if(FAILED(HResult)) return HResult;
+        HResult = Device->CreateDepthStencilView(DepthStencilBuffer, nullptr, &DepthStencilView);
+        if(FAILED(HResult)) return HResult;
         
         DeviceContext->OMSetRenderTargets(1, &BackBuffer, DepthStencilView);
         
+        // NOTE: Create DepthStencilState
         D3D11_DEPTH_STENCIL_DESC dsDesc;
 
-        // Depth test parameters
         dsDesc.DepthEnable = true;
         dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-        dsDesc.DepthFunc = D3D11_COMPARISON_GREATER;//D3D11_COMPARISON_LESS;
-        // Stencil test parameters
+        dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
         dsDesc.StencilEnable = false;
         dsDesc.StencilReadMask = 0xFF;
         dsDesc.StencilWriteMask = 0xFF;
@@ -134,8 +140,19 @@ struct dx_resource
         dsDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
 
         // Create depth stencil state
-        ID3D11DepthStencilState *DSState;
-        Device->CreateDepthStencilState(&dsDesc, &DSState);
+        Device->CreateDepthStencilState(&dsDesc, &DepthStencilState);
+        
+        // NOTE: Create RasterizerState
+        // TODO: This should be per object, and maybe a default one here.
+        D3D11_RASTERIZER_DESC RSDesc;
+        ZeroMemory(&RSDesc, sizeof(D3D11_RASTERIZER_DESC));
+        RSDesc.FillMode = D3D11_FILL_SOLID; //D3D11_FILL_WIREFRAME D3D11_FILL_SOLID 
+        RSDesc.CullMode = D3D11_CULL_BACK; //D3D11_CULL_NONE D3D11_CULL_FRONT D3D11_CULL_BACK
+        //RSDesc.DepthClipEnable = false;
+        //RSDesc.FrontCounterClockwise = true; // NOTE: false means clockwise triangles
+        Device->CreateRasterizerState(&RSDesc, &RasterizerState);
+        
+        DeviceContext->RSSetState(RasterizerState);
         
         // NOTE: Compile Shaders
         ID3D10Blob *BlobVs, *BlobPs;
@@ -209,14 +226,17 @@ struct dx_resource
         if(PixelShader) PixelShader->Release();
         if(DepthStencilView) DepthStencilView->Release();
         if(DepthStencilBuffer) DepthStencilBuffer->Release();
+        if(DepthStencilState) DepthStencilState->Release();
+        if(RasterizerState) RasterizerState->Release();
         if(SwapChain) SwapChain->Release();
         if(BackBuffer) BackBuffer->Release();
         if(Device) Device->Release();
         if(DeviceContext) DeviceContext->Release();
     }
     
-    void Resize(uint32 ScreenWidth, uint32 ScreenHeight)
+    HRESULT Resize(uint32 ScreenWidth, uint32 ScreenHeight)
     {
+        HRESULT HResult = S_OK;
         if (SwapChain)
         {
             DeviceContext->OMSetRenderTargets(0, 0, 0);
@@ -226,10 +246,31 @@ struct dx_resource
             SwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
                                             
             ID3D11Texture2D* BackBufferTexture;
-            SwapChain->GetBuffer(0, __uuidof( ID3D11Texture2D), (void**) &BackBufferTexture);
-            Device->CreateRenderTargetView(BackBufferTexture, NULL, &BackBuffer);
-            
+            HResult = SwapChain->GetBuffer(0, __uuidof( ID3D11Texture2D), (void**) &BackBufferTexture);
+            if(FAILED(HResult)) return HResult;
+            HResult = Device->CreateRenderTargetView(BackBufferTexture, NULL, &BackBuffer);
             BackBufferTexture->Release();
+            if(FAILED(HResult)) return HResult;
+            
+            if(DepthStencilBuffer) DepthStencilBuffer->Release();
+            if(DepthStencilState) DepthStencilState->Release();
+            D3D11_TEXTURE2D_DESC DepthStencilDesc;
+            DepthStencilDesc.Width     = ScreenWidth;
+            DepthStencilDesc.Height    = ScreenHeight;
+            DepthStencilDesc.MipLevels = 1;
+            DepthStencilDesc.ArraySize = 1;
+            DepthStencilDesc.Format    = DXGI_FORMAT_D24_UNORM_S8_UINT;
+            DepthStencilDesc.SampleDesc.Count   = 4;
+            DepthStencilDesc.SampleDesc.Quality = 0;
+            DepthStencilDesc.Usage          = D3D11_USAGE_DEFAULT;
+            DepthStencilDesc.BindFlags      = D3D11_BIND_DEPTH_STENCIL;
+            DepthStencilDesc.CPUAccessFlags = 0; 
+            DepthStencilDesc.MiscFlags      = 0;
+            
+            HResult = Device->CreateTexture2D(&DepthStencilDesc, nullptr, &DepthStencilBuffer);
+            if(FAILED(HResult)) return HResult;
+            HResult = Device->CreateDepthStencilView(DepthStencilBuffer, nullptr, &DepthStencilView);
+            if(FAILED(HResult)) return HResult;
 
             DeviceContext->OMSetRenderTargets(1, &BackBuffer, DepthStencilView);
 
@@ -242,6 +283,7 @@ struct dx_resource
             Viewport.TopLeftY = 0;
             DeviceContext->RSSetViewports( 1, &Viewport);
         }
+        return HResult;
     }
 };
 

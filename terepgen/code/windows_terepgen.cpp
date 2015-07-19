@@ -4,9 +4,6 @@
 */
 
 #include <windows.h>
-#include <d3dcompiler.h>
-#include <d3d11.h>
-#include <DirectXMath.h>
 
 #include "terepgen_terrain.h"
 #include "terepgen_types.h"
@@ -227,7 +224,11 @@ WinMain(HINSTANCE Instance,
                 if(Resize)
                 {
                     ScreenInfo = GetWindowDimension(Window);
-                    DXResources.Resize(ScreenInfo.Width, ScreenInfo.Height);
+                    HResult = DXResources.Resize(ScreenInfo.Width, ScreenInfo.Height);
+                    if(FAILED(HResult)) 
+                    {
+                        break;
+                    }
                     Resize = false;
                 }
         
