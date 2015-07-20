@@ -7,6 +7,7 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 
+#include <string>
 #include "terepgen_types.h"
 
 using namespace DirectX;
@@ -298,6 +299,8 @@ struct camera
     XMFLOAT3 UpDirection = XMFLOAT3(0, 1, 0);
     real32 CameraSpeed = 1.6f;
     
+    real32 Fov = 3.14f * 0.35f;
+    
     XMFLOAT4X4 ViewMx;
     XMFLOAT4X4 ProjMx;
     XMFLOAT4X4 ViewProjMx;
@@ -308,9 +311,14 @@ struct camera
     void Initialize(dx_resource &DXResources, screen_info Screen)
     {   
         XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
-            XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));
+            XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));            
+#if TEREPGEN_DEBUG
+        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Width:" + std::to_string(Screen.Width) + "\n").c_str());
+        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Height:" + std::to_string(Screen.Height) + "\n").c_str());
+        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera ApectRatio:" + std::to_string((real32)Screen.Width/Screen.Height) + "\n").c_str());
+#endif  
         XMStoreFloat4x4(&ProjMx, 
-            XMMatrixPerspectiveFovLH(45, Screen.Width/Screen.Height, 1.0f, 2000.0f));
+            XMMatrixPerspectiveFovLH(Fov, (real32)Screen.Width/Screen.Height, 1.0f, 2000.0f));
         XMStoreFloat4x4(&ViewProjMx,
             XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
                                       XMLoadFloat4x4(&ProjMx)));
@@ -421,6 +429,20 @@ struct camera
             XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx), XMLoadFloat4x4(&ProjMx)));
         
         SceneConstants.ViewProjMx = ViewProjMx;
+    }
+    
+    void Resize(screen_info Screen)
+    {
+#if TEREPGEN_DEBUG
+        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Width:" + std::to_string(Screen.Width) + "\n").c_str());
+        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Height:" + std::to_string(Screen.Height) + "\n").c_str());
+        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera ApectRatio:" + std::to_string((real32)Screen.Width/Screen.Height) + "\n").c_str());
+#endif        
+        XMStoreFloat4x4(&ProjMx, 
+            XMMatrixPerspectiveFovLH(Fov, (real32)Screen.Width/Screen.Height, 1.0f, 2000.0f));
+        XMStoreFloat4x4(&ViewProjMx,
+            XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
+                                      XMLoadFloat4x4(&ProjMx)));
     }
 };
 

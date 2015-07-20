@@ -167,10 +167,10 @@ WinMain(HINSTANCE Instance,
     WindowClass.lpszClassName = "TerepGenWindowClass";
     
     screen_info ScreenInfo;
-    // ScreenInfo.Width = 1280;
-	// ScreenInfo.Height = 800;
-	ScreenInfo.Width = 800;
-	ScreenInfo.Height = 600;
+    ScreenInfo.Width = 1280;
+	ScreenInfo.Height = 800;
+	// ScreenInfo.Width = 800;
+	// ScreenInfo.Height = 600;
     
     if(RegisterClassA(&WindowClass))
     {
@@ -235,6 +235,7 @@ WinMain(HINSTANCE Instance,
                     {
                         break;
                     }
+                    Camera.Resize(ScreenInfo);
                     Resize = false;
                 }
         

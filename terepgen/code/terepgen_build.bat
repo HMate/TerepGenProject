@@ -3,8 +3,8 @@
 echo TerepGen compile starting at %TIME%
 
 cd /d Y:\code
-REM call "D:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
-call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
+call "D:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
+REM call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
 
 REM -MTd Multithreaded version of run-time library build and links to LIBCMT.lib
 REM -Od Disables optimization and build faster
