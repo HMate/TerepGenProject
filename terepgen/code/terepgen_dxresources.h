@@ -56,8 +56,12 @@ struct dx_resource
                                               D3D_FEATURE_LEVEL_10_0};
         D3D_FEATURE_LEVEL UsedFeatureLevel;
         
-        uint32 DeviceFlags;
-        DeviceFlags = D3D11_CREATE_DEVICE_DEBUG;//|D3D11_CREATE_DEVICE_DEBUGGABLE;
+        uint32 DeviceFlags = NULL;
+#if TEREPGEN_DEBUG
+        OutputDebugStringA("[TEREPGEN_DEBUG]Device and SwapChain are created with DEBUG flag\n");
+        // NOTE: D3D11_CREATE_DEVICE_DEBUGGABLE flag does not work before win8.1 
+        DeviceFlags = D3D11_CREATE_DEVICE_DEBUG;
+#endif
         HResult = D3D11CreateDeviceAndSwapChain(NULL,
                                                D3D_DRIVER_TYPE_HARDWARE,
                                                NULL,

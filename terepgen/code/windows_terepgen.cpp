@@ -42,12 +42,18 @@ WindowProc(HWND Window,
     {
         case WM_DESTROY:
         {
+#if TEREPGEN_DEBUG
+        OutputDebugStringA("[TEREPGEN_DEBUG] message arrived: WM_DESTROY \n");
+#endif    
             GlobalRunning = false;
         } break;
 
         case WM_CLOSE:
         {
             //TODO: Handle with message to the user?
+#if TEREPGEN_DEBUG
+        OutputDebugStringA("[TEREPGEN_DEBUG] message arrived: WM_CLOSE \n");
+#endif        
             GlobalRunning = false;
         } break;
         
