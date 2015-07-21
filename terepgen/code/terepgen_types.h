@@ -5,6 +5,7 @@
 */
 
 #include <stdint.h>
+#include <string>
 
 #define global_variable static
 #define local_persist static
@@ -64,6 +65,36 @@ struct input
     int32 OldMouseX;
     int32 OldMouseY;
 };
+
+
+
+inline uint32 
+FloorUint32(real32 Val)
+{
+    uint32 Result = (uint32)Val;
+    return Result;
+}
+
+inline real32 Pow(real32 A, uint32 N)
+{
+    Assert(N>=0);
+    if(N==0) return 1; 
+    return A * Pow(A, N-1);
+}
+
+inline uint32 Pow2(uint32 N)
+{
+    Assert(N>=0);
+    if(N==0) return 1; 
+    return 2 * Pow2(N-1);
+}
+
+inline uint32 Log2(uint32 N)
+{
+    Assert(N>=1);
+    if(N==1) return 0; 
+    return 1 + Log2(N/2);
+}
 
 #define TEREPGEN_TYPES_H
 #endif

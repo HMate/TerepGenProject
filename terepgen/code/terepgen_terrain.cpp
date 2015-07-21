@@ -6,27 +6,6 @@
 #include "terepgen_terrain.h"
 #include "terepgen_marching_cubes.cpp"
 
-inline real32 pow(real32 A, uint32 N)
-{
-    Assert(N>=0);
-    if(N==0) return 1; 
-    return A * pow(A, N-1);
-}
-
-inline uint32 pow2(uint32 N)
-{
-    Assert(N>=0);
-    if(N==0) return 1; 
-    return 2 * pow2(N-1);
-}
-
-inline uint32 log2(uint32 N)
-{
-    Assert(N>=1);
-    if(N==1) return 0; 
-    return 1 + log2(N/2);
-}
-
 internal real32
 SmoothGridPointLinearly(grid2D &RoughGrid, uint32 Row, uint32 Column)
 {
@@ -50,7 +29,7 @@ void terrain::GenerateTerrain(uint32 Seed, real32 Persistence)
     TerrainGrid.ZeroOutGridPoints();
     RandomGenerator Rng(Seed);
         
-    uint32 OctaveCount = log2(TerrainDimension);
+    uint32 OctaveCount = Log2(TerrainDimension);
     
     for(uint32 Octaves = 0;
         Octaves < OctaveCount;
@@ -59,8 +38,8 @@ void terrain::GenerateTerrain(uint32 Seed, real32 Persistence)
         // float freq = 2^i;
         // float amplitude = persistence^i;
         
-        real32 Weight = pow(Persistence, OctaveCount-Octaves-1);
-        uint32 WaveLength = pow2(Octaves);
+        real32 Weight = Pow(Persistence, OctaveCount-Octaves-1);
+        uint32 WaveLength = Pow2(Octaves);
         uint32 PGDimension = (TerrainDimension/WaveLength);
         
         grid2D PerlinGrid = {PGDimension};
@@ -138,7 +117,7 @@ GetGridVertex(grid2D *Grid, v3 GridPos, uint32 GridX, uint32 GridY, color Color)
 
 std::shared_ptr<vertex> terrain::CreateRenderVertices()
 {
-    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[FinalVertexCount]);
+    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
     uint32 VertexCount = 0;
     v3 GridPos = v3{10.0f, -10.0f, 10.0f};
     for(uint32 GridY = 0;
@@ -168,7 +147,7 @@ std::shared_ptr<vertex> terrain::CreateRenderVertices()
             }
         }
     }
-    Assert(FinalVertexCount == VertexCount);
+    Assert(MaxVertexCount == VertexCount);
     
     return Vertices;
 }
@@ -180,7 +159,7 @@ void terrain::Initialize(uint32 Seed, real32 Persistence)
     
     uint32 RowCount = TerrainDimension;
     uint32 ColumnCount = TerrainDimension;
-    FinalVertexCount = 2 * (4 * (RowCount-1) * (ColumnCount-1) + RowCount + ColumnCount - 2);
+    MaxVertexCount = 2 * (4 * (RowCount-1) * (ColumnCount-1) + RowCount + ColumnCount - 2);
     
     GenerateTerrain(Seed, Persistence);
     LastSeed = Seed;
@@ -202,15 +181,39 @@ void terrain::Update(uint32 Seed, real32 Persistence)
 
 // Terrain 3D
 
-void terrain3D::Initialize(uint32 Seed, real32 Persistence)
+void terrain3D::Initialize(uint32 Seed, real32 Persistence, v3 WorldPos)
 {      
     TerrainDimension = 64;
     TerrainGrid = grid3D{TerrainDimension};
+    GridPos = WorldPos;
+    // GridPos = v3{-10.0f, 0.0f, 0.0f};
+    RenderPos = v3{0.0f, 0.0f, 0.0f};
     
     // NOTE: above 120MB vx buffer size dx11 crashes
-    FinalVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*6;
+    MaxVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*10;
     
     Update(Seed, Persistence, terrain_render_mode::Triangles);
+}
+
+void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
+{
+    if(LastSeed != Seed || Persistence != LastPersistence || LastRenderMode != RenderMode)
+    {
+        GenerateTerrain(Seed, Persistence);
+        LastSeed = Seed;
+        LastPersistence = Persistence;
+        LastRenderMode = RenderMode;
+        if(RenderMode == terrain_render_mode::Triangles) 
+            Vertices = CreateRenderVertices();
+        else if(RenderMode == terrain_render_mode::Points) 
+            Vertices = CreateVerticesForPointRendering();
+        else 
+            Vertices = CreateVerticesForWireframeRendering();
+#if TEREPGEN_DEBUG
+        OutputDebugStringA(("[TERPEGEN_DEBUG] Current Vertex Count: " +
+            std::to_string(CurrentVertexCount) + "\n").c_str());
+#endif
+    }
 }
 
 void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
@@ -218,66 +221,87 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
     TerrainGrid.ZeroOutGridPoints();
     RandomGenerator Rng(Seed);
         
-    uint32 OctaveCount = log2(TerrainDimension);
+    uint32 FirstOctave = 0;
+    uint32 OctaveCount = Log2(TerrainDimension);
     
-    for(uint32 Octaves = 0;
+    for(uint32 Octaves = FirstOctave;
         Octaves < OctaveCount;
         ++Octaves)
     {
         // float freq = 2^i;
         // float amplitude = persistence^i;
         
-        real32 Weight = pow(Persistence, OctaveCount-Octaves-1);
-        uint32 WaveLength = pow2(Octaves);
-        uint32 PGDimension = (TerrainDimension/WaveLength);
+        real32 Weight = Pow(Persistence, OctaveCount-Octaves-1);
+        int32 WaveLength = (int32)Pow2(Octaves);
+        uint32 PGDimension = (TerrainDimension/WaveLength) + 1;
         
         grid3D PerlinGrid = {PGDimension};
-        for(uint32 Plane = 0;
+        /* NOTE: Plane is axis X
+                 Row is axis Y
+                 Column is axis Z
+        */
+        // TODO: The connection with other grids in the world still not smooth,
+        //       maybe there are bugs in this calculation, or maybe the number of dimensions not correct?
+        for(int32 Plane = 0;
             Plane < PerlinGrid.Dimension;
             ++Plane)
         {
-            for(uint32 Row = 0;
+            for(int32 Row = 0;
                 Row < PerlinGrid.Dimension;
                 ++Row)
             {
-                for(uint32 Column = 0;
+                for(int32 Column = 0;
                     Column < PerlinGrid.Dimension;
                     ++Column)
                 {
-                    PerlinGrid[Plane][Row][Column] = 
-                        Rng.RandomFloat(Plane*WaveLength, Row*WaveLength, Column*WaveLength) * Weight 
-                        + /*(real32)*/((int32)Plane-1)*(1.0f/PerlinGrid.Dimension/PerlinGrid.Dimension) ;
+                    int32 WorldX = Plane + (int32)GridPos.X/WaveLength;
+                    int32 WorldY = Row + (int32)GridPos.Y/WaveLength;
+                    int32 WorldZ = Column + (int32)GridPos.Z/WaveLength;
+                    real32 RandomVal = Rng.RandomFloat(WorldX * WaveLength,
+                                                       WorldY * WaveLength,
+                                                       WorldZ * WaveLength) * Weight;
+                        // + /*(real32)*/(WorldY-1)*(1.0f/TerrainDimension/TerrainDimension) ;
+                    // int32 WorldX = Plane * WaveLength + (int32)GridPos.X/WaveLength;
+                    // int32 WorldY = Row * WaveLength + (int32)GridPos.Y/WaveLength;
+                    // int32 WorldZ = Column * WaveLength + (int32)GridPos.Z/WaveLength;
+                    real32 Dampening = (WorldY)*(1.0f/TerrainDimension/TerrainDimension);
+                    // real32 RandomVal = Rng.RandomFloat(WorldX, WorldY, WorldZ) * Weight;
+                    PerlinGrid[Plane][Row][Column] = RandomVal + Dampening;
+                        
                 }
             }
         }
         
+        // NOTE: Have to stretch out the little grids to match the size of the terrain
+        //      During strech, we get the inner points by interpolating between the Perlin grid values 
         grid3D StrechedPerlinGrid = {TerrainDimension};
         for(uint32 Plane = 0;
             Plane < StrechedPerlinGrid.Dimension;
             ++Plane)
         {  
-            real32 PlaneRatio = (real32)Plane * (PGDimension-1) / (TerrainGrid.Dimension - 1);
-            uint32 PGPlane = (uint32)PlaneRatio;
+            real32 PlaneRatio = (real32)Plane * (PGDimension-1) / (TerrainDimension);
+            uint32 PGPlane = FloorUint32(PlaneRatio);
             PlaneRatio = PlaneRatio - (real32)PGPlane;
             
             for(uint32 Row = 0;
                 Row < StrechedPerlinGrid.Dimension;
                 ++Row)
             {
-                real32 RowRatio = (real32)Row * (PGDimension-1) / (TerrainGrid.Dimension - 1);
-                uint32 PGRow = (uint32)RowRatio;
+                real32 RowRatio = (real32)Row * (PGDimension-1) / (TerrainDimension);
+                uint32 PGRow = FloorUint32(RowRatio);
                 RowRatio = RowRatio - (real32)PGRow;
                 
                 for(uint32 Column = 0;
                     Column < StrechedPerlinGrid.Dimension;
                     ++Column)
                 {                
-                    real32 ColumnRatio = (real32)Column * (PGDimension-1) / (TerrainGrid.Dimension - 1);
-                    uint32 PGColumn = (uint32)ColumnRatio;
+                    real32 ColumnRatio = (real32)Column * (PGDimension-1) / (TerrainDimension);
+                    uint32 PGColumn = FloorUint32(ColumnRatio);
                     ColumnRatio = ColumnRatio - (real32)PGColumn;
                     
-                    Assert(((RowRatio+1) < PGDimension) && ((ColumnRatio+1) < PGDimension));
-                    StrechedPerlinGrid[Plane][Row][Column] = 
+                    Assert(((PGColumn+1) < PGDimension) && ((PGRow+1) < PGDimension));
+                    
+                    real32 InnerValue = 
                         ( (1.0f - PlaneRatio) *
                         ((((1.0f-ColumnRatio) * PerlinGrid[PGPlane][PGRow][PGColumn] + 
                          (ColumnRatio) * PerlinGrid[PGPlane][PGRow][PGColumn+1]) * (1.0f-RowRatio)) +
@@ -288,6 +312,7 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
                          (ColumnRatio) * PerlinGrid[PGPlane+1][PGRow][PGColumn+1]) * (1.0f-RowRatio)) +
                         ((((1.0f-ColumnRatio) * PerlinGrid[PGPlane+1][PGRow+1][PGColumn]) + 
                          ((ColumnRatio) * PerlinGrid[PGPlane+1][PGRow+1][PGColumn+1])) * (RowRatio))));
+                    StrechedPerlinGrid[Plane][Row][Column] = InnerValue;
                 }
             }
         }
@@ -308,23 +333,36 @@ Get3DGridVertex(v3 GridPos, v3 LocalPos, v3 Normal, color Color)
     return Result;
 }
 
+internal vertex
+Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
+{
+    real32 Scale = 1.0f;
+    vertex Result = {(Scale * LocalPos.X), 
+                     (Scale * LocalPos.Y), 
+                     (Scale * LocalPos.Z), 1.0f, 
+                     Normal.X, Normal.Y, Normal.Z, 1.0f,
+                     Color};
+    return Result;
+}
+
 std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
 {
-    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[FinalVertexCount]);
+    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
     color PointColor0 = color{0.0, 1.0f, 0.0f, 1.0f};
     v3 Normal = v3{0.0f, 1.0f, 0.0f};
     
     uint32 VertexCount = 0;
+    // NOTE: No marching cubes, indexing to full dimension.
     for(uint32 Plane = 0;
-        Plane < TerrainGrid.Dimension-1;
+        Plane < TerrainGrid.Dimension;
         ++Plane)
     {
         for(uint32 Row = 0;
-            Row < TerrainGrid.Dimension-1;
+            Row < TerrainGrid.Dimension;
             ++Row)
         {
             for(uint32 Column = 0;
-                Column < TerrainGrid.Dimension-1;
+                Column < TerrainGrid.Dimension;
                 ++Column)
             {    
                 v3 Pos = v3{Plane, Row, Column};
@@ -337,23 +375,24 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
                     PointColor = color{0.0f, 1.0f, 0.0f, 1.0f};
                 else
                     PointColor = color{1.0f, 1.0f, 1.0f, 1.0f};
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos + dPosPlane,  Normal ,PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos - dPosPlane,  Normal ,PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos + dPosRow,    Normal ,PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos - dPosRow,    Normal ,PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos + dPosColumn, Normal ,PointColor);
-                Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Pos - dPosColumn, Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(Pos + dPosPlane,  Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(Pos - dPosPlane,  Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(Pos + dPosRow,    Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(Pos - dPosRow,    Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(Pos + dPosColumn, Normal ,PointColor);
+                Vertices.get()[VertexCount++] = Get3DGridVertex(Pos - dPosColumn, Normal ,PointColor);
                     
             }
         }
     }
+    CurrentVertexCount = VertexCount;
     
     return Vertices;
 }
 
 std::shared_ptr<vertex> terrain3D::CreateVerticesForWireframeRendering()
 {
-    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[FinalVertexCount]);
+    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
     color PointColor = color{0.0, 1.0f, 0.0f, 1.0f};
     color PointColor0 = color{1.0, 0.0f, 0.0f, 1.0f};
     color PointColor1 = color{0.0, 1.0f, 0.0f, 1.0f};
@@ -398,29 +437,31 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForWireframeRendering()
                     v3 Point1 = Triangles[TriangleIndex].p[1];
                     v3 Point2 = Triangles[TriangleIndex].p[2];
                     v3 Normal = Cross(Point2 - Point1, Point0 - Point1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point0, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point1, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point1, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point2, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point2, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point0, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor);
                 }
             }
         }
     }
+    CurrentVertexCount = VertexCount;
     
     return Vertices;
 }
 
 std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
 {
-    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[FinalVertexCount]);
+    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
     color PointColor = color{0.0, 1.0f, 0.0f, 1.0f};
     color PointColor0 = color{1.0, 0.0f, 0.0f, 1.0f};
     color PointColor1 = color{0.0, 1.0f, 0.0f, 1.0f};
     color PointColor2 = color{0.0, 0.0f, 1.0f, 1.0f};
     
     uint32 VertexCount = 0;
+    // NOTE: Using marching cubes, so we index to dim-1, to make cubes
     for(uint32 Plane = 0;
         Plane < TerrainGrid.Dimension-1;
         ++Plane)
@@ -460,39 +501,24 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
                     v3 Point2 = Triangles[TriangleIndex].p[2];
                     // TODO: Ths is the inverse of the real normal but this works properly, why?
                     v3 Normal = Cross(Point1 - Point0, Point2 - Point0);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point0, Normal, PointColor1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point1, Normal, PointColor1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(GridPos, Point2, Normal, PointColor1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor1);
                 }
             }
         }
     }
+    CurrentVertexCount = VertexCount;
     
     return Vertices;
 }
 
-void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
-{
-    if(LastSeed != Seed || Persistence != LastPersistence || LastRenderMode != RenderMode)
-    {
-        GenerateTerrain(Seed, Persistence);
-        LastSeed = Seed;
-        LastPersistence = Persistence;
-        LastRenderMode = RenderMode;
-        if(RenderMode == terrain_render_mode::Triangles) 
-            Vertices = CreateRenderVertices();
-        else if(RenderMode == terrain_render_mode::Points) 
-            Vertices = CreateVerticesForPointRendering();
-        else 
-            Vertices = CreateVerticesForWireframeRendering();
-        
-    }
-}
-
 void terrain3D::Draw(terrainRenderer &Renderer)
 {
+    Renderer.SetTransformations(RenderPos);
     if(LastRenderMode != terrain_render_mode::Triangles) 
-        Renderer.DrawWireframe(Vertices);
+        Renderer.DrawWireframe(Vertices, CurrentVertexCount);
     else 
-        Renderer.DrawTriangles(Vertices);
+        Renderer.DrawTriangles(Vertices, CurrentVertexCount);
+    Renderer.SetTransformations(v3{});
 }

@@ -45,11 +45,11 @@ struct RandomGenerator
     }
     
     // Gives a random float in the (-1, 1) range based on 3d coordinates
-    float RandomFloat(uint32 Table, uint32 Row, uint32 Column)
+    float RandomFloat(int32 Plane, int32 Row, int32 Column)
     {
         uint32 ColumnSeed = _rotr(((Seed + Column) * 6529), Row);
-        uint32 RowSeed = _rotr(((Seed + Row) * 2311), Table);
-        uint32 TableSeed = _rotr(((Seed + Table) * 14281), Column);
+        uint32 RowSeed = _rotr(((Seed + Row) * 2311), Plane);
+        uint32 TableSeed = _rotr(((Seed + Plane) * 14281), Column);
         Rng.seed(RowSeed + ColumnSeed + TableSeed);
         real32 Result = UniformRng(Rng);
         return Result;
@@ -62,16 +62,18 @@ struct terrainRenderer
     ID3D11Buffer *ObjectConstantBuffer;
     object_constants ObjectConstants;
     ID3D11Buffer *VertexBuffer; 
-    uint32 FinalVertexCount;
+    uint32 MaxVertexCount;
     bool32 DXReleased;
     
-    void Initialize(dx_resource &DXResources, uint32 FinalVertexCount);
+    void Initialize(dx_resource &DXResources, uint32 MaxVertexCount);
     ~terrainRenderer();
     void Release();
     
-    void DrawWireframe(std::shared_ptr<vertex> Vertices);
-    void DrawTriangles(std::shared_ptr<vertex> Vertices);
+    void SetTransformations(v3 Translation);
+    void DrawWireframe(std::shared_ptr<vertex> Vertices, uint32 VertexCount);
+    void DrawTriangles(std::shared_ptr<vertex> Vertices, uint32 VertexCount);
     void DrawDebugTriangle();
+    void DrawAxis(real32 Size = 1.0f);
 };
 
 enum class terrain_render_mode
@@ -88,7 +90,7 @@ struct terrain
     color Color;
     uint32 LastSeed;
     real32 LastPersistence;
-    uint32 FinalVertexCount;   
+    uint32 MaxVertexCount;   
     std::shared_ptr<vertex> Vertices; 
     
     void Initialize(uint32 Seed, real32 Persistence);
@@ -101,19 +103,21 @@ struct terrain3D
 {
     uint32 TerrainDimension;
     grid3D TerrainGrid;
-    v3 GridPos = v3{-10.0f, -10.0f, -10.0f};
+    v3 GridPos;
+    v3 RenderPos;
     color Color;
     
-    uint32 FinalVertexCount;  
-    std::shared_ptr<v3> VertexLocations;
-    uint32 VertexLocationCount;
+    uint32 MaxVertexCount;  
+    uint32 CurrentVertexCount;
+    // std::shared_ptr<v3> VertexLocations;
+    // uint32 VertexLocationCount;
     std::shared_ptr<vertex> Vertices;
     
     uint32 LastSeed;
     real32 LastPersistence;
     terrain_render_mode LastRenderMode;
     
-    void Initialize(uint32 Seed, real32 Persistence);
+    void Initialize(uint32 Seed, real32 Persistence, v3 WorldPos);
     virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
     std::shared_ptr<vertex> CreateRenderVertices();
     std::shared_ptr<vertex> CreateVerticesForPointRendering();

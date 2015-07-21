@@ -322,11 +322,11 @@ v3 VertexInterp(real32 isolevel, v3 p1, v3 p2, real32 valp1, real32 valp2)
    real32 mu;
    v3 p;
 
-   if (ABS(isolevel-valp1) < 0.001)
+   if (ABS(isolevel-valp1) < 0.00001f)
       return(p1);
-   if (ABS(isolevel-valp2) < 0.001)
+   if (ABS(isolevel-valp2) < 0.00001f)
       return(p2);
-   if (ABS(valp1-valp2) < 0.0001)
+   if (ABS(valp1-valp2) < 0.0001f)
       return(p1);
    mu = (isolevel - valp1) / (valp2 - valp1);
    p.X = p1.X + mu * (p2.X - p1.X);

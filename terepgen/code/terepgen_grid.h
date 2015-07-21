@@ -165,12 +165,14 @@ struct grid3D
         return Elements.get()[Plane*Dimension*Dimension + Row*Dimension + Column];
     }
     
-    // NOTE: X == Column
-    //       Y == Plane
-    //       Z == Row
+    // NOTE: X == Plane
+    //       Y == Row
+    //       Z == Column
+    // NOTE: Used to transform between the two systems some other way, but scratched it
     real32& GetXYZ(int32 X, int32 Y, int32 Z)
     {
-        return GetPRC(Y, Z, X);
+        // return GetPRC(Y, Z, X); //old version
+        return GetPRC(X, Y, Z);
     }
     
     

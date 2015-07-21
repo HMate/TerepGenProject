@@ -5,8 +5,8 @@
 
 #include <windows.h>
 
-#include "terepgen_terrain.h"
 #include "terepgen_types.h"
+#include "terepgen_terrain.h"
 #include "terepgen_dxresources.h"
 
 global_variable bool32 GlobalRunning = true;
@@ -158,6 +158,8 @@ WinMain(HINSTANCE Instance,
         LPSTR CommandLine,
         int ShowCode)
 {
+    
+    int32 A = (int32)-10.f;
     WNDCLASS WindowClass = {};
     
     WindowClass.style = CS_HREDRAW|CS_VREDRAW;
@@ -211,12 +213,14 @@ WinMain(HINSTANCE Instance,
             // Terrain.Color = color{1.0f, 1.0f, 1.0f, 1.0f};
             // Terrain.Initialize(GlobalSeed, Persistence);
                         
-            terrain3D Terrain3D;
-            Terrain3D.Initialize(GlobalSeed, Persistence);
+            terrain3D Terrain3D0;
+            Terrain3D0.Initialize(GlobalSeed, Persistence, v3{});
+            terrain3D Terrain3D1;
+            Terrain3D1.Initialize(GlobalSeed, Persistence, {-1.0f, 0.0f, 0.0f});
             
             terrainRenderer TRenderer;
             // TRenderer.Initialize(DXResources, Terrain.FinalVertexCount);
-            TRenderer.Initialize(DXResources, Terrain3D.FinalVertexCount);
+            TRenderer.Initialize(DXResources, Terrain3D0.MaxVertexCount);
             
             while(GlobalRunning)
             {
@@ -239,6 +243,7 @@ WinMain(HINSTANCE Instance,
                     Resize = false;
                 }
         
+                // NOTE: Update
                 GlobalInput.OldMouseX = GlobalInput.MouseX;
                 GlobalInput.OldMouseY = GlobalInput.MouseY;
                 
@@ -250,8 +255,10 @@ WinMain(HINSTANCE Instance,
                 
                 Camera.Update(GlobalInput);
                 // Terrain.Update(GlobalSeed, Persistence);
-                Terrain3D.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                Terrain3D0.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                Terrain3D1.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
+                // NOTE: Rendering
                 DXResources.LoadResource(Camera.SceneConstantBuffer,
                               &Camera.SceneConstants, sizeof(Camera.SceneConstants));
                 
@@ -262,9 +269,12 @@ WinMain(HINSTANCE Instance,
                 DXResources.DeviceContext->ClearRenderTargetView(DXResources.BackBuffer, BackgroundColor.C);
                 
                 // TRenderer.DrawDebugTriangle();
-                Terrain3D.Draw(TRenderer);
+                Terrain3D0.Draw(TRenderer);
+                Terrain3D1.RenderPos = v3{-63.0f, 0.0f, 0.0f};
+                Terrain3D1.Draw(TRenderer);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 
+                TRenderer.DrawAxis(100.0f);
                 DXResources.SwapChain->Present(0, 0);
             }
             

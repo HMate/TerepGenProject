@@ -7,7 +7,6 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 
-#include <string>
 #include "terepgen_types.h"
 
 using namespace DirectX;
@@ -357,10 +356,12 @@ struct camera
             if(CameraSpeed < 0.001f) 
                 CameraSpeed = 0.1f;
             else CameraSpeed *= 1.2f;
+            Input.SpeedUp = false;
         }
         if(Input.SpeedDown) 
         {
             CameraSpeed *= 0.9f;
+            Input.SpeedDown = false;
         }
         // NOTE: Gather where to move with camera
         if(Input.MoveForward) 
