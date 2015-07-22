@@ -114,6 +114,11 @@ struct grid3D
         Elements = nullptr;
     }
     
+    // ~grid3D()
+    // {
+        // OutputDebugStringA("[TEREPGEN_DEBUG] Grid3D being deleted\n");
+    // }
+    
     grid3D(uint32 Dimension)
     {
         this->Dimension = Dimension;

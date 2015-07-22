@@ -59,6 +59,9 @@ WindowProc(HWND Window,
         
         case WM_SIZE:
         {
+#if TEREPGEN_DEBUG
+        OutputDebugStringA("[TEREPGEN_DEBUG] message arrived: WM_SIZE \n");
+#endif    
             Resize = true;
         } break;
         
@@ -217,6 +220,19 @@ WinMain(HINSTANCE Instance,
             Terrain3D0.Initialize(GlobalSeed, Persistence, v3{});
             terrain3D Terrain3D1;
             Terrain3D1.Initialize(GlobalSeed, Persistence, {-64.0f, 0.0f, 0.0f});
+            terrain3D Terrain3D2;
+            Terrain3D2.Initialize(GlobalSeed, Persistence, {-64.0f, 64.0f, 0.0f});
+            terrain3D Terrain3D3;
+            Terrain3D3.Initialize(GlobalSeed, Persistence, {0.0f, 64.0f, 0.0f});
+            
+            terrain3D Terrain3D4;
+            Terrain3D4.Initialize(GlobalSeed, Persistence, {0.0f, 0.0f, 64.0f});
+            terrain3D Terrain3D5;
+            Terrain3D5.Initialize(GlobalSeed, Persistence, {0.0f, 64.0f, 64.0f});
+            terrain3D Terrain3D6;
+            Terrain3D6.Initialize(GlobalSeed, Persistence, {-64.0f, 64.0f, 64.0f});
+            terrain3D Terrain3D7;
+            Terrain3D7.Initialize(GlobalSeed, Persistence, {-64.0f, 0.0f, 64.0f});
             
             terrainRenderer TRenderer;
             // TRenderer.Initialize(DXResources, Terrain.FinalVertexCount);
@@ -250,13 +266,22 @@ WinMain(HINSTANCE Instance,
                 POINT MouseP;
                 GetCursorPos(&MouseP);
                 ScreenToClient(Window, &MouseP);
-                GlobalInput.MouseX = MouseP.x;
-                GlobalInput.MouseY = -MouseP.y;
+                if(GetActiveWindow() == Window)
+                {
+                    GlobalInput.MouseX = MouseP.x;
+                    GlobalInput.MouseY = -MouseP.y;
+                }
                 
                 Camera.Update(GlobalInput);
                 // Terrain.Update(GlobalSeed, Persistence);
                 Terrain3D0.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 Terrain3D1.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                Terrain3D2.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                Terrain3D3.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                Terrain3D4.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                Terrain3D5.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                Terrain3D6.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                Terrain3D7.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 // NOTE: Rendering
                 DXResources.LoadResource(Camera.SceneConstantBuffer,
@@ -270,8 +295,13 @@ WinMain(HINSTANCE Instance,
                 
                 // TRenderer.DrawDebugTriangle();
                 Terrain3D0.Draw(TRenderer);
-                Terrain3D1.RenderPos = v3{-64.0f, 0.0f, 0.0f};
                 Terrain3D1.Draw(TRenderer);
+                Terrain3D2.Draw(TRenderer);
+                Terrain3D3.Draw(TRenderer);
+                Terrain3D4.Draw(TRenderer);
+                Terrain3D5.Draw(TRenderer);
+                Terrain3D6.Draw(TRenderer);
+                Terrain3D7.Draw(TRenderer);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 
                 TRenderer.DrawAxis(100.0f);

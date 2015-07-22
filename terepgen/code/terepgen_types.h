@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <cmath>
 
 #define global_variable static
 #define local_persist static
@@ -78,11 +79,11 @@ FloorUint32(real32 Val)
 inline int32 
 FloorInt32(real32 Val)
 {
-    int32 Result ;
-    if(Val > 0.0f)
-        Result = (int32)Val;
-    else
-        Result = (int32)Val - 1;
+    int32 Result = (int32)floor(Val);
+    // if(Val >= 0.0f)
+        // Result = (int32)Val;
+    // else
+        // Result = (int32)(Val - 1);
     return Result;
 }
 

@@ -55,6 +55,7 @@ struct RandomGenerator
         return Result;
     }
     
+    // TODO: Currently the same as the uint version. Should work like a GPU Sampling from texture.
     real32 RandomFloat(real32 Plane, real32 Row, real32 Column)
     {
         real32 RSeed = (real32)Seed;

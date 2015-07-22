@@ -186,7 +186,7 @@ void terrain3D::Initialize(uint32 Seed, real32 Persistence, v3 WorldPos)
     TerrainDimension = 64 + 1;
     TerrainGrid = grid3D{TerrainDimension};
     GridPos = WorldPos;
-    RenderPos = v3{0.0f, 0.0f, 0.0f};
+    RenderPos = WorldPos;
     
     // NOTE: above 120MB vx buffer size dx11 crashes
     MaxVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*6;
@@ -196,11 +196,25 @@ void terrain3D::Initialize(uint32 Seed, real32 Persistence, v3 WorldPos)
 
 void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
 {
-    if(LastSeed != Seed || Persistence != LastPersistence || LastRenderMode != RenderMode)
+    if(LastSeed != Seed || Persistence != LastPersistence)
     {
         GenerateTerrain(Seed, Persistence);
         LastSeed = Seed;
         LastPersistence = Persistence;
+        LastRenderMode = RenderMode;
+        if(RenderMode == terrain_render_mode::Triangles) 
+            Vertices = CreateRenderVertices();
+        else if(RenderMode == terrain_render_mode::Points) 
+            Vertices = CreateVerticesForPointRendering();
+        else 
+            Vertices = CreateVerticesForWireframeRendering();
+#if TEREPGEN_DEBUG
+        OutputDebugStringA(("[TERPEGEN_DEBUG] Current Vertex Count: " +
+            std::to_string(CurrentVertexCount) + "\n").c_str());
+#endif
+    } 
+    else if(LastRenderMode != RenderMode)
+    {
         LastRenderMode = RenderMode;
         if(RenderMode == terrain_render_mode::Triangles) 
             Vertices = CreateRenderVertices();
@@ -252,7 +266,6 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
                     Column < PerlinGrid.Dimension;
                     ++Column)
                 {
-                    // NOTE: Version with streching
                     // NOTE: Only works properly, if GridPoses are apart from each other 
                     //      with value TerrainDimension. To correct this PerlinGrid dimension 
                     //      should be 1 bigger, and during streching we need to check 
@@ -262,31 +275,8 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
                     int32 WorldZ = Column + FloorInt32(GridPos.Z/WaveLength);
                     real32 RandomVal = Rng.RandomFloat(WorldX * WaveLength,
                                                        WorldY * WaveLength,
-                                                       WorldZ * WaveLength) * Weight;
-                    // Valid versions
-                    // 1
-                    // real32 RandomVal = Rng.RandomFloat(WorldX,
-                                                       // WorldY,
-                                                       // WorldZ) * Weight;
-                    //2
-                    // int32 WorldX = Plane + (int32)(GridPos.X/WaveLength);
-                    // int32 WorldY = Row + (int32)(GridPos.Y/WaveLength);
-                    // int32 WorldZ = Column + (int32)(GridPos.Z/WaveLength);
-                    // real32 RandomVal = Rng.RandomFloat(WorldX * WaveLength,
-                                                       // WorldY * WaveLength,
-                                                       // WorldZ * WaveLength) * Weight; 
-                     
-                    // NOTE: Version without needing to strech
-                    // Here we make every perlin grid in the size of the original terrain
-                    // And theres no need to strech the grid after.
-                    // int32 WorldX = FloorInt32((Plane + GridPos.X) * Frequency);
-                    // int32 WorldY = FloorInt32((Row + GridPos.Y) * Frequency);
-                    // int32 WorldZ = FloorInt32((Column + GridPos.Z) * Frequency);
-                    // real32 RandomVal = Rng.RandomFloat(WorldX,
-                                                       // WorldY,
-                                                       // WorldZ) * Weight;
-                                                       
-                    real32 Dampening = (WorldY)*(1.0f/TerrainDimension/TerrainDimension);
+                                                       WorldZ * WaveLength) * Weight;                                                       
+                    real32 Dampening = (WorldY)*(1.0f/(2.0f * TerrainDimension));
                     PerlinGrid[Plane][Row][Column] = RandomVal + Dampening;
                         
                 }

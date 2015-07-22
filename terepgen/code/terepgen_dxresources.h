@@ -239,10 +239,14 @@ struct dx_resource
     }
     
     HRESULT Resize(uint32 ScreenWidth, uint32 ScreenHeight)
-    {
+    {      
         HRESULT HResult = S_OK;
-        if (SwapChain)
+        if(SwapChain && ScreenWidth && ScreenHeight)
         {
+#if TEREPGEN_DEBUG
+            OutputDebugStringA(("[TEREPGEN_DEBUG] Resize Width:" + std::to_string(ScreenWidth) + "\n").c_str());
+            OutputDebugStringA(("[TEREPGEN_DEBUG] Resize Height:" + std::to_string(ScreenHeight) + "\n").c_str());
+#endif  
             DeviceContext->OMSetRenderTargets(0, 0, 0);
 
             BackBuffer->Release();
@@ -434,16 +438,19 @@ struct camera
     
     void Resize(screen_info Screen)
     {
+        if(Screen.Width && Screen.Height)
+        {
 #if TEREPGEN_DEBUG
-        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Width:" + std::to_string(Screen.Width) + "\n").c_str());
-        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Height:" + std::to_string(Screen.Height) + "\n").c_str());
-        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera ApectRatio:" + std::to_string((real32)Screen.Width/Screen.Height) + "\n").c_str());
+            OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Width:" + std::to_string(Screen.Width) + "\n").c_str());
+            OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Height:" + std::to_string(Screen.Height) + "\n").c_str());
+            OutputDebugStringA(("[TEREPGEN_DEBUG] Camera ApectRatio:" + std::to_string((real32)Screen.Width/Screen.Height) + "\n").c_str());
 #endif        
-        XMStoreFloat4x4(&ProjMx, 
-            XMMatrixPerspectiveFovLH(Fov, (real32)Screen.Width/Screen.Height, 1.0f, 2000.0f));
-        XMStoreFloat4x4(&ViewProjMx,
-            XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
-                                      XMLoadFloat4x4(&ProjMx)));
+            XMStoreFloat4x4(&ProjMx, 
+                XMMatrixPerspectiveFovLH(Fov, (real32)Screen.Width/Screen.Height, 1.0f, 2000.0f));
+            XMStoreFloat4x4(&ViewProjMx,
+                XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
+                                        XMLoadFloat4x4(&ProjMx)));
+        }
     }
 };
 
