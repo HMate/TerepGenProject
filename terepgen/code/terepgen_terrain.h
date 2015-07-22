@@ -35,7 +35,7 @@ struct RandomGenerator
     }
     
     // Gives a random float in the (-1, 1) range based on 2d coordinates
-    float RandomFloat(uint32 Row, uint32 Column)
+    real32 RandomFloat(uint32 Row, uint32 Column)
     {
         uint32 ColumnSeed = _rotr(((Seed + Column) * 6529), Row);
         uint32 RowSeed = _rotr(((Seed + Row) * 2311), Column);
@@ -45,11 +45,22 @@ struct RandomGenerator
     }
     
     // Gives a random float in the (-1, 1) range based on 3d coordinates
-    float RandomFloat(int32 Plane, int32 Row, int32 Column)
+    real32 RandomFloat(int32 Plane, int32 Row, int32 Column)
     {
         uint32 ColumnSeed = _rotr(((Seed + Column) * 6529), Row);
         uint32 RowSeed = _rotr(((Seed + Row) * 2311), Plane);
         uint32 TableSeed = _rotr(((Seed + Plane) * 14281), Column);
+        Rng.seed(RowSeed + ColumnSeed + TableSeed);
+        real32 Result = UniformRng(Rng);
+        return Result;
+    }
+    
+    real32 RandomFloat(real32 Plane, real32 Row, real32 Column)
+    {
+        real32 RSeed = (real32)Seed;
+        uint32 ColumnSeed = _rotr((uint32)((RSeed + Column) * 6529.0f), Row);
+        uint32 RowSeed = _rotr((uint32)((RSeed + Row) * 2311.0f), Plane);
+        uint32 TableSeed = _rotr((uint32)((RSeed + Plane) * 14281.0f), Column);
         Rng.seed(RowSeed + ColumnSeed + TableSeed);
         real32 Result = UniformRng(Rng);
         return Result;

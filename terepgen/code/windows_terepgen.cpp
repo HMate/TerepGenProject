@@ -216,7 +216,7 @@ WinMain(HINSTANCE Instance,
             terrain3D Terrain3D0;
             Terrain3D0.Initialize(GlobalSeed, Persistence, v3{});
             terrain3D Terrain3D1;
-            Terrain3D1.Initialize(GlobalSeed, Persistence, {-1.0f, 0.0f, 0.0f});
+            Terrain3D1.Initialize(GlobalSeed, Persistence, {-64.0f, 0.0f, 0.0f});
             
             terrainRenderer TRenderer;
             // TRenderer.Initialize(DXResources, Terrain.FinalVertexCount);
@@ -270,7 +270,7 @@ WinMain(HINSTANCE Instance,
                 
                 // TRenderer.DrawDebugTriangle();
                 Terrain3D0.Draw(TRenderer);
-                Terrain3D1.RenderPos = v3{-63.0f, 0.0f, 0.0f};
+                Terrain3D1.RenderPos = v3{-64.0f, 0.0f, 0.0f};
                 Terrain3D1.Draw(TRenderer);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 

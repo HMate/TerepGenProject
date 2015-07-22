@@ -183,14 +183,13 @@ void terrain::Update(uint32 Seed, real32 Persistence)
 
 void terrain3D::Initialize(uint32 Seed, real32 Persistence, v3 WorldPos)
 {      
-    TerrainDimension = 64;
+    TerrainDimension = 64 + 1;
     TerrainGrid = grid3D{TerrainDimension};
     GridPos = WorldPos;
-    // GridPos = v3{-10.0f, 0.0f, 0.0f};
     RenderPos = v3{0.0f, 0.0f, 0.0f};
     
     // NOTE: above 120MB vx buffer size dx11 crashes
-    MaxVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*10;
+    MaxVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*6;
     
     Update(Seed, Persistence, terrain_render_mode::Triangles);
 }
@@ -233,15 +232,14 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
         
         real32 Weight = Pow(Persistence, OctaveCount-Octaves-1);
         int32 WaveLength = (int32)Pow2(Octaves);
-        uint32 PGDimension = (TerrainDimension/WaveLength) + 1;
+        real32 Frequency = 1.0f / (WaveLength + 1);
+        uint32 PGDimension = ((TerrainDimension-1)/WaveLength) + 1;
         
         grid3D PerlinGrid = {PGDimension};
         /* NOTE: Plane is axis X
                  Row is axis Y
                  Column is axis Z
         */
-        // TODO: The connection with other grids in the world still not smooth,
-        //       maybe there are bugs in this calculation, or maybe the number of dimensions not correct?
         for(int32 Plane = 0;
             Plane < PerlinGrid.Dimension;
             ++Plane)
@@ -254,18 +252,41 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
                     Column < PerlinGrid.Dimension;
                     ++Column)
                 {
-                    int32 WorldX = Plane + (int32)GridPos.X/WaveLength;
-                    int32 WorldY = Row + (int32)GridPos.Y/WaveLength;
-                    int32 WorldZ = Column + (int32)GridPos.Z/WaveLength;
+                    // NOTE: Version with streching
+                    // NOTE: Only works properly, if GridPoses are apart from each other 
+                    //      with value TerrainDimension. To correct this PerlinGrid dimension 
+                    //      should be 1 bigger, and during streching we need to check 
+                    //      which octave we are in.
+                    int32 WorldX = Plane + FloorInt32(GridPos.X/WaveLength);
+                    int32 WorldY = Row + FloorInt32(GridPos.Y/WaveLength);
+                    int32 WorldZ = Column + FloorInt32(GridPos.Z/WaveLength);
                     real32 RandomVal = Rng.RandomFloat(WorldX * WaveLength,
                                                        WorldY * WaveLength,
                                                        WorldZ * WaveLength) * Weight;
-                        // + /*(real32)*/(WorldY-1)*(1.0f/TerrainDimension/TerrainDimension) ;
-                    // int32 WorldX = Plane * WaveLength + (int32)GridPos.X/WaveLength;
-                    // int32 WorldY = Row * WaveLength + (int32)GridPos.Y/WaveLength;
-                    // int32 WorldZ = Column * WaveLength + (int32)GridPos.Z/WaveLength;
+                    // Valid versions
+                    // 1
+                    // real32 RandomVal = Rng.RandomFloat(WorldX,
+                                                       // WorldY,
+                                                       // WorldZ) * Weight;
+                    //2
+                    // int32 WorldX = Plane + (int32)(GridPos.X/WaveLength);
+                    // int32 WorldY = Row + (int32)(GridPos.Y/WaveLength);
+                    // int32 WorldZ = Column + (int32)(GridPos.Z/WaveLength);
+                    // real32 RandomVal = Rng.RandomFloat(WorldX * WaveLength,
+                                                       // WorldY * WaveLength,
+                                                       // WorldZ * WaveLength) * Weight; 
+                     
+                    // NOTE: Version without needing to strech
+                    // Here we make every perlin grid in the size of the original terrain
+                    // And theres no need to strech the grid after.
+                    // int32 WorldX = FloorInt32((Plane + GridPos.X) * Frequency);
+                    // int32 WorldY = FloorInt32((Row + GridPos.Y) * Frequency);
+                    // int32 WorldZ = FloorInt32((Column + GridPos.Z) * Frequency);
+                    // real32 RandomVal = Rng.RandomFloat(WorldX,
+                                                       // WorldY,
+                                                       // WorldZ) * Weight;
+                                                       
                     real32 Dampening = (WorldY)*(1.0f/TerrainDimension/TerrainDimension);
-                    // real32 RandomVal = Rng.RandomFloat(WorldX, WorldY, WorldZ) * Weight;
                     PerlinGrid[Plane][Row][Column] = RandomVal + Dampening;
                         
                 }
@@ -279,7 +300,7 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
             Plane < StrechedPerlinGrid.Dimension;
             ++Plane)
         {  
-            real32 PlaneRatio = (real32)Plane * (PGDimension-1) / (TerrainDimension);
+            real32 PlaneRatio = (real32)Plane * (PGDimension-1) / (TerrainDimension - 1);
             uint32 PGPlane = FloorUint32(PlaneRatio);
             PlaneRatio = PlaneRatio - (real32)PGPlane;
             
@@ -287,7 +308,7 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
                 Row < StrechedPerlinGrid.Dimension;
                 ++Row)
             {
-                real32 RowRatio = (real32)Row * (PGDimension-1) / (TerrainDimension);
+                real32 RowRatio = (real32)Row * (PGDimension-1) / (TerrainDimension - 1);
                 uint32 PGRow = FloorUint32(RowRatio);
                 RowRatio = RowRatio - (real32)PGRow;
                 
@@ -295,23 +316,29 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
                     Column < StrechedPerlinGrid.Dimension;
                     ++Column)
                 {                
-                    real32 ColumnRatio = (real32)Column * (PGDimension-1) / (TerrainDimension);
+                    real32 ColumnRatio = (real32)Column * (PGDimension-1) / (TerrainDimension - 1);
                     uint32 PGColumn = FloorUint32(ColumnRatio);
                     ColumnRatio = ColumnRatio - (real32)PGColumn;
                     
-                    Assert(((PGColumn+1) < PGDimension) && ((PGRow+1) < PGDimension));
+                    Assert(((PGColumn+1) <= PGDimension) &&
+                           ((PGRow+1) <= PGDimension) &&
+                           ((PGPlane+1) <= PGDimension));
                     
                     real32 InnerValue = 
-                        ( (1.0f - PlaneRatio) *
-                        ((((1.0f-ColumnRatio) * PerlinGrid[PGPlane][PGRow][PGColumn] + 
-                         (ColumnRatio) * PerlinGrid[PGPlane][PGRow][PGColumn+1]) * (1.0f-RowRatio)) +
-                        ((((1.0f-ColumnRatio) * PerlinGrid[PGPlane][PGRow+1][PGColumn]) + 
-                         ((ColumnRatio) * PerlinGrid[PGPlane][PGRow+1][PGColumn+1])) * (RowRatio)))) +
-                        (PlaneRatio * 
-                        ((((1.0f-ColumnRatio) * PerlinGrid[PGPlane+1][PGRow][PGColumn] + 
-                         (ColumnRatio) * PerlinGrid[PGPlane+1][PGRow][PGColumn+1]) * (1.0f-RowRatio)) +
-                        ((((1.0f-ColumnRatio) * PerlinGrid[PGPlane+1][PGRow+1][PGColumn]) + 
-                         ((ColumnRatio) * PerlinGrid[PGPlane+1][PGRow+1][PGColumn+1])) * (RowRatio))));
+                        (1.0f - PlaneRatio) *
+                        (((1.0f-RowRatio) * 
+                            ((1.0f-ColumnRatio) * PerlinGrid[PGPlane][PGRow][PGColumn] + 
+                            (ColumnRatio) * PerlinGrid[PGPlane][PGRow][PGColumn+1])) +
+                        ( (RowRatio) * 
+                            (((1.0f-ColumnRatio) * PerlinGrid[PGPlane][PGRow+1][PGColumn]) + 
+                            ( ColumnRatio * PerlinGrid[PGPlane][PGRow+1][PGColumn+1]) ))) +
+                        PlaneRatio * 
+                        ((1.0f-RowRatio) * 
+                            ((1.0f-ColumnRatio) * PerlinGrid[PGPlane+1][PGRow][PGColumn] + 
+                            (ColumnRatio) * PerlinGrid[PGPlane+1][PGRow][PGColumn+1]) +
+                        ( (RowRatio) * 
+                            (((1.0f-ColumnRatio) * PerlinGrid[PGPlane+1][PGRow+1][PGColumn]) + 
+                            ( ColumnRatio * PerlinGrid[PGPlane+1][PGRow+1][PGColumn+1]) )));
                     StrechedPerlinGrid[Plane][Row][Column] = InnerValue;
                 }
             }
@@ -372,9 +399,9 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
                 real32 GridValue = TerrainGrid.GetPRC(Plane, Row, Column);
                 color PointColor;
                 if(GridValue < 0.05f)
-                    PointColor = color{0.0f, 1.0f, 0.0f, 1.0f};
+                    PointColor = color{-GridValue, 1.0f, 0.0f, 1.0f};
                 else
-                    PointColor = color{1.0f, 1.0f, 1.0f, 1.0f};
+                    PointColor = color{GridValue, GridValue, 1.0f, 1.0f};
                 Vertices.get()[VertexCount++] = Get3DGridVertex(Pos + dPosPlane,  Normal ,PointColor);
                 Vertices.get()[VertexCount++] = Get3DGridVertex(Pos - dPosPlane,  Normal ,PointColor);
                 Vertices.get()[VertexCount++] = Get3DGridVertex(Pos + dPosRow,    Normal ,PointColor);

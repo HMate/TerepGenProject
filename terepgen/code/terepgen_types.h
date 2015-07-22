@@ -75,6 +75,17 @@ FloorUint32(real32 Val)
     return Result;
 }
 
+inline int32 
+FloorInt32(real32 Val)
+{
+    int32 Result ;
+    if(Val > 0.0f)
+        Result = (int32)Val;
+    else
+        Result = (int32)Val - 1;
+    return Result;
+}
+
 inline real32 Pow(real32 A, uint32 N)
 {
     Assert(N>=0);
