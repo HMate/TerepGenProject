@@ -469,6 +469,35 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForWireframeRendering()
     return Vertices;
 }
 
+// TODO: At grid edges, this is not accurate
+inline v3
+GetPointNormal(grid3D TerrainGrid, v3 Point)
+{
+    real32 NormalXIndex = FloorReal32(Point.X);
+    real32 NormalYIndex = FloorReal32(Point.Y);
+    real32 NormalZIndex = FloorReal32(Point.Z);
+    if((uint32)NormalXIndex == TerrainGrid.Dimension-1) 
+        NormalXIndex -= 1.0f;
+    if((uint32)NormalYIndex == TerrainGrid.Dimension-1) 
+        NormalYIndex -= 1.0f;
+    if((uint32)NormalZIndex == TerrainGrid.Dimension-1) 
+        NormalZIndex -= 1.0f;
+    
+    real32 NormalX = 
+        TerrainGrid.GetPRCWithInterpolate(NormalXIndex+1.0f, Point.Y, Point.Z) -
+        TerrainGrid.GetPRCWithInterpolate(NormalXIndex, Point.Y, Point.Z);
+    real32 NormalY = 
+        TerrainGrid.GetPRCWithInterpolate(Point.X, NormalYIndex+1.0f, Point.Z) -
+        TerrainGrid.GetPRCWithInterpolate(Point.X, NormalYIndex, Point.Z);
+    real32 NormalZ = 
+        TerrainGrid.GetPRCWithInterpolate(Point.X, Point.Y, NormalZIndex+1.0f) -
+        TerrainGrid.GetPRCWithInterpolate(Point.X, Point.Y, NormalZIndex);
+        
+    v3 Result = v3{NormalX, NormalY, NormalZ};
+    
+    return Result;
+}
+
 std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
 {
     std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
@@ -516,11 +545,18 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
                     v3 Point0 = Triangles[TriangleIndex].p[0];
                     v3 Point1 = Triangles[TriangleIndex].p[1];
                     v3 Point2 = Triangles[TriangleIndex].p[2];
-                    // TODO: Ths is the inverse of the real normal but this works properly, why?
-                    v3 Normal = Cross(Point1 - Point0, Point2 - Point0);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor1);
+                    // NOTE: Ths is the inverse of the real normal but this works properly, why?
+                    // Because GPU works in a left handed system, so we need to multiply the result of 
+                    // cross by -1, because it computes in right handed system.
+                    // v3 Normal = Cross(Point1 - Point0, Point2 - Point0); //Simple normal
+                                        
+                    v3 Normal0 = GetPointNormal(TerrainGrid, Point0);
+                    v3 Normal1 = GetPointNormal(TerrainGrid, Point1);
+                    v3 Normal2 = GetPointNormal(TerrainGrid, Point2);
+                    
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal0, PointColor1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal1, PointColor1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal2, PointColor1);
                 }
             }
         }

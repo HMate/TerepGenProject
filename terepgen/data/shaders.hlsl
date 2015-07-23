@@ -2,6 +2,7 @@
 cbuffer SceneBuffer : register(b0)
 {
 	float4x4 ViewProjMx;
+	float4x4 ViewMx;
 };
 cbuffer ObjectBuffer : register(b1)
 {
@@ -53,5 +54,5 @@ float4 PShader(VOut input) : SV_TARGET
     float cosTheta = dot(sunDir, input.normal);
     if(cosTheta > 0.0f) return colorBlack;
     return -cosTheta * input.color;
-    //return float4(input.normal, 1.0f); // return normal as color
+    return float4(input.normal, 1.0f); // return normal as color
 }

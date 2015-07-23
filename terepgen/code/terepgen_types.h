@@ -87,25 +87,42 @@ FloorInt32(real32 Val)
     return Result;
 }
 
-inline real32 Pow(real32 A, uint32 N)
+inline real32 
+FloorReal32(real32 Val)
+{
+    real32 Result = (real32)floor(Val);
+    return Result;
+}
+
+inline real32 
+Pow(real32 A, uint32 N)
 {
     Assert(N>=0);
     if(N==0) return 1; 
     return A * Pow(A, N-1);
 }
 
-inline uint32 Pow2(uint32 N)
+inline uint32 
+Pow2(uint32 N)
 {
     Assert(N>=0);
     if(N==0) return 1; 
     return 2 * Pow2(N-1);
 }
 
-inline uint32 Log2(uint32 N)
+inline uint32 
+Log2(uint32 N)
 {
     Assert(N>=1);
     if(N==1) return 0; 
     return 1 + Log2(N/2);
+}
+
+inline real32 
+Sqrt(real32 Val)
+{
+    real32 Result = sqrt(Val);
+    return Val;
 }
 
 #define TEREPGEN_TYPES_H

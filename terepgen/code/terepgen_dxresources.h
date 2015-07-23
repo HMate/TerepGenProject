@@ -14,6 +14,7 @@ using namespace DirectX;
 struct scene_constants
 {
     DirectX::XMFLOAT4X4 ViewProjMx;
+    DirectX::XMFLOAT4X4 ViewMx;
 };
 
 struct object_constants
@@ -326,6 +327,9 @@ struct camera
             XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
                                       XMLoadFloat4x4(&ProjMx)));
         
+        XMFLOAT4X4 VMxTranspose;
+        XMStoreFloat4x4(&VMxTranspose, XMMatrixTranspose(XMLoadFloat4x4(&ViewMx)));
+        SceneConstants.ViewMx = VMxTranspose;
         SceneConstants.ViewProjMx = ViewProjMx;
         
         D3D11_BUFFER_DESC SceneCBDesc = {};
@@ -432,7 +436,10 @@ struct camera
                         XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));
         XMStoreFloat4x4(&ViewProjMx,
             XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx), XMLoadFloat4x4(&ProjMx)));
-        
+            
+        XMFLOAT4X4 VMxTranspose;
+        XMStoreFloat4x4(&VMxTranspose, XMMatrixTranspose(XMLoadFloat4x4(&ViewMx)));
+        SceneConstants.ViewMx = VMxTranspose;
         SceneConstants.ViewProjMx = ViewProjMx;
     }
     
@@ -448,8 +455,7 @@ struct camera
             XMStoreFloat4x4(&ProjMx, 
                 XMMatrixPerspectiveFovLH(Fov, (real32)Screen.Width/Screen.Height, 1.0f, 2000.0f));
             XMStoreFloat4x4(&ViewProjMx,
-                XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
-                                        XMLoadFloat4x4(&ProjMx)));
+                XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx), XMLoadFloat4x4(&ProjMx)));
         }
     }
 };

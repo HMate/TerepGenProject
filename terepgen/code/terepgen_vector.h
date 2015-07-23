@@ -39,8 +39,9 @@ struct v3
 internal 
 v3 Normalize(v3 Vec)
 {
-    real32 Length = Vec.X*Vec.X + Vec.Y*Vec.Y + Vec.Z*Vec.Z; 
-    return v3{Vec.X/Length, Vec.Y/Length, Vec.Z/Length};
+    real32 Length = Sqrt(Vec.X*Vec.X + Vec.Y*Vec.Y + Vec.Z*Vec.Z);
+    v3 Result = v3{Vec.X/Length, Vec.Y/Length, Vec.Z/Length};
+    return Result;
 }
 
 internal
