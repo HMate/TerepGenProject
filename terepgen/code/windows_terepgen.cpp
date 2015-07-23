@@ -171,6 +171,9 @@ WinMain(HINSTANCE Instance,
     WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
     WindowClass.lpszClassName = "TerepGenWindowClass";
     
+	int32 MaxScreenWidth  = GetSystemMetrics(SM_CXSCREEN);
+	int32 MaxScreenHeight = GetSystemMetrics(SM_CYSCREEN);
+    
     screen_info ScreenInfo;
     ScreenInfo.Width = 1280;
 	ScreenInfo.Height = 800;

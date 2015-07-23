@@ -125,5 +125,14 @@ Sqrt(real32 Val)
     return Val;
 }
 
+inline real32 
+ClampReal32(real32 Value, real32 Min, real32 Max)
+{
+    real32 Result = Value;
+    Result = (Result < Min) ? Min : Result;
+    Result = (Result > Max) ? Max : Result;
+    return Result;
+}
+
 #define TEREPGEN_TYPES_H
 #endif

@@ -43,7 +43,7 @@ VOut VShader(VIn input)
 
     return output;
 }
-  
+
 float4 PShader(VOut input) : SV_TARGET
 {
     /*const float4 sunDir = {-0.333f, -0.333f, -0.333f, 0.0f};*/
@@ -54,5 +54,5 @@ float4 PShader(VOut input) : SV_TARGET
     float cosTheta = dot(sunDir, input.normal);
     if(cosTheta > 0.0f) return colorBlack;
     return -cosTheta * input.color;
-    return float4(input.normal, 1.0f); // return normal as color
+    // return float4(input.normal, 1.0f); // return normal as color
 }

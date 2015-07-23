@@ -4,6 +4,7 @@
 
 */
 #include <d3dcompiler.h>
+#include <dxgi.h>
 #include <d3d11.h>
 #include <DirectXMath.h>
 
@@ -35,18 +36,78 @@ struct dx_resource
     ID3D11Texture2D *DepthStencilBuffer = nullptr;
     ID3D11DepthStencilState *DepthStencilState = nullptr;   
     ID3D11RasterizerState *RasterizerState = nullptr;
+        
+    int32 VideoCardMemory;
+    char VideoCardDescription[128];
     
     HRESULT Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
     {
         HRESULT HResult;
         
+        // NOTE: Query hardware specs
+        IDXGIFactory *Factory;
+        IDXGIAdapter *Adapter;
+        IDXGIOutput *AdapterOutput;
+        DXGI_ADAPTER_DESC AdapterDesc;
+        uint32 NumModes, Numerator, Denominator;
+        size_t StringLength;
+        
+        HResult = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&Factory);
+        if(FAILED(HResult))
+            return HResult;
+        HResult = Factory->EnumAdapters(0, &Adapter);
+        if(FAILED(HResult))
+            return HResult;
+        HResult = Adapter->EnumOutputs(0, &AdapterOutput);
+        if(FAILED(HResult))
+            return HResult;
+        HResult = AdapterOutput->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM,
+            DXGI_ENUM_MODES_INTERLACED, &NumModes, NULL);
+        if(FAILED(HResult))
+            return HResult;
+        
+        DXGI_MODE_DESC *DisplayModeList = new DXGI_MODE_DESC[NumModes];
+        if(!DisplayModeList)
+            return E_ABORT;
+        
+        HResult = AdapterOutput->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM,
+            DXGI_ENUM_MODES_INTERLACED, &NumModes, DisplayModeList);
+        if(FAILED(HResult))
+            return HResult;
+        
+        for(int32 i = 0; i < NumModes; ++i)
+        {
+            if(DisplayModeList[i].Width == (uint32)ScreenWidth)
+            {
+                if(DisplayModeList[i].Height == (uint32)ScreenHeight)
+                {
+                    Numerator = DisplayModeList[i].RefreshRate.Numerator;
+                    Denominator = DisplayModeList[i].RefreshRate.Denominator;
+                }
+            }
+        }
+        
+        HResult = Adapter->GetDesc(&AdapterDesc);
+        if(FAILED(HResult))
+            return HResult;
+        
+        VideoCardMemory = (int32)(AdapterDesc.DedicatedVideoMemory / 1024 / 1024);
+        wcstombs_s(&StringLength, VideoCardDescription, 128, AdapterDesc.Description, 128);
+        
+        delete[] DisplayModeList;
+        AdapterOutput->Release();
+        Adapter->Release();
+        Factory->Release();
+        
         DXGI_SWAP_CHAIN_DESC SwapChainDesc;
         ZeroMemory(&SwapChainDesc, sizeof(SwapChainDesc));
         SwapChainDesc.BufferCount = 1;
+        SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         SwapChainDesc.BufferDesc.Width = ScreenWidth;
         SwapChainDesc.BufferDesc.Height = ScreenHeight;
         SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        SwapChainDesc.BufferDesc.RefreshRate.Numerator = 0; // No VSync
+        SwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
         SwapChainDesc.OutputWindow = Window;
         SwapChainDesc.SampleDesc.Count = 4;
         SwapChainDesc.Windowed = true;
@@ -81,10 +142,10 @@ struct dx_resource
         D3D11_VIEWPORT Viewport;
         ZeroMemory(&Viewport, sizeof(D3D11_VIEWPORT));
 
-        Viewport.TopLeftX = 0;
-        Viewport.TopLeftY = 0;
-        Viewport.Width = ScreenWidth;
-        Viewport.Height = ScreenHeight;
+        Viewport.TopLeftX = 0.0f;
+        Viewport.TopLeftY = 0.0f;
+        Viewport.Width = (real32)ScreenWidth;
+        Viewport.Height = (real32)ScreenHeight;
         Viewport.MinDepth = 0.0f;
         Viewport.MaxDepth = 1.0f;
         DeviceContext->RSSetViewports(1, &Viewport);
@@ -163,7 +224,7 @@ struct dx_resource
         ID3D10Blob *BlobVs, *BlobPs;
         ID3D10Blob *BlobError = nullptr;
         
-        HResult = D3DCompileFromFile(L"shaders.shader", 0, 0, "VShader", "vs_4_0", 0, 0, &BlobVs, &BlobError);
+        HResult = D3DCompileFromFile(L"shaders.hlsl", 0, 0, "VShader", "vs_4_0", 0, 0, &BlobVs, &BlobError);
         if(FAILED(HResult))
         {
             if(BlobError != nullptr)
@@ -177,7 +238,7 @@ struct dx_resource
         }
         Device->CreateVertexShader(BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), 0, &VertexShader);
         
-        HResult = D3DCompileFromFile(L"shaders.shader", 0, 0, "PShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
+        HResult = D3DCompileFromFile(L"shaders.hlsl", 0, 0, "PShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
         if(FAILED(HResult))
         {
             if(BlobError != nullptr)

@@ -124,6 +124,7 @@ struct terrain3D
     // std::shared_ptr<v3> VertexLocations;
     // uint32 VertexLocationCount;
     std::shared_ptr<vertex> Vertices;
+    bool32 Loaded;
     
     uint32 LastSeed;
     real32 LastPersistence;
