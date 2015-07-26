@@ -161,11 +161,14 @@ struct world_grid
 {
     const uint32 BlockCount = 8;
     
+    uint32 BlockDimension;
     uint32 BlockVertexCount;
     terrain3D TerrainBlocks[8];
     
     void Initialize(uint32 Seed, real32 Persistence)
     {
+        BlockDimension = 65;
+        
         std::thread t[8];
         t[0] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[0]), Seed, Persistence, v3{});
         t[1] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[1]), Seed, Persistence, v3{-64.0f, 0.0f, 0.0f});
@@ -175,30 +178,35 @@ struct world_grid
         t[5] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[5]), Seed, Persistence, v3{0.0f, 64.0f, 64.0f});
         t[6] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[6]), Seed, Persistence, v3{-64.0f, 64.0f, 64.0f});
         t[7] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[7]), Seed, Persistence, v3{-64.0f, 0.0f, 64.0f});
-                
+        
         for(size_t i = 0; i < BlockCount; ++i)
         {
-            t[i].join();
+            // t[i].join();
+            t[i].detach();
         }
         
-        BlockVertexCount = TerrainBlocks[0].MaxVertexCount;
+        BlockVertexCount = BlockDimension*BlockDimension*BlockDimension*6;
     }
     
     void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
     {
-        if(TerrainBlocks[0].Loaded) TerrainBlocks[0].Update(Seed, Persistence, RenderMode);
-        for(size_t i = 1; i < BlockCount; ++i)
+        for(size_t i = 0; i < BlockCount; ++i)
         {
-            TerrainBlocks[i].Update(Seed, Persistence, RenderMode);
+            if(TerrainBlocks[i].Loaded)
+            {                
+                TerrainBlocks[i].Update(Seed, Persistence, RenderMode);
+            }
         }
     }
     
-    void Draw(terrainRenderer TRenderer)
+    void Draw(terrainRenderer &TRenderer)
     {
-        if(TerrainBlocks[0].Loaded) TerrainBlocks[0].Draw(TRenderer);
-        for(size_t i = 1; i < BlockCount; ++i)
+        for(size_t i = 0; i < BlockCount; ++i)
         {
-            TerrainBlocks[i].Draw(TRenderer);
+            if(TerrainBlocks[i].Loaded)
+            {
+                TerrainBlocks[i].Draw(TRenderer);
+            }
         }
     }
 };
@@ -252,6 +260,9 @@ WinMain(HINSTANCE Instance,
             HResult = DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height);
             if(FAILED(HResult))
             {
+                char* ErrMsg = DXResources.GetDebugMessage(HResult);
+                OutputDebugStringA(("[TEREPGEN_DEBUG] Initialize error: " +
+                    std::string(ErrMsg)).c_str());
                 //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
                 DXResources.Release();
                 return 1;
@@ -271,8 +282,18 @@ WinMain(HINSTANCE Instance,
             WorldTerrain.Initialize(GlobalSeed, Persistence);
             
             terrainRenderer TRenderer;
-            // TRenderer.Initialize(DXResources, Terrain.FinalVertexCount);
-            TRenderer.Initialize(DXResources, WorldTerrain.BlockVertexCount);
+            HResult = TRenderer.Initialize(DXResources, WorldTerrain.BlockVertexCount);
+            if(FAILED(HResult))
+            {
+                //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
+                char* ErrMsg = DXResources.GetDebugMessage(HResult);
+                OutputDebugStringA(("[TEREPGEN_DEBUG] terrainRenderer init error: " +
+                    std::string(ErrMsg)).c_str());
+                TRenderer.Release();
+                Camera.Release();
+                DXResources.Release();
+                return 1;
+            }
             
             while(GlobalRunning)
             {
@@ -289,6 +310,9 @@ WinMain(HINSTANCE Instance,
                     HResult = DXResources.Resize(ScreenInfo.Width, ScreenInfo.Height);
                     if(FAILED(HResult)) 
                     {
+                        char* ErrMsg = DXResources.GetDebugMessage(HResult);
+                        OutputDebugStringA(("[TEREPGEN_DEBUG] Resize error: " +
+                            std::string(ErrMsg)).c_str());
                         break;
                     }
                     Camera.Resize(ScreenInfo);
@@ -307,9 +331,8 @@ WinMain(HINSTANCE Instance,
                     GlobalInput.MouseX = MouseP.x;
                     GlobalInput.MouseY = -MouseP.y;
                 }
-                
+                // TODO: Time loop please!!
                 Camera.Update(GlobalInput);
-                // Terrain.Update(GlobalSeed, Persistence);
                 WorldTerrain.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 // NOTE: Rendering
@@ -322,11 +345,11 @@ WinMain(HINSTANCE Instance,
                     D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, 1.0f, 0);
                 DXResources.DeviceContext->ClearRenderTargetView(DXResources.BackBuffer, BackgroundColor.C);
                 
+                TRenderer.DrawAxis(100.0f);
                 // TRenderer.DrawDebugTriangle();
                 WorldTerrain.Draw(TRenderer);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 
-                TRenderer.DrawAxis(100.0f);
                 DXResources.SwapChain->Present(0, 0);
             }
             

@@ -5,11 +5,17 @@
 
 #include "terepgen_terrain.h"
 
-
-void terrainRenderer::Initialize(dx_resource &DXResources, uint32 MaxVertexCount)
+terrainRenderer::terrainRenderer()
 {
     DXReleased = false;
-    this->DXResource = DXResources;
+    VertexBuffer = nullptr;
+    ObjectConstantBuffer = nullptr;
+}
+
+HRESULT terrainRenderer::Initialize(dx_resource &DXResources, uint32 MaxVertexCount)
+{
+    DXReleased = false;
+    this->DXResource = &DXResources;
     this->MaxVertexCount = MaxVertexCount;
     ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, 0,
                                              0, 1, 0, 0,
@@ -29,8 +35,11 @@ void terrainRenderer::Initialize(dx_resource &DXResources, uint32 MaxVertexCount
     // ObjCBufferData.SysMemPitch = 0;
     // ObjCBufferData.SysMemSlicePitch = 0;
     
-    DXResource.Device->CreateBuffer(&ObjectCBDesc, NULL, &ObjectConstantBuffer);
-    DXResource.DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer);  
+    HRESULT HResult;
+    HResult = DXResources.Device->CreateBuffer(&ObjectCBDesc, NULL, &ObjectConstantBuffer);
+    if(FAILED(HResult))
+            return HResult;
+    DXResources.DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer);  
     
     D3D11_BUFFER_DESC BufferDesc;
     ZeroMemory(&BufferDesc, sizeof(BufferDesc));
@@ -50,7 +59,8 @@ void terrainRenderer::Initialize(dx_resource &DXResources, uint32 MaxVertexCount
         OutputDebugStringA(("[TEREPGEN_DEBUG] VertBuff Max Vertex Count:" + std::to_string(MaxVertexCount) + "\n").c_str());
 #endif  
 
-    DXResource.Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
+    HResult = DXResources.Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
+    return HResult; 
 }
 
 void terrainRenderer::SetTransformations(v3 Translation)
@@ -64,31 +74,31 @@ void terrainRenderer::SetTransformations(v3 Translation)
 // TODO: Instead of this, use rsterizer state
 void terrainRenderer::DrawWireframe(std::shared_ptr<vertex> Vertices, uint32 VertCount)
 {
-    DXResource.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DXResource.DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
        
     uint32 stride = sizeof(vertex);
     uint32 offset = 0;
-    DXResource.LoadResource(VertexBuffer, Vertices.get(), sizeof(vertex) * VertCount);    
+    DXResource->LoadVertexBuffer(VertexBuffer, Vertices.get(), sizeof(vertex) * VertCount);    
         
-    DXResource.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResource.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    DXResource.DeviceContext->Draw(VertCount, 0);
+    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    DXResource->DeviceContext->Draw(VertCount, 0);
 }
 
 //TODO: triangulization have holes
 void terrainRenderer::DrawTriangles(std::shared_ptr<vertex> Vertices, uint32 VertCount)
 {           
-    DXResource.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DXResource.DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
        
     uint32 stride = sizeof(vertex);
     uint32 offset = 0;
-    DXResource.LoadResource(VertexBuffer, Vertices.get(), sizeof(vertex) * VertCount); 
+    DXResource->LoadVertexBuffer(VertexBuffer, Vertices.get(), sizeof(vertex) * VertCount); 
     
-    DXResource.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResource.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    DXResource.DeviceContext->Draw(VertCount, 0);
+    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    DXResource->DeviceContext->Draw(VertCount, 0);
 }
 
 internal vertex
@@ -109,16 +119,16 @@ void terrainRenderer::DrawDebugTriangle()
                                       Get3DVertex(v3{-0.8f, -0.7f, 1.0f}, Color),
                                       Get3DVertex(v3{-1.0f, 0.0f , 1.0f}, Color)};
                                       
-    DXResource.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DXResource.DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
        
     uint32 stride = sizeof(vertex);
     uint32 offset = 0;
-    DXResource.LoadResource(VertexBuffer, FalseVertices, sizeof(vertex) * FalseCount);    
+    DXResource->LoadVertexBuffer(VertexBuffer, FalseVertices, sizeof(vertex) * FalseCount);    
     
-    DXResource.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResource.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    DXResource.DeviceContext->Draw(FalseCount, 0);
+    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    DXResource->DeviceContext->Draw(FalseCount, 0);
 }
 
 void terrainRenderer::DrawAxis(real32 Size)
@@ -134,16 +144,16 @@ void terrainRenderer::DrawAxis(real32 Size)
                                     Get3DVertex(v3{ 0.0f,  0.0f,  1.0f*Size}, Blue),
                                     Get3DVertex(v3{ 0.0f,  0.0f, -1.0f*Size}, Blue)};
                                       
-    DXResource.LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DXResource.DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
        
     uint32 stride = sizeof(vertex);
     uint32 offset = 0;
-    DXResource.LoadResource(VertexBuffer, AxisVertices, sizeof(vertex) * VertCount);    
+    DXResource->LoadFrameFirstVertexBuffer(VertexBuffer, AxisVertices, sizeof(vertex) * VertCount);    
     
-    DXResource.DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResource.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    DXResource.DeviceContext->Draw(VertCount, 0);
+    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    DXResource->DeviceContext->Draw(VertCount, 0);
 }
 
 void terrainRenderer::Release()

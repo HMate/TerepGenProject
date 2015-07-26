@@ -10,6 +10,9 @@
 
 #include "terepgen_types.h"
 
+
+#define ERRMSGBUFFERSIZE 256
+
 struct dx_resource
 {
     IDXGISwapChain *SwapChain = nullptr;
@@ -221,8 +224,8 @@ struct dx_resource
                 MessageBox(Window, (char*)BlobError->GetBufferPointer(),	
                     "Error in vertex shader", MB_OK | MB_ICONERROR);
                 BlobError->Release();
-                return HResult;
             }
+            return HResult;
         }
         Device->CreateVertexShader(BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), 0, &VertexShader);
         
@@ -235,8 +238,8 @@ struct dx_resource
                 MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),	
                     "Error in pixel shader", MB_OK | MB_ICONERROR);
                 BlobError->Release();
-                return HResult;
             }
+            return HResult;
         }
         Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &PixelShader);
         BlobPs->Release();
@@ -260,19 +263,56 @@ struct dx_resource
         return HResult;
     }
 
-    void LoadResource(ID3D11Buffer *Buffer, void *Resource, uint32 ResourceSize)
+    void LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize)
     {
         // NOTE: This kind of resource mapping is optimized for per frame updating 
         //      for resources with D3D11_USAGE_DYNAMIC
         // SOURCE: https://msdn.microsoft.com/en-us/library/windows/desktop/ff476259%28v=vs.85%29.aspx
+        HRESULT HResult;
         D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-        DeviceContext->Map(Buffer, NULL,
+        HResult = DeviceContext->Map(Buffer, NULL,
                         D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
+        if(FAILED(HResult))
+        {
+            std::string ErrMsg(GetDebugMessage(HResult));
+            OutputDebugStringA(("[TEREPGEN_DEBUG] Load Resource failed: " + ErrMsg).c_str());
+        }
         memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
         DeviceContext->Unmap(Buffer, NULL);
         
         // DeviceContext->UpdateSubresource(Buffer, 0, NULL, Resource, 0, ResourceSize);
     } 
+    
+    void LoadFrameFirstVertexBuffer(ID3D11Resource *VBuffer, void *Resource, uint32 ResourceSize)
+    {
+        HRESULT HResult;
+        D3D11_MAPPED_SUBRESOURCE MappedSubresource;
+        HResult = DeviceContext->Map(VBuffer, NULL,
+                        D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
+        if(FAILED(HResult))
+        {
+            std::string ErrMsg(GetDebugMessage(HResult));
+            OutputDebugStringA(("[TEREPGEN_DEBUG] Load Resource failed: " + ErrMsg).c_str());
+        }
+        memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
+        DeviceContext->Unmap(VBuffer, NULL);
+    }
+    
+    void LoadVertexBuffer(ID3D11Resource *VBuffer, void *Resource, uint32 ResourceSize)
+    {
+        HRESULT HResult;
+        D3D11_MAPPED_SUBRESOURCE MappedSubresource;
+        // TODO: Conscutive calls should use this: D3D11_MAP_WRITE_NO_OVERWRITE
+        HResult = DeviceContext->Map(VBuffer, NULL,
+                        D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
+        if(FAILED(HResult))
+        {
+            std::string ErrMsg(GetDebugMessage(HResult));
+            OutputDebugStringA(("[TEREPGEN_DEBUG] Load Resource failed: " + ErrMsg).c_str());
+        }
+        memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
+        DeviceContext->Unmap(VBuffer, NULL);
+    }
 
     void Release()
     {     
@@ -343,6 +383,27 @@ struct dx_resource
             DeviceContext->RSSetViewports( 1, &Viewport);
         }
         return HResult;
+    }
+    
+    char* GetDebugMessage(DWORD dwErrorMsgId)
+    {
+        DWORD ret;        // Temp space to hold a return value.
+        HINSTANCE hInst;  // Instance handle for DLL.
+        char* pBuffer;   // Buffer to hold the textual error description.
+        
+        ret = FormatMessage(  
+			FORMAT_MESSAGE_ALLOCATE_BUFFER | // The function will allocate space for pBuffer.
+			FORMAT_MESSAGE_FROM_SYSTEM | // System wide message.
+			FORMAT_MESSAGE_IGNORE_INSERTS, // No inserts.
+			NULL, // Message is not in a module.
+			dwErrorMsgId, // Message identifier.
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language.
+			(LPTSTR)&pBuffer, // Buffer to hold the text string.
+			ERRMSGBUFFERSIZE, // The function will allocate at least this much for pBuffer.
+			NULL // No inserts.
+		);
+        
+        return pBuffer;
     }
 };
 

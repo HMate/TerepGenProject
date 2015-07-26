@@ -5,6 +5,7 @@
 */
 
 #include <random>
+#include <atomic>
 
 #include "terepgen_types.h"
 #include "terepgen_dxresources.h"
@@ -71,14 +72,17 @@ struct RandomGenerator
 
 struct terrainRenderer
 {
-    dx_resource DXResource;
-    ID3D11Buffer *ObjectConstantBuffer;
+    dx_resource *DXResource;
     object_constants ObjectConstants;
+    ID3D11Buffer *ObjectConstantBuffer;
     ID3D11Buffer *VertexBuffer; 
     uint32 MaxVertexCount;
     bool32 DXReleased;
     
-    void Initialize(dx_resource &DXResources, uint32 MaxVertexCount);
+    terrainRenderer();
+    terrainRenderer(const terrainRenderer&) = delete;
+    
+    HRESULT Initialize(dx_resource &DXResources, uint32 MaxVertexCount);
     ~terrainRenderer();
     void Release();
     
@@ -125,7 +129,7 @@ struct terrain3D
     // std::shared_ptr<v3> VertexLocations;
     // uint32 VertexLocationCount;
     std::shared_ptr<vertex> Vertices;
-    bool32 Loaded = false;
+    std::atomic<bool32> Loaded = false;
     
     uint32 LastSeed;
     real32 LastPersistence;
