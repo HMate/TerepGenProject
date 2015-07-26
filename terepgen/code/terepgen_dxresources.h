@@ -10,19 +10,6 @@
 
 #include "terepgen_types.h"
 
-using namespace DirectX;
-
-struct scene_constants
-{
-    DirectX::XMFLOAT4X4 ViewProjMx;
-    DirectX::XMFLOAT4X4 ViewMx;
-};
-
-struct object_constants
-{
-	DirectX::XMFLOAT4X4 WorldMatrix;
-};
-
 struct dx_resource
 {
     IDXGISwapChain *SwapChain = nullptr;
@@ -207,6 +194,7 @@ struct dx_resource
 
         // Create depth stencil state
         Device->CreateDepthStencilState(&dsDesc, &DepthStencilState);
+        DeviceContext->OMSetDepthStencilState(DepthStencilState, 1);
         
         // NOTE: Create RasterizerState
         // TODO: This should be per object, and maybe a default one here.
@@ -288,16 +276,17 @@ struct dx_resource
 
     void Release()
     {     
+        if(SwapChain) SwapChain->SetFullscreenState(false, NULL);
         if(VertexShader) VertexShader->Release();
         if(PixelShader) PixelShader->Release();
         if(DepthStencilView) DepthStencilView->Release();
         if(DepthStencilBuffer) DepthStencilBuffer->Release();
         if(DepthStencilState) DepthStencilState->Release();
         if(RasterizerState) RasterizerState->Release();
-        if(SwapChain) SwapChain->Release();
         if(BackBuffer) BackBuffer->Release();
         if(Device) Device->Release();
         if(DeviceContext) DeviceContext->Release();
+        if(SwapChain) SwapChain->Release();
     }
     
     HRESULT Resize(uint32 ScreenWidth, uint32 ScreenHeight)
@@ -356,6 +345,20 @@ struct dx_resource
         return HResult;
     }
 };
+
+
+struct scene_constants
+{
+    DirectX::XMFLOAT4X4 ViewProjMx;
+    DirectX::XMFLOAT4X4 ViewMx;
+};
+
+struct object_constants
+{
+	DirectX::XMFLOAT4X4 WorldMatrix;
+};
+
+using namespace DirectX;
 
 struct camera
 {

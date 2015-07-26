@@ -278,8 +278,9 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
                     int32 WorldZ = Column + FloorInt32(GridPos.Z/WaveLength);
                     real32 RandomVal = Rng.RandomFloat(WorldX * WaveLength,
                                                        WorldY * WaveLength,
-                                                       WorldZ * WaveLength) * Weight;                                                       
-                    real32 Dampening = (WorldY)*(1.0f/(2.0f * TerrainDimension));
+                                                       WorldZ * WaveLength); 
+                    RandomVal = RandomVal * Weight;
+                    real32 Dampening = (WorldY)*(1.0f/(4.0f * TerrainDimension));
                     PerlinGrid[Plane][Row][Column] = RandomVal + Dampening;
                         
                 }
@@ -385,7 +386,7 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
                 Column < TerrainGrid.Dimension;
                 ++Column)
             {    
-                v3 Pos = v3{Plane, Row, Column};
+                v3 Pos = v3{(real32)Plane, (real32)Row, (real32)Column};
                 v3 dPosPlane = v3{0.1f, 0.0f, 0.0f};
                 v3 dPosRow = v3{0.0f, 0.1f, 0.0f};
                 v3 dPosColumn = v3{0.0f, 0.0f, 0.1f};
@@ -433,14 +434,17 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForWireframeRendering()
                 ++Column)
             {                
                 GRIDCELL Cell;
-                Cell.p[0] = v3{Plane ,  Row+1, Column  };
-                Cell.p[1] = v3{Plane ,  Row+1, Column+1};
-                Cell.p[2] = v3{Plane ,  Row  , Column+1};
-                Cell.p[3] = v3{Plane ,  Row  , Column  };
-                Cell.p[4] = v3{Plane+1, Row+1, Column  };
-                Cell.p[5] = v3{Plane+1, Row+1, Column+1};
-                Cell.p[6] = v3{Plane+1, Row  , Column+1};
-                Cell.p[7] = v3{Plane+1, Row  , Column  };
+                real32 Planef = (real32)Plane;
+                real32 Rowf = (real32)Row;
+                real32 Columnf = (real32)Column;
+                Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf     };
+                Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
+                Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
+                Cell.p[3] = v3{Planef     , Rowf     , Columnf     };
+                Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf     };
+                Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
+                Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
+                Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
                 Cell.val[0] = TerrainGrid.GetPRC(Plane  , Row+1, Column   );
                 Cell.val[1] = TerrainGrid.GetPRC(Plane  , Row+1, Column+1 );
                 Cell.val[2] = TerrainGrid.GetPRC(Plane  , Row  , Column+1 );
@@ -544,14 +548,17 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
                 ++Column)
             {                
                 GRIDCELL Cell;
-                Cell.p[0] = v3{Plane ,  Row+1, Column  };
-                Cell.p[1] = v3{Plane ,  Row+1, Column+1};
-                Cell.p[2] = v3{Plane ,  Row  , Column+1};
-                Cell.p[3] = v3{Plane ,  Row  , Column  };
-                Cell.p[4] = v3{Plane+1, Row+1, Column  };
-                Cell.p[5] = v3{Plane+1, Row+1, Column+1};
-                Cell.p[6] = v3{Plane+1, Row  , Column+1};
-                Cell.p[7] = v3{Plane+1, Row  , Column  };
+                real32 Planef = (real32)Plane;
+                real32 Rowf = (real32)Row;
+                real32 Columnf = (real32)Column;
+                Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf     };
+                Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
+                Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
+                Cell.p[3] = v3{Planef     , Rowf     , Columnf     };
+                Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf     };
+                Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
+                Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
+                Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
                 Cell.val[0] = TerrainGrid.GetPRC(Plane  , Row+1, Column   );
                 Cell.val[1] = TerrainGrid.GetPRC(Plane  , Row+1, Column+1 );
                 Cell.val[2] = TerrainGrid.GetPRC(Plane  , Row  , Column+1 );

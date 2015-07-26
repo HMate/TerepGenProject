@@ -47,10 +47,11 @@ struct RandomGenerator
     // Gives a random float in the (-1, 1) range based on 3d coordinates
     real32 RandomFloat(int32 Plane, int32 Row, int32 Column)
     {
-        uint32 ColumnSeed = _rotr(((Seed + Column) * 6529), Row);
-        uint32 RowSeed = _rotr(((Seed + Row) * 2311), Plane);
-        uint32 TableSeed = _rotr(((Seed + Plane) * 14281), Column);
-        Rng.seed(RowSeed + ColumnSeed + TableSeed);
+        uint32 ColumnSeed = _rotr(((Seed * Column) * 10145111), Row);
+        uint32 RowSeed = _rotr(((Seed * Row) * 4588277), Plane);
+        uint32 TableSeed = _rotr(((Seed * Plane) * 14281), Column);
+        uint32 PRCSeed = RowSeed + ColumnSeed + TableSeed;  
+        Rng.seed(PRCSeed);
         real32 Result = UniformRng(Rng);
         return Result;
     }
@@ -124,7 +125,7 @@ struct terrain3D
     // std::shared_ptr<v3> VertexLocations;
     // uint32 VertexLocationCount;
     std::shared_ptr<vertex> Vertices;
-    bool32 Loaded;
+    bool32 Loaded = false;
     
     uint32 LastSeed;
     real32 LastPersistence;

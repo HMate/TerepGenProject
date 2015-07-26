@@ -155,6 +155,54 @@ WindowProc(HWND Window,
     return Result;
 }
 
+#include <thread>
+
+struct world_grid
+{
+    const uint32 BlockCount = 8;
+    
+    uint32 BlockVertexCount;
+    terrain3D TerrainBlocks[8];
+    
+    void Initialize(uint32 Seed, real32 Persistence)
+    {
+        std::thread t[8];
+        t[0] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[0]), Seed, Persistence, v3{});
+        t[1] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[1]), Seed, Persistence, v3{-64.0f, 0.0f, 0.0f});
+        t[2] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[2]), Seed, Persistence, v3{-64.0f, 64.0f, 0.0f});
+        t[3] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[3]), Seed, Persistence, v3{0.0f, 64.0f, 0.0f});
+        t[4] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[4]), Seed, Persistence, v3{0.0f, 0.0f, 64.0f});
+        t[5] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[5]), Seed, Persistence, v3{0.0f, 64.0f, 64.0f});
+        t[6] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[6]), Seed, Persistence, v3{-64.0f, 64.0f, 64.0f});
+        t[7] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[7]), Seed, Persistence, v3{-64.0f, 0.0f, 64.0f});
+                
+        for(size_t i = 0; i < BlockCount; ++i)
+        {
+            t[i].join();
+        }
+        
+        BlockVertexCount = TerrainBlocks[0].MaxVertexCount;
+    }
+    
+    void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
+    {
+        if(TerrainBlocks[0].Loaded) TerrainBlocks[0].Update(Seed, Persistence, RenderMode);
+        for(size_t i = 1; i < BlockCount; ++i)
+        {
+            TerrainBlocks[i].Update(Seed, Persistence, RenderMode);
+        }
+    }
+    
+    void Draw(terrainRenderer TRenderer)
+    {
+        if(TerrainBlocks[0].Loaded) TerrainBlocks[0].Draw(TRenderer);
+        for(size_t i = 1; i < BlockCount; ++i)
+        {
+            TerrainBlocks[i].Draw(TRenderer);
+        }
+    }
+};
+
 int CALLBACK 
 WinMain(HINSTANCE Instance,
         HINSTANCE PrevInstance,
@@ -219,27 +267,12 @@ WinMain(HINSTANCE Instance,
             // Terrain.Color = color{1.0f, 1.0f, 1.0f, 1.0f};
             // Terrain.Initialize(GlobalSeed, Persistence);
                         
-            terrain3D Terrain3D0;
-            Terrain3D0.Initialize(GlobalSeed, Persistence, v3{});
-            terrain3D Terrain3D1;
-            Terrain3D1.Initialize(GlobalSeed, Persistence, {-64.0f, 0.0f, 0.0f});
-            terrain3D Terrain3D2;
-            Terrain3D2.Initialize(GlobalSeed, Persistence, {-64.0f, 64.0f, 0.0f});
-            terrain3D Terrain3D3;
-            Terrain3D3.Initialize(GlobalSeed, Persistence, {0.0f, 64.0f, 0.0f});
-            
-            terrain3D Terrain3D4;
-            Terrain3D4.Initialize(GlobalSeed, Persistence, {0.0f, 0.0f, 64.0f});
-            terrain3D Terrain3D5;
-            Terrain3D5.Initialize(GlobalSeed, Persistence, {0.0f, 64.0f, 64.0f});
-            terrain3D Terrain3D6;
-            Terrain3D6.Initialize(GlobalSeed, Persistence, {-64.0f, 64.0f, 64.0f});
-            terrain3D Terrain3D7;
-            Terrain3D7.Initialize(GlobalSeed, Persistence, {-64.0f, 0.0f, 64.0f});
+            world_grid WorldTerrain;
+            WorldTerrain.Initialize(GlobalSeed, Persistence);
             
             terrainRenderer TRenderer;
             // TRenderer.Initialize(DXResources, Terrain.FinalVertexCount);
-            TRenderer.Initialize(DXResources, Terrain3D0.MaxVertexCount);
+            TRenderer.Initialize(DXResources, WorldTerrain.BlockVertexCount);
             
             while(GlobalRunning)
             {
@@ -277,14 +310,7 @@ WinMain(HINSTANCE Instance,
                 
                 Camera.Update(GlobalInput);
                 // Terrain.Update(GlobalSeed, Persistence);
-                Terrain3D0.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
-                Terrain3D1.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
-                Terrain3D2.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
-                Terrain3D3.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
-                Terrain3D4.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
-                Terrain3D5.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
-                Terrain3D6.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
-                Terrain3D7.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                WorldTerrain.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 // NOTE: Rendering
                 DXResources.LoadResource(Camera.SceneConstantBuffer,
@@ -297,14 +323,7 @@ WinMain(HINSTANCE Instance,
                 DXResources.DeviceContext->ClearRenderTargetView(DXResources.BackBuffer, BackgroundColor.C);
                 
                 // TRenderer.DrawDebugTriangle();
-                Terrain3D0.Draw(TRenderer);
-                Terrain3D1.Draw(TRenderer);
-                Terrain3D2.Draw(TRenderer);
-                Terrain3D3.Draw(TRenderer);
-                Terrain3D4.Draw(TRenderer);
-                Terrain3D5.Draw(TRenderer);
-                Terrain3D6.Draw(TRenderer);
-                Terrain3D7.Draw(TRenderer);
+                WorldTerrain.Draw(TRenderer);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 
                 TRenderer.DrawAxis(100.0f);

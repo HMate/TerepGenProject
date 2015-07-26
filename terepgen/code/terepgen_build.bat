@@ -1,10 +1,15 @@
 @echo off
+REM encoding: OEM 852
+REM Store and change the codepage to see chracters with accent
+REM for /f "tokens=2 delims=:." %%x in ('chcp') do set cp=%%x
+REM chcp 1252>nul
 
 echo TerepGen compile starting at %TIME%
 
 cd /d Y:\code
-call "D:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
+REM call "D:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
 REM call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
+call "D:\Programf jlok (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
 
 REM -MTd Multithreaded version of run-time library build and links to LIBCMT.lib
 REM -Od Disables optimization and build faster
@@ -22,5 +27,8 @@ if not exist ..\build mkdir ..\build
 pushd ..\build
 cl %CommonCompilerFlags% %CompiledFiles% /link %CommonLinkerFlags%
 popd
+
+REM Restore codepage
+REM chcp %cp%>nul
 
 echo TerepGen compile ended at %TIME%
