@@ -25,7 +25,7 @@ struct dx_resource
     ID3D11DepthStencilView *DepthStencilView = nullptr;
     ID3D11Texture2D *DepthStencilBuffer = nullptr;
     ID3D11DepthStencilState *DepthStencilState = nullptr;   
-    ID3D11RasterizerState *RasterizerState = nullptr;
+    // ID3D11RasterizerState *RasterizerState = nullptr;
         
     int32 VideoCardMemory;
     char VideoCardDescription[128];
@@ -200,16 +200,15 @@ struct dx_resource
         DeviceContext->OMSetDepthStencilState(DepthStencilState, 1);
         
         // NOTE: Create RasterizerState
-        // TODO: This should be per object, and maybe a default one here.
-        D3D11_RASTERIZER_DESC RSDesc;
-        ZeroMemory(&RSDesc, sizeof(D3D11_RASTERIZER_DESC));
-        RSDesc.FillMode = D3D11_FILL_SOLID; //D3D11_FILL_WIREFRAME D3D11_FILL_SOLID 
-        RSDesc.CullMode = D3D11_CULL_BACK; //D3D11_CULL_NONE D3D11_CULL_FRONT D3D11_CULL_BACK
-        //RSDesc.DepthClipEnable = false;
-        //RSDesc.FrontCounterClockwise = true; // NOTE: false means clockwise triangles
-        Device->CreateRasterizerState(&RSDesc, &RasterizerState);
+        // D3D11_RASTERIZER_DESC RSDesc;
+        // ZeroMemory(&RSDesc, sizeof(D3D11_RASTERIZER_DESC));
+        // RSDesc.FillMode = D3D11_FILL_SOLID; //D3D11_FILL_WIREFRAME D3D11_FILL_SOLID 
+        // RSDesc.CullMode = D3D11_CULL_BACK; //D3D11_CULL_NONE D3D11_CULL_FRONT D3D11_CULL_BACK
+        // RSDesc.DepthClipEnable = false;
+        // RSDesc.FrontCounterClockwise = true; // NOTE: false means clockwise triangles
+        // Device->CreateRasterizerState(&RSDesc, &RasterizerState);
         
-        DeviceContext->RSSetState(RasterizerState);
+        // DeviceContext->RSSetState(RasterizerState);
         
         // NOTE: Compile Shaders
         ID3D10Blob *BlobVs, *BlobPs;
@@ -322,7 +321,7 @@ struct dx_resource
         if(DepthStencilView) DepthStencilView->Release();
         if(DepthStencilBuffer) DepthStencilBuffer->Release();
         if(DepthStencilState) DepthStencilState->Release();
-        if(RasterizerState) RasterizerState->Release();
+        // if(RasterizerState) RasterizerState->Release();
         if(BackBuffer) BackBuffer->Release();
         if(Device) Device->Release();
         if(DeviceContext) DeviceContext->Release();
@@ -437,7 +436,7 @@ struct camera
     ID3D11Buffer *SceneConstantBuffer;
     scene_constants SceneConstants;
     
-    void Initialize(dx_resource &DXResources, screen_info Screen)
+    void Initialize(dx_resource *DXResources, screen_info Screen)
     {   
         XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
             XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));            
@@ -470,9 +469,9 @@ struct camera
         SceneCBufferData.SysMemPitch = 0;
         SceneCBufferData.SysMemSlicePitch = 0;
         
-        DXResources.Device->CreateBuffer(&SceneCBDesc, &SceneCBufferData, 
+        DXResources->Device->CreateBuffer(&SceneCBDesc, &SceneCBufferData, 
                                    &SceneConstantBuffer);
-        DXResources.DeviceContext->VSSetConstantBuffers(0, 1, &SceneConstantBuffer);
+        DXResources->DeviceContext->VSSetConstantBuffers(0, 1, &SceneConstantBuffer);
     }
     
     void Release()
@@ -480,49 +479,49 @@ struct camera
         SceneConstantBuffer->Release();
     }
     
-    void Update(input &Input)
+    void Update(input *Input)
     {
         XMFLOAT3 dCameraPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
         XMVECTOR TargetDirection =  XMLoadFloat3(&TargetPos) - XMLoadFloat3(&Position);
-        if(Input.SpeedUp) 
+        if(Input->SpeedUp) 
         {
             if(CameraSpeed < 0.001f) 
                 CameraSpeed = 0.1f;
             else CameraSpeed *= 1.2f;
-            Input.SpeedUp = false;
+            Input->SpeedUp = false;
         }
-        if(Input.SpeedDown) 
+        if(Input->SpeedDown) 
         {
             CameraSpeed *= 0.9f;
-            Input.SpeedDown = false;
+            Input->SpeedDown = false;
         }
         // NOTE: Gather where to move with camera
-        if(Input.MoveForward) 
+        if(Input->MoveForward) 
         {
             XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) + (TargetDirection * CameraSpeed));
         }
-        if(Input.MoveBack) 
+        if(Input->MoveBack) 
         {
             XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) - (TargetDirection * CameraSpeed));
         }
-        if(Input.MoveLeft) 
+        if(Input->MoveLeft) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) -
                 XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * CameraSpeed);
         }
-        if(Input.MoveRight) 
+        if(Input->MoveRight) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) +
                 XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * CameraSpeed);
         }
-        if(Input.MoveUp) 
+        if(Input->MoveUp) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) + XMLoadFloat3(&UpDirection) * CameraSpeed);
         }
-        if(Input.MoveDown) 
+        if(Input->MoveDown) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) - XMLoadFloat3(&UpDirection) * CameraSpeed);
@@ -538,8 +537,8 @@ struct camera
         bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
         
         // NOTE: rotate camera
-        auto dMouseX = Input.MouseX - Input.OldMouseX;
-        auto dMouseY = Input.MouseY - Input.OldMouseY;
+        auto dMouseX = Input->MouseX - Input->OldMouseX;
+        auto dMouseY = Input->MouseY - Input->OldMouseY;
         if(MouseLeftIsDown && (dMouseX != 0 || dMouseY != 0))
         {
             XMVECTOR NewTargetDir = TargetDirection;

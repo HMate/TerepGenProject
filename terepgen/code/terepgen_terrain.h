@@ -75,20 +75,22 @@ struct terrainRenderer
     dx_resource *DXResource;
     object_constants ObjectConstants;
     ID3D11Buffer *ObjectConstantBuffer;
-    ID3D11Buffer *VertexBuffer; 
+    ID3D11Buffer *VertexBuffer;  
+    ID3D11RasterizerState *RSWireFrame = nullptr; 
+    ID3D11RasterizerState *RSDefault = nullptr;
     uint32 MaxVertexCount;
     bool32 DXReleased;
     
     terrainRenderer();
     terrainRenderer(const terrainRenderer&) = delete;
     
-    HRESULT Initialize(dx_resource &DXResources, uint32 MaxVertexCount);
+    HRESULT Initialize(dx_resource *DXResources, uint32 MaxVertexCount);
     ~terrainRenderer();
     void Release();
     
     void SetTransformations(v3 Translation);
-    void DrawWireframe(std::shared_ptr<vertex> Vertices, uint32 VertexCount);
-    void DrawTriangles(std::shared_ptr<vertex> Vertices, uint32 VertexCount);
+    void DrawWireframe(vertex *Vertices, uint32 VertexCount);
+    void DrawTriangles(vertex *Vertices, uint32 VertexCount);
     void DrawDebugTriangle();
     void DrawAxis(real32 Size = 1.0f);
 };
@@ -139,10 +141,10 @@ struct terrain3D
     virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
     std::shared_ptr<vertex> CreateRenderVertices();
     std::shared_ptr<vertex> CreateVerticesForPointRendering();
-    std::shared_ptr<vertex> CreateVerticesForWireframeRendering();
+    // std::shared_ptr<vertex> CreateVerticesForWireframeRendering();
     
     void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode);
-    void Draw(terrainRenderer &Renderer);
+    void Draw(terrainRenderer *Renderer);
 };
 
 struct RandomGeneratorVariables

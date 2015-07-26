@@ -199,7 +199,7 @@ struct world_grid
         }
     }
     
-    void Draw(terrainRenderer &TRenderer)
+    void Draw(terrainRenderer *TRenderer)
     {
         for(size_t i = 0; i < BlockCount; ++i)
         {
@@ -269,7 +269,7 @@ WinMain(HINSTANCE Instance,
             }
             
             camera Camera;
-            Camera.Initialize(DXResources, ScreenInfo);
+            Camera.Initialize(&DXResources, ScreenInfo);
             Camera.CameraSpeed = 0.5f;
             
             Persistence = 0.4f;
@@ -282,7 +282,7 @@ WinMain(HINSTANCE Instance,
             WorldTerrain.Initialize(GlobalSeed, Persistence);
             
             terrainRenderer TRenderer;
-            HResult = TRenderer.Initialize(DXResources, WorldTerrain.BlockVertexCount);
+            HResult = TRenderer.Initialize(&DXResources, WorldTerrain.BlockVertexCount);
             if(FAILED(HResult))
             {
                 //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
@@ -332,7 +332,7 @@ WinMain(HINSTANCE Instance,
                     GlobalInput.MouseY = -MouseP.y;
                 }
                 // TODO: Time loop please!!
-                Camera.Update(GlobalInput);
+                Camera.Update(&GlobalInput);
                 WorldTerrain.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 // NOTE: Rendering
@@ -347,7 +347,7 @@ WinMain(HINSTANCE Instance,
                 
                 TRenderer.DrawAxis(100.0f);
                 // TRenderer.DrawDebugTriangle();
-                WorldTerrain.Draw(TRenderer);
+                WorldTerrain.Draw(&TRenderer);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 
                 DXResources.SwapChain->Present(0, 0);

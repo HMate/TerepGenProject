@@ -204,31 +204,23 @@ void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode Rend
         LastSeed = Seed;
         LastPersistence = Persistence;
         LastRenderMode = RenderMode;
-        if(RenderMode == terrain_render_mode::Triangles) 
-            Vertices = CreateRenderVertices();
-        else if(RenderMode == terrain_render_mode::Points) 
+        if(RenderMode == terrain_render_mode::Points)  
             Vertices = CreateVerticesForPointRendering();
-        else 
-            Vertices = CreateVerticesForWireframeRendering();
-#if TEREPGEN_DEBUG
-        OutputDebugStringA(("[TERPEGEN_DEBUG] Current Vertex Count: " +
-            std::to_string(CurrentVertexCount) + "\n").c_str());
-#endif
+        else //if(RenderMode == terrain_render_mode::Triangles)
+            Vertices = CreateRenderVertices();
+        // else 
+            // Vertices = CreateVerticesForWireframeRendering();
+        Loaded = true;
     } 
     else if(LastRenderMode != RenderMode)
     {
         Loaded = false;
-        LastRenderMode = RenderMode;
-        if(RenderMode == terrain_render_mode::Triangles) 
-            Vertices = CreateRenderVertices();
-        else if(RenderMode == terrain_render_mode::Points) 
+        if(RenderMode == terrain_render_mode::Points)  
             Vertices = CreateVerticesForPointRendering();
-        else 
-            Vertices = CreateVerticesForWireframeRendering();
-#if TEREPGEN_DEBUG
-        OutputDebugStringA(("[TERPEGEN_DEBUG] Current Vertex Count: " +
-            std::to_string(CurrentVertexCount) + "\n").c_str());
-#endif
+        else if(LastRenderMode == terrain_render_mode::Points) //TODO : at intialization this can fail
+            Vertices = CreateRenderVertices();
+        LastRenderMode = RenderMode;
+        Loaded = true;
     }
 }
 
@@ -408,90 +400,83 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
     }
     CurrentVertexCount = VertexCount;
     
-    Loaded = true;
+#if TEREPGEN_DEBUG
+    OutputDebugStringA(("[TERPEGEN_DEBUG] Current Vertex Count: " +
+        std::to_string(CurrentVertexCount) + "\n").c_str());
+#endif
     return Vertices;
 }
 
-std::shared_ptr<vertex> terrain3D::CreateVerticesForWireframeRendering()
-{
-    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
-    color PointColor = color{0.0, 1.0f, 0.0f, 1.0f};
-    color PointColor0 = color{1.0, 0.0f, 0.0f, 1.0f};
-    color PointColor1 = color{0.0, 1.0f, 0.0f, 1.0f};
-    color PointColor2 = color{0.0, 0.0f, 1.0f, 1.0f};
+// std::shared_ptr<vertex> terrain3D::CreateVerticesForWireframeRendering()
+// {
+    // std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
+    // color PointColor = color{0.0, 1.0f, 0.0f, 1.0f};
+    // color PointColor0 = color{1.0, 0.0f, 0.0f, 1.0f};
+    // color PointColor1 = color{0.0, 1.0f, 0.0f, 1.0f};
+    // color PointColor2 = color{0.0, 0.0f, 1.0f, 1.0f};
     
-    uint32 VertexCount = 0;
-    for(uint32 Plane = 0;
-        Plane < TerrainGrid.Dimension-1;
-        ++Plane)
-    {
-        for(uint32 Row = 0;
-            Row < TerrainGrid.Dimension-1;
-            ++Row)
-        {
-            for(uint32 Column = 0;
-                Column < TerrainGrid.Dimension-1;
-                ++Column)
-            {                
-                GRIDCELL Cell;
-                real32 Planef = (real32)Plane;
-                real32 Rowf = (real32)Row;
-                real32 Columnf = (real32)Column;
-                Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf     };
-                Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
-                Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
-                Cell.p[3] = v3{Planef     , Rowf     , Columnf     };
-                Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf     };
-                Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
-                Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
-                Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
-                Cell.val[0] = TerrainGrid.GetPRC(Plane  , Row+1, Column   );
-                Cell.val[1] = TerrainGrid.GetPRC(Plane  , Row+1, Column+1 );
-                Cell.val[2] = TerrainGrid.GetPRC(Plane  , Row  , Column+1 );
-                Cell.val[3] = TerrainGrid.GetPRC(Plane  , Row  , Column   );
-                Cell.val[4] = TerrainGrid.GetPRC(Plane+1, Row+1, Column   );
-                Cell.val[5] = TerrainGrid.GetPRC(Plane+1, Row+1, Column+1 );
-                Cell.val[6] = TerrainGrid.GetPRC(Plane+1, Row  , Column+1 );
-                Cell.val[7] = TerrainGrid.GetPRC(Plane+1, Row  , Column   );
-                TRIANGLE Triangles[5];
-                uint32 TriangleCount = Polygonise(Cell, 0.05f, Triangles);
+    // uint32 VertexCount = 0;
+    // for(uint32 Plane = 0;
+        // Plane < TerrainGrid.Dimension-1;
+        // ++Plane)
+    // {
+        // for(uint32 Row = 0;
+            // Row < TerrainGrid.Dimension-1;
+            // ++Row)
+        // {
+            // for(uint32 Column = 0;
+                // Column < TerrainGrid.Dimension-1;
+                // ++Column)
+            // {                
+                // GRIDCELL Cell;
+                // real32 Planef = (real32)Plane;
+                // real32 Rowf = (real32)Row;
+                // real32 Columnf = (real32)Column;
+                // Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf     };
+                // Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
+                // Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
+                // Cell.p[3] = v3{Planef     , Rowf     , Columnf     };
+                // Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf     };
+                // Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
+                // Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
+                // Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
+                // Cell.val[0] = TerrainGrid.GetPRC(Plane  , Row+1, Column   );
+                // Cell.val[1] = TerrainGrid.GetPRC(Plane  , Row+1, Column+1 );
+                // Cell.val[2] = TerrainGrid.GetPRC(Plane  , Row  , Column+1 );
+                // Cell.val[3] = TerrainGrid.GetPRC(Plane  , Row  , Column   );
+                // Cell.val[4] = TerrainGrid.GetPRC(Plane+1, Row+1, Column   );
+                // Cell.val[5] = TerrainGrid.GetPRC(Plane+1, Row+1, Column+1 );
+                // Cell.val[6] = TerrainGrid.GetPRC(Plane+1, Row  , Column+1 );
+                // Cell.val[7] = TerrainGrid.GetPRC(Plane+1, Row  , Column   );
+                // TRIANGLE Triangles[5];
+                // uint32 TriangleCount = Polygonise(Cell, 0.05f, Triangles);
                 
-                for(uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
-                {
-                    v3 Point0 = Triangles[TriangleIndex].p[0];
-                    v3 Point1 = Triangles[TriangleIndex].p[1];
-                    v3 Point2 = Triangles[TriangleIndex].p[2];
-                    v3 Normal = Cross(Point2 - Point1, Point0 - Point1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor);
-                }
-            }
-        }
-    }
-    CurrentVertexCount = VertexCount;
+                // for(uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
+                // {
+                    // v3 Point0 = Triangles[TriangleIndex].p[0];
+                    // v3 Point1 = Triangles[TriangleIndex].p[1];
+                    // v3 Point2 = Triangles[TriangleIndex].p[2];
+                    // v3 Normal = Cross(Point2 - Point1, Point0 - Point1);
+                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor);
+                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor);
+                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor);
+                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor);
+                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor);
+                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor);
+                // }
+            // }
+        // }
+    // }
+    // CurrentVertexCount = VertexCount;
     
-    Loaded = true;
-    return Vertices;
-}
+    // Loaded = true;
+    // return Vertices;
+// }
 
 // TODO: At grid edges, this is not accurate
 inline v3
 GetPointNormal(grid3D TerrainGrid, v3 Point)
-{
-    // real32 NormalXIndex = FloorReal32(Point.X);
-    // real32 NormalYIndex = FloorReal32(Point.Y);
-    // real32 NormalZIndex = FloorReal32(Point.Z);
-    // if((uint32)NormalXIndex == TerrainGrid.Dimension-1) 
-        // NormalXIndex -= 1.0f;
-    // if((uint32)NormalYIndex == TerrainGrid.Dimension-1) 
-        // NormalYIndex -= 1.0f;
-    // if((uint32)NormalZIndex == TerrainGrid.Dimension-1) 
-        // NormalZIndex -= 1.0f;
-    
+{    
     real32 Diff = 1.0f;
     real32 DimensionBound = (real32)TerrainGrid.Dimension-1.0f;
     
@@ -593,16 +578,19 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
     }
     CurrentVertexCount = VertexCount;
     
-    Loaded = true;
+#if TEREPGEN_DEBUG
+    OutputDebugStringA(("[TERPEGEN_DEBUG] Current Vertex Count: " +
+        std::to_string(CurrentVertexCount) + "\n").c_str());
+#endif
     return Vertices;
 }
 
-void terrain3D::Draw(terrainRenderer &Renderer)
+void terrain3D::Draw(terrainRenderer *Renderer)
 {
-    Renderer.SetTransformations(RenderPos);
+    Renderer->SetTransformations(RenderPos);
     if(LastRenderMode != terrain_render_mode::Triangles) 
-        Renderer.DrawWireframe(Vertices, CurrentVertexCount);
+        Renderer->DrawWireframe(Vertices.get(), CurrentVertexCount);
     else 
-        Renderer.DrawTriangles(Vertices, CurrentVertexCount);
-    Renderer.SetTransformations(v3{});
+        Renderer->DrawTriangles(Vertices.get(), CurrentVertexCount);
+    Renderer->SetTransformations(v3{});
 }
