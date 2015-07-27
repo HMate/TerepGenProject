@@ -425,7 +425,7 @@ struct camera
     XMFLOAT3 Position = XMFLOAT3(0, 0, 0);
     XMFLOAT3 TargetPos = XMFLOAT3(0, 0, 1);
     XMFLOAT3 UpDirection = XMFLOAT3(0, 1, 0);
-    real32 CameraSpeed = 1.6f;
+    real32 CameraSpeed = 60.0f;
     
     real32 Fov = 3.14f * 0.35f;
     
@@ -479,7 +479,7 @@ struct camera
         SceneConstantBuffer->Release();
     }
     
-    void Update(input *Input)
+    void Update(input *Input, real64 TimeDelta)
     {
         XMFLOAT3 dCameraPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
         XMVECTOR TargetDirection =  XMLoadFloat3(&TargetPos) - XMLoadFloat3(&Position);
@@ -495,36 +495,37 @@ struct camera
             CameraSpeed *= 0.9f;
             Input->SpeedDown = false;
         }
+        real64 MoveDelta = CameraSpeed * TimeDelta;
         // NOTE: Gather where to move with camera
         if(Input->MoveForward) 
         {
-            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) + (TargetDirection * CameraSpeed));
+            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) + (TargetDirection * MoveDelta));
         }
         if(Input->MoveBack) 
         {
-            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) - (TargetDirection * CameraSpeed));
+            XMStoreFloat3(&dCameraPos, XMLoadFloat3(&dCameraPos) - (TargetDirection * MoveDelta));
         }
         if(Input->MoveLeft) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) -
-                XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * CameraSpeed);
+                XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * MoveDelta);
         }
         if(Input->MoveRight) 
         {
             XMStoreFloat3(&dCameraPos, 
                 XMLoadFloat3(&dCameraPos) +
-                XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * CameraSpeed);
+                XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * MoveDelta);
         }
         if(Input->MoveUp) 
         {
             XMStoreFloat3(&dCameraPos, 
-                XMLoadFloat3(&dCameraPos) + XMLoadFloat3(&UpDirection) * CameraSpeed);
+                XMLoadFloat3(&dCameraPos) + XMLoadFloat3(&UpDirection) * MoveDelta);
         }
         if(Input->MoveDown) 
         {
             XMStoreFloat3(&dCameraPos, 
-                XMLoadFloat3(&dCameraPos) - XMLoadFloat3(&UpDirection) * CameraSpeed);
+                XMLoadFloat3(&dCameraPos) - XMLoadFloat3(&UpDirection) * MoveDelta);
         }
         
         // NOTE: move camera in pressed directions

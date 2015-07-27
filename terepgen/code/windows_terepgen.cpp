@@ -16,6 +16,7 @@ global_variable bool32 DrawTerrain1;
 global_variable bool32 DrawTerrain2;   
 global_variable uint32 GlobalSeed;  
 global_variable real32 Persistence;   
+global_variable LARGE_INTEGER GlobalPerfCountFrequency;
 
 internal screen_info 
 GetWindowDimension(HWND Window)
@@ -211,6 +212,22 @@ struct world_grid
     }
 };
 
+inline LARGE_INTEGER
+Win32GetWallClock(void)
+{
+    LARGE_INTEGER Result;
+    QueryPerformanceCounter(&Result);
+    return Result;
+}    
+
+inline real64
+Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
+{
+    real64 Result = ((real64)(End.QuadPart - Start.QuadPart) /
+                    (real64)GlobalPerfCountFrequency.QuadPart);
+    return Result;
+}
+
 int CALLBACK 
 WinMain(HINSTANCE Instance,
         HINSTANCE PrevInstance,
@@ -270,7 +287,6 @@ WinMain(HINSTANCE Instance,
             
             camera Camera;
             Camera.Initialize(&DXResources, ScreenInfo);
-            Camera.CameraSpeed = 0.5f;
             
             Persistence = 0.4f;
             
@@ -294,6 +310,10 @@ WinMain(HINSTANCE Instance,
                 DXResources.Release();
                 return 1;
             }
+            
+            LARGE_INTEGER FrameStartTime = Win32GetWallClock();
+            LARGE_INTEGER WorldTime = FrameStartTime;
+            QueryPerformanceFrequency(&GlobalPerfCountFrequency);
             
             while(GlobalRunning)
             {
@@ -331,8 +351,11 @@ WinMain(HINSTANCE Instance,
                     GlobalInput.MouseX = MouseP.x;
                     GlobalInput.MouseY = -MouseP.y;
                 }
-                // TODO: Time loop please!!
-                Camera.Update(&GlobalInput);
+                LARGE_INTEGER NewTime = Win32GetWallClock();
+                real64 TimePassed = Win32GetSecondsElapsed(WorldTime, NewTime);
+                WorldTime.QuadPart = NewTime.QuadPart;
+                
+                Camera.Update(&GlobalInput, TimePassed);
                 WorldTerrain.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 // NOTE: Rendering
@@ -351,6 +374,14 @@ WinMain(HINSTANCE Instance,
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 
                 DXResources.SwapChain->Present(0, 0);
+                
+                
+                LARGE_INTEGER FrameEndTime = Win32GetWallClock();
+                real64 SecondsElapsed = Win32GetSecondsElapsed(FrameStartTime, FrameEndTime);
+                FrameStartTime.QuadPart = FrameEndTime.QuadPart;
+#if TEREPGEN_DEBUG
+                OutputDebugStringA(("[TEREPGEN_DEBUG] FPS:" + std::to_string(1.0/SecondsElapsed) + "\n").c_str());
+#endif
             }
             
             Camera.Release();
