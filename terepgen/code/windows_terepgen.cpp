@@ -160,28 +160,43 @@ WindowProc(HWND Window,
 
 struct world_grid
 {
-    const uint32 BlockCount = 8;
+    const static uint32 BlockCount = 27;
     
     uint32 BlockDimension;
     uint32 BlockVertexCount;
-    terrain3D TerrainBlocks[8];
+    real32 BlockSize;
+    terrain3D TerrainBlocks[BlockCount];
     
-    void Initialize(uint32 Seed, real32 Persistence)
+    void Initialize(v3 Position, uint32 Seed, real32 Persistence)
     {
         BlockDimension = 65;
+        BlockSize = 64.0f;
         
-        std::thread t[8];
-        t[0] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[0]), Seed, Persistence, v3{});
-        t[1] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[1]), Seed, Persistence, v3{-64.0f, 0.0f, 0.0f});
-        t[2] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[2]), Seed, Persistence, v3{-64.0f, 64.0f, 0.0f});
-        t[3] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[3]), Seed, Persistence, v3{0.0f, 64.0f, 0.0f});
-        t[4] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[4]), Seed, Persistence, v3{0.0f, 0.0f, 64.0f});
-        t[5] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[5]), Seed, Persistence, v3{0.0f, 64.0f, 64.0f});
-        t[6] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[6]), Seed, Persistence, v3{-64.0f, 64.0f, 64.0f});
-        t[7] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[7]), Seed, Persistence, v3{-64.0f, 0.0f, 64.0f});
+        v3 CentralBlockPos = Position / BlockSize;
+        CentralBlockPos = v3{FloorReal32(CentralBlockPos.X), 
+                             FloorReal32(CentralBlockPos.Y),
+                             FloorReal32(CentralBlockPos.Z) + 2.0f};
+        
+        v3 BlockPos[BlockCount];
+        uint32 BlockIndex = 0;
+        for(int32 XIndex = -1; XIndex < 2; ++XIndex)
+        {
+            for(int32 YIndex = -1; YIndex < 2; ++YIndex)
+            {
+                for(int32 ZIndex = -1; ZIndex < 2; ++ZIndex)
+                {
+                    BlockPos[BlockIndex++] = CentralBlockPos +
+                        v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
+                }
+            }
+        }
+        
+        std::thread t[BlockCount];
         
         for(size_t i = 0; i < BlockCount; ++i)
         {
+            t[i] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[i]),
+                Seed, Persistence, BlockPos[i] * BlockSize);
             // t[i].join();
             t[i].detach();
         }
@@ -211,6 +226,11 @@ struct world_grid
         }
     }
 };
+
+// win32_clock
+// {
+    // TODO
+// };
 
 inline LARGE_INTEGER
 Win32GetWallClock(void)
@@ -295,7 +315,7 @@ WinMain(HINSTANCE Instance,
             // Terrain.Initialize(GlobalSeed, Persistence);
                         
             world_grid WorldTerrain;
-            WorldTerrain.Initialize(GlobalSeed, Persistence);
+            WorldTerrain.Initialize(Camera.GetPos(), GlobalSeed, Persistence);
             
             terrainRenderer TRenderer;
             HResult = TRenderer.Initialize(&DXResources, WorldTerrain.BlockVertexCount);

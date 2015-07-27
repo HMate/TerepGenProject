@@ -17,6 +17,16 @@ struct v3
         v3 Result = {this->X - Other.X, this->Y - Other.Y, this->Z - Other.Z};
         return Result;
     }
+    v3 operator*(const real32 &Other)
+    {
+        v3 Result = {this->X * Other, this->Y * Other, this->Z * Other};
+        return Result;
+    }
+    v3 operator/(const real32 &Other)
+    {
+        v3 Result = {this->X / Other, this->Y / Other, this->Z / Other};
+        return Result;
+    }
     bool32 operator == (v3 &Other)
     {
         real32 delta = 0.0001f;

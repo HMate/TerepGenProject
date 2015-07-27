@@ -9,6 +9,7 @@
 #include <DirectXMath.h>
 
 #include "terepgen_types.h"
+#include "terepgen_vector.h"
 
 
 #define ERRMSGBUFFERSIZE 256
@@ -24,8 +25,7 @@ struct dx_resource
     ID3D11InputLayout *InputLayout = nullptr;
     ID3D11DepthStencilView *DepthStencilView = nullptr;
     ID3D11Texture2D *DepthStencilBuffer = nullptr;
-    ID3D11DepthStencilState *DepthStencilState = nullptr;   
-    // ID3D11RasterizerState *RasterizerState = nullptr;
+    ID3D11DepthStencilState *DepthStencilState = nullptr;
         
     int32 VideoCardMemory;
     char VideoCardDescription[128];
@@ -315,17 +315,55 @@ struct dx_resource
 
     void Release()
     {     
-        if(SwapChain) SwapChain->SetFullscreenState(false, NULL);
-        if(VertexShader) VertexShader->Release();
-        if(PixelShader) PixelShader->Release();
-        if(DepthStencilView) DepthStencilView->Release();
-        if(DepthStencilBuffer) DepthStencilBuffer->Release();
-        if(DepthStencilState) DepthStencilState->Release();
-        // if(RasterizerState) RasterizerState->Release();
-        if(BackBuffer) BackBuffer->Release();
-        if(Device) Device->Release();
-        if(DeviceContext) DeviceContext->Release();
-        if(SwapChain) SwapChain->Release();
+        if(SwapChain) 
+        {
+            SwapChain->SetFullscreenState(false, NULL);
+        }
+        if(VertexShader) 
+        {
+            VertexShader->Release();
+            VertexShader = nullptr;
+        }
+        if(PixelShader) 
+        {
+            PixelShader->Release();
+            PixelShader = nullptr;
+        }
+        if(DepthStencilView) 
+        {
+            DepthStencilView->Release();
+            DepthStencilView = nullptr;
+        }
+        if(DepthStencilBuffer) 
+        {
+            DepthStencilBuffer->Release();
+            DepthStencilBuffer = nullptr;
+        }
+        if(DepthStencilState) 
+        {
+            DepthStencilState->Release();
+            DepthStencilState = nullptr;
+        }
+        if(BackBuffer) 
+        {
+            BackBuffer->Release();
+            BackBuffer = nullptr;
+        }
+        if(Device) 
+        {
+            Device->Release();
+            Device = nullptr;
+        }
+        if(DeviceContext) 
+        {
+            DeviceContext->Release();
+            DeviceContext = nullptr;
+        }
+        if(SwapChain) 
+        {
+            SwapChain->Release();
+            SwapChain = nullptr;
+        }
     }
     
     HRESULT Resize(uint32 ScreenWidth, uint32 ScreenHeight)
@@ -373,12 +411,12 @@ struct dx_resource
             DeviceContext->OMSetRenderTargets(1, &BackBuffer, DepthStencilView);
 
             D3D11_VIEWPORT Viewport;
-            Viewport.Width = ScreenWidth;
-            Viewport.Height = ScreenHeight;
+            Viewport.Width = (real32)ScreenWidth;
+            Viewport.Height = (real32)ScreenHeight;
             Viewport.MinDepth = 0.0f;
             Viewport.MaxDepth = 1.0f;
-            Viewport.TopLeftX = 0;
-            Viewport.TopLeftY = 0;
+            Viewport.TopLeftX = 0.0f;
+            Viewport.TopLeftY = 0.0f;
             DeviceContext->RSSetViewports( 1, &Viewport);
         }
         return HResult;
@@ -435,6 +473,12 @@ struct camera
     
     ID3D11Buffer *SceneConstantBuffer;
     scene_constants SceneConstants;
+    
+    v3 GetPos()
+    {
+        v3 Result{Position.x, Position.y, Position.z};
+        return Result;
+    }
     
     void Initialize(dx_resource *DXResources, screen_info Screen)
     {   
