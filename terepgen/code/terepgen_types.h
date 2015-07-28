@@ -26,7 +26,9 @@ typedef uint64_t uint64;
 typedef float real32;
 typedef double real64;
 
-#define ArrayCount(Array) ((sizeof(Array))/sizeof(*Array))
+// NOTE: This doesnt work, if the array is a pointer, (like when the array is a function parameter)
+//       because then sizeof gives the size of a pointer.
+#define ArrayCount(Array) (sizeof(Array)/sizeof(*Array))
 #define Assert(Test) if(!(Test)){*(int *)0 = 0;}
 
 #define KILOBYTE(Size) ((Size)*1024)

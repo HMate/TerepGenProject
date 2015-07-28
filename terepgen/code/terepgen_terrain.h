@@ -128,8 +128,6 @@ struct terrain3D
     
     uint32 MaxVertexCount;  
     uint32 CurrentVertexCount;
-    // std::shared_ptr<v3> VertexLocations;
-    // uint32 VertexLocationCount;
     std::shared_ptr<vertex> Vertices;
     std::atomic<bool32> Loaded = false;
     
@@ -137,49 +135,13 @@ struct terrain3D
     real32 LastPersistence;
     terrain_render_mode LastRenderMode;
     
-    void Initialize(uint32 Seed, real32 Persistence, v3 WorldPos);
+    void Initialize(uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize);
     virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
-    std::shared_ptr<vertex> CreateRenderVertices();
+    std::shared_ptr<vertex> CreateRenderVertices(uint32 CubeSize);
     std::shared_ptr<vertex> CreateVerticesForPointRendering();
-    // std::shared_ptr<vertex> CreateVerticesForWireframeRendering();
     
-    void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode);
+    void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode, uint32 CubeSize);
     void Draw(terrainRenderer *Renderer);
-};
-
-struct RandomGeneratorVariables
-{
-    uint32 Seed;
-    real32 Persistence;
-    uint32 OctaveCount;
-    uint32 OctaveIndex;
-    real32 Weight;
-    uint32 WaveLength;
-    grid2D *PerlinGrid;
-    grid2D *TerrainGrid;
-    uint32 Row;
-    uint32 Column;
-};
-
-struct InterpolatingFunctionVariables : RandomGeneratorVariables
-{
-    grid2D * StrechedGrid;
-};
-
-struct SmoothingFunctionVariables : InterpolatingFunctionVariables
-{
-    grid2D * SmoothGrid;
-};
-
-struct functional_terrain : terrain
-{
-    std::function<float(RandomGeneratorVariables&)> RandomGeneratorFunction;
-    std::function<float(InterpolatingFunctionVariables&)> InterpolatingFunction;
-    std::function<float(SmoothingFunctionVariables&)> SmoothingFunction;
-    
-    functional_terrain();
-    
-    void GenerateTerrain(uint32 Seed, real32 Persistence) override;
 };
 
 #define TEREPGEN_TERRAIN_H

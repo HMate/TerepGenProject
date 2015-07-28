@@ -181,7 +181,7 @@ void terrain::Update(uint32 Seed, real32 Persistence)
 
 // Terrain 3D
 
-void terrain3D::Initialize(uint32 Seed, real32 Persistence, v3 WorldPos)
+void terrain3D::Initialize(uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize)
 {      
     Loaded = false;
     TerrainDimension = 64 + 1;
@@ -192,10 +192,10 @@ void terrain3D::Initialize(uint32 Seed, real32 Persistence, v3 WorldPos)
     // NOTE: above 120MB vx buffer size dx11 crashes
     MaxVertexCount = TerrainDimension*TerrainDimension*TerrainDimension*6;
     
-    Update(Seed, Persistence, terrain_render_mode::Triangles);
+    Update(Seed, Persistence, terrain_render_mode::Triangles, CubeSize);
 }
 
-void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
+void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode, uint32 CubeSize)
 {
     if(LastSeed != Seed || Persistence != LastPersistence)
     {
@@ -207,9 +207,7 @@ void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode Rend
         if(RenderMode == terrain_render_mode::Points)  
             Vertices = CreateVerticesForPointRendering();
         else //if(RenderMode == terrain_render_mode::Triangles)
-            Vertices = CreateRenderVertices();
-        // else 
-            // Vertices = CreateVerticesForWireframeRendering();
+            Vertices = CreateRenderVertices(CubeSize);
         Loaded = true;
     } 
     else if(LastRenderMode != RenderMode)
@@ -218,7 +216,7 @@ void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode Rend
         if(RenderMode == terrain_render_mode::Points)  
             Vertices = CreateVerticesForPointRendering();
         else if(LastRenderMode == terrain_render_mode::Points) //TODO : at intialization this can fail
-            Vertices = CreateRenderVertices();
+            Vertices = CreateRenderVertices(CubeSize);
         LastRenderMode = RenderMode;
         Loaded = true;
     }
@@ -335,18 +333,6 @@ void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
 }
 
 internal vertex
-Get3DGridVertex(v3 GridPos, v3 LocalPos, v3 Normal, color Color)
-{
-    real32 Scale = 1.0f;
-    vertex Result = {GridPos.X + (Scale * LocalPos.X), 
-                     GridPos.Y + (Scale * LocalPos.Y), 
-                     GridPos.Z + (Scale * LocalPos.Z), 1.0f, 
-                     Normal.X, Normal.Y, Normal.Z, 1.0f,
-                     Color};
-    return Result;
-}
-
-internal vertex
 Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
 {
     real32 Scale = 1.0f;
@@ -407,73 +393,8 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
     return Vertices;
 }
 
-// std::shared_ptr<vertex> terrain3D::CreateVerticesForWireframeRendering()
-// {
-    // std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
-    // color PointColor = color{0.0, 1.0f, 0.0f, 1.0f};
-    // color PointColor0 = color{1.0, 0.0f, 0.0f, 1.0f};
-    // color PointColor1 = color{0.0, 1.0f, 0.0f, 1.0f};
-    // color PointColor2 = color{0.0, 0.0f, 1.0f, 1.0f};
-    
-    // uint32 VertexCount = 0;
-    // for(uint32 Plane = 0;
-        // Plane < TerrainGrid.Dimension-1;
-        // ++Plane)
-    // {
-        // for(uint32 Row = 0;
-            // Row < TerrainGrid.Dimension-1;
-            // ++Row)
-        // {
-            // for(uint32 Column = 0;
-                // Column < TerrainGrid.Dimension-1;
-                // ++Column)
-            // {                
-                // GRIDCELL Cell;
-                // real32 Planef = (real32)Plane;
-                // real32 Rowf = (real32)Row;
-                // real32 Columnf = (real32)Column;
-                // Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf     };
-                // Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
-                // Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
-                // Cell.p[3] = v3{Planef     , Rowf     , Columnf     };
-                // Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf     };
-                // Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
-                // Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
-                // Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
-                // Cell.val[0] = TerrainGrid.GetPRC(Plane  , Row+1, Column   );
-                // Cell.val[1] = TerrainGrid.GetPRC(Plane  , Row+1, Column+1 );
-                // Cell.val[2] = TerrainGrid.GetPRC(Plane  , Row  , Column+1 );
-                // Cell.val[3] = TerrainGrid.GetPRC(Plane  , Row  , Column   );
-                // Cell.val[4] = TerrainGrid.GetPRC(Plane+1, Row+1, Column   );
-                // Cell.val[5] = TerrainGrid.GetPRC(Plane+1, Row+1, Column+1 );
-                // Cell.val[6] = TerrainGrid.GetPRC(Plane+1, Row  , Column+1 );
-                // Cell.val[7] = TerrainGrid.GetPRC(Plane+1, Row  , Column   );
-                // TRIANGLE Triangles[5];
-                // uint32 TriangleCount = Polygonise(Cell, 0.05f, Triangles);
-                
-                // for(uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
-                // {
-                    // v3 Point0 = Triangles[TriangleIndex].p[0];
-                    // v3 Point1 = Triangles[TriangleIndex].p[1];
-                    // v3 Point2 = Triangles[TriangleIndex].p[2];
-                    // v3 Normal = Cross(Point2 - Point1, Point0 - Point1);
-                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor);
-                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor);
-                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal, PointColor);
-                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor);
-                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal, PointColor);
-                    // Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal, PointColor);
-                // }
-            // }
-        // }
-    // }
-    // CurrentVertexCount = VertexCount;
-    
-    // Loaded = true;
-    // return Vertices;
-// }
-
-// TODO: At grid edges, this is not accurate
+// TODO: At the edges of a grid, the normals are distorted.
+//  to fix this, the generated grids should contain at least +1 cells in every direction
 inline v3
 GetPointNormal(grid3D TerrainGrid, v3 Point)
 {    
@@ -510,48 +431,48 @@ GetPointNormal(grid3D TerrainGrid, v3 Point)
     return Result;
 }
 
-std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
+std::shared_ptr<vertex> terrain3D::CreateRenderVertices(uint32 CubeSize)
 {
+    Assert(CubeSize > 0);
+    real32 CellDiff = (real32)CubeSize;
+    color GreenColor = color{0.0, 1.0f, 0.0f, 1.0f};
+    
     std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
-    color PointColor = color{0.0, 1.0f, 0.0f, 1.0f};
-    color PointColor0 = color{1.0, 0.0f, 0.0f, 1.0f};
-    color PointColor1 = color{0.0, 1.0f, 0.0f, 1.0f};
-    color PointColor2 = color{0.0, 0.0f, 1.0f, 1.0f};
     
     uint32 VertexCount = 0;
     // NOTE: Using marching cubes, so we index to dim-1, to make cubes
     for(uint32 Plane = 0;
         Plane < TerrainGrid.Dimension-1;
-        ++Plane)
+        Plane += CubeSize)
     {
         for(uint32 Row = 0;
             Row < TerrainGrid.Dimension-1;
-            ++Row)
+            Row += CubeSize)
         {
             for(uint32 Column = 0;
                 Column < TerrainGrid.Dimension-1;
-                ++Column)
+                Column += CubeSize)
             {                
                 GRIDCELL Cell;
                 real32 Planef = (real32)Plane;
                 real32 Rowf = (real32)Row;
                 real32 Columnf = (real32)Column;
-                Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf     };
-                Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
-                Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
-                Cell.p[3] = v3{Planef     , Rowf     , Columnf     };
-                Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf     };
-                Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
-                Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
-                Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
-                Cell.val[0] = TerrainGrid.GetPRC(Plane  , Row+1, Column   );
-                Cell.val[1] = TerrainGrid.GetPRC(Plane  , Row+1, Column+1 );
-                Cell.val[2] = TerrainGrid.GetPRC(Plane  , Row  , Column+1 );
-                Cell.val[3] = TerrainGrid.GetPRC(Plane  , Row  , Column   );
-                Cell.val[4] = TerrainGrid.GetPRC(Plane+1, Row+1, Column   );
-                Cell.val[5] = TerrainGrid.GetPRC(Plane+1, Row+1, Column+1 );
-                Cell.val[6] = TerrainGrid.GetPRC(Plane+1, Row  , Column+1 );
-                Cell.val[7] = TerrainGrid.GetPRC(Plane+1, Row  , Column   );
+                Cell.p[0] = v3{Planef         , Rowf+CellDiff, Columnf         };
+                Cell.p[1] = v3{Planef         , Rowf+CellDiff, Columnf+CellDiff};
+                Cell.p[2] = v3{Planef         , Rowf         , Columnf+CellDiff};
+                Cell.p[3] = v3{Planef         , Rowf         , Columnf         };
+                Cell.p[4] = v3{Planef+CellDiff, Rowf+CellDiff, Columnf         };
+                Cell.p[5] = v3{Planef+CellDiff, Rowf+CellDiff, Columnf+CellDiff};
+                Cell.p[6] = v3{Planef+CellDiff, Rowf         , Columnf+CellDiff};
+                Cell.p[7] = v3{Planef+CellDiff, Rowf         , Columnf         };
+                Cell.val[0] = TerrainGrid.GetPRC(Plane         , Row+CubeSize, Column         );
+                Cell.val[1] = TerrainGrid.GetPRC(Plane         , Row+CubeSize, Column+CubeSize);
+                Cell.val[2] = TerrainGrid.GetPRC(Plane         , Row         , Column+CubeSize);
+                Cell.val[3] = TerrainGrid.GetPRC(Plane         , Row         , Column         );
+                Cell.val[4] = TerrainGrid.GetPRC(Plane+CubeSize, Row+CubeSize, Column         );
+                Cell.val[5] = TerrainGrid.GetPRC(Plane+CubeSize, Row+CubeSize, Column+CubeSize);
+                Cell.val[6] = TerrainGrid.GetPRC(Plane+CubeSize, Row         , Column+CubeSize);
+                Cell.val[7] = TerrainGrid.GetPRC(Plane+CubeSize, Row         , Column         );
                 TRIANGLE Triangles[5];
                 uint32 TriangleCount = Polygonise(Cell, 0.05f, Triangles);
                 
@@ -569,9 +490,9 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices()
                     v3 Normal1 = GetPointNormal(TerrainGrid, Point1);
                     v3 Normal2 = GetPointNormal(TerrainGrid, Point2);
                     
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal0, PointColor1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal1, PointColor1);
-                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal2, PointColor1);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point0, Normal0, GreenColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point1, Normal1, GreenColor);
+                    Vertices.get()[VertexCount++] = Get3DGridVertex(Point2, Normal2, GreenColor);
                 }
             }
         }

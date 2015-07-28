@@ -157,15 +157,53 @@ WindowProc(HWND Window,
 }
 
 #include <thread>
+//#include <chrono>
+
+internal bool32
+IsInLoadingBlocks(int32 LoadingBlocks[], uint32 ArraySize, uint32 BlockIndex, uint32 *LoadIdx)
+{
+    bool32 Result = false;
+    for(size_t Index = 0; Index < ArraySize; Index++)
+    {
+        if(LoadingBlocks[Index] == BlockIndex) 
+        {
+            Result = true;
+            *LoadIdx = Index;
+        }
+    }
+    return Result;
+}
+
+internal int32
+GetEmptyThread(int32 LoadingBlocks[], uint32 ArraySize)
+{
+    for(size_t Index = 0; Index < ArraySize; Index++)
+    {
+        if(LoadingBlocks[Index] == -1) 
+        {
+            return Index;
+        }
+    }
+    Assert(false);
+    return -1;
+}
 
 struct world_grid
 {
     const static uint32 BlockCount = 27;
+    const static uint32 ThreadCount = 4;
     
     uint32 BlockDimension;
     uint32 BlockVertexCount;
+    uint32 CubeSize = 4;
     real32 BlockSize;
     terrain3D TerrainBlocks[BlockCount];
+    v3 BlockPos[BlockCount];
+    
+    std::thread t[ThreadCount];
+    uint32 InitBlockIndex;
+    uint32 ActiveThreadCount;
+    int32 LoadingBlocks[ThreadCount];
     
     void Initialize(v3 Position, uint32 Seed, real32 Persistence)
     {
@@ -177,7 +215,6 @@ struct world_grid
                              FloorReal32(CentralBlockPos.Y),
                              FloorReal32(CentralBlockPos.Z) + 2.0f};
         
-        v3 BlockPos[BlockCount];
         uint32 BlockIndex = 0;
         for(int32 XIndex = -1; XIndex < 2; ++XIndex)
         {
@@ -191,14 +228,18 @@ struct world_grid
             }
         }
         
-        std::thread t[BlockCount];
+        InitBlockIndex = 0;
+        ActiveThreadCount = 0;
         
-        for(size_t i = 0; i < BlockCount; ++i)
+        for(InitBlockIndex = 0; 
+            InitBlockIndex < ThreadCount; 
+            ++InitBlockIndex)
         {
-            t[i] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[i]),
-                Seed, Persistence, BlockPos[i] * BlockSize);
-            // t[i].join();
-            t[i].detach();
+            t[InitBlockIndex] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[InitBlockIndex]),
+                Seed, Persistence, BlockPos[InitBlockIndex] * BlockSize, CubeSize);
+            t[InitBlockIndex].detach();
+            LoadingBlocks[ActiveThreadCount] = InitBlockIndex;
+            ActiveThreadCount++;
         }
         
         BlockVertexCount = BlockDimension*BlockDimension*BlockDimension*6;
@@ -206,11 +247,31 @@ struct world_grid
     
     void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
     {
-        for(size_t i = 0; i < BlockCount; ++i)
+        for(size_t BlockIndex = 0; 
+            BlockIndex < BlockCount; 
+            ++BlockIndex)
         {
-            if(TerrainBlocks[i].Loaded)
+            uint32 LoadIdx;
+            bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, BlockIndex, &LoadIdx);
+            if(TerrainBlocks[BlockIndex].Loaded && IsLoading)
+            {
+                LoadingBlocks[LoadIdx] = -1;
+                --ActiveThreadCount;
+            }
+            
+            if(TerrainBlocks[BlockIndex].Loaded)
             {                
-                TerrainBlocks[i].Update(Seed, Persistence, RenderMode);
+                TerrainBlocks[BlockIndex].Update(Seed, Persistence, RenderMode, CubeSize);
+            }
+            else if(ActiveThreadCount < ThreadCount && !IsLoading)
+            {
+                // NOTE: Start loading block, if there is a free thread
+                int32 ThreadIdx = GetEmptyThread(LoadingBlocks, ThreadCount);
+                t[ThreadIdx] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[BlockIndex]),
+                    Seed, Persistence, BlockPos[BlockIndex] * BlockSize, CubeSize);
+                t[ThreadIdx].detach();
+                LoadingBlocks[ThreadIdx] = BlockIndex;
+                ActiveThreadCount++;
             }
         }
     }
@@ -223,6 +284,26 @@ struct world_grid
             {
                 TerrainBlocks[i].Draw(TRenderer);
             }
+        }
+    }
+    
+    ~world_grid()
+    {
+        while(ActiveThreadCount > 0)
+        {
+            for(size_t BlockIndex = 0; 
+                BlockIndex < BlockCount; 
+                ++BlockIndex)
+            {
+                uint32 LoadIdx;
+                bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, BlockIndex, &LoadIdx);
+                if(TerrainBlocks[BlockIndex].Loaded && IsLoading)
+                {
+                    LoadingBlocks[LoadIdx] = -1;
+                    --ActiveThreadCount;
+                }
+            }
+            std::this_thread::yield();
         }
     }
 };
