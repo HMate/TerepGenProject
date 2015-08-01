@@ -106,6 +106,7 @@ struct grid2D
 struct grid3D
 {
     uint32 Dimension;
+    // TODO: shared pointers should be vreated with make_shared, but its not trivial with arrays
     std::shared_ptr<real32> Elements;
     
     grid3D()
@@ -122,7 +123,9 @@ struct grid3D
     grid3D(uint32 Dimension)
     {
         this->Dimension = Dimension;
-        Elements = std::shared_ptr<real32>(new real32[Dimension * Dimension * Dimension]);
+        // NOTE: sharedptr array needs custom deleter.
+        Elements = std::shared_ptr<real32>(new real32[Dimension * Dimension * Dimension],
+            [](real32 *E){delete[] E;});
     }
     
     bool32 operator==(const grid3D &OtherGrid)

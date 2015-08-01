@@ -188,10 +188,28 @@ GetEmptyThread(int32 LoadingBlocks[], uint32 ArraySize)
     return -1;
 }
 
+internal void
+ArrayCopyV3(v3 To[], v3 From[], uint32 Count)
+{
+    for(uint32 Idx = 0; Idx < Count; ++Idx)
+    {
+        To[Idx] = From[Idx];
+    }
+}
+
+internal void
+ArrayCopyTerrain3D(terrain3D To[], terrain3D From[], uint32 Count)
+{
+    for(uint32 Idx = 0; Idx < Count; ++Idx)
+    {
+        To[Idx] = From[Idx];
+    }
+}
+
 struct world_grid
 {
-    const static uint32 BlockCount = 27;
-    const static uint32 ThreadCount = 4;
+    const static uint32 BlockCount = 8;
+    const static uint32 ThreadCount = 7;
     
     uint32 BlockDimension;
     uint32 BlockVertexCount;
@@ -215,18 +233,20 @@ struct world_grid
                              FloorReal32(CentralBlockPos.Y),
                              FloorReal32(CentralBlockPos.Z) + 2.0f};
         
-        uint32 BlockIndex = 0;
-        for(int32 XIndex = -1; XIndex < 2; ++XIndex)
+        uint32 PosIndex = 0;
+        int32 Start = 0, End = 2;
+        for(int32 XIndex = Start; XIndex < End; ++XIndex)
         {
-            for(int32 YIndex = -1; YIndex < 2; ++YIndex)
+            for(int32 YIndex = Start; YIndex < End; ++YIndex)
             {
-                for(int32 ZIndex = -1; ZIndex < 2; ++ZIndex)
+                for(int32 ZIndex = Start; ZIndex < End; ++ZIndex)
                 {
-                    BlockPos[BlockIndex++] = CentralBlockPos +
+                    BlockPos[PosIndex++] = CentralBlockPos +
                         v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
                 }
             }
         }
+        Assert(PosIndex == BlockCount);
         
         InitBlockIndex = 0;
         ActiveThreadCount = 0;
@@ -245,8 +265,97 @@ struct world_grid
         BlockVertexCount = BlockDimension*BlockDimension*BlockDimension*6;
     }
     
-    void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
+    void Update(v3 Position, uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
     {
+        // TODO: Get Pos and update the grid based on that
+        //  For this, we need a collection, that remembers grids based on Pos,
+        //  to know which grids are not needed anymore, or needed to be updated.
+        // TODO: Bring Update logic here from terrain3D?
+        
+        v3 CentralBlockPos = Position / BlockSize;
+        CentralBlockPos = v3{FloorReal32(CentralBlockPos.X), 
+                             FloorReal32(CentralBlockPos.Y),
+                             FloorReal32(CentralBlockPos.Z) + 2.0f};
+        
+        v3 UpdatedBlockPos[BlockCount];
+        terrain3D UpdatedTerrainBlocks[BlockCount];
+        uint32 PosIndex = 0;
+        int32 Start = 0, End = 2;
+        for(int32 XIndex = Start; XIndex < End; ++XIndex)
+        {
+            for(int32 YIndex = Start; YIndex < End; ++YIndex)
+            {
+                for(int32 ZIndex = Start; ZIndex < End; ++ZIndex)
+                {
+                    // NOTE: If the block is already loaded, and still needed, 
+                    //      we have to update the indices, in TerrrainBlocks,
+                    //      so they are at their new index.
+                    //      + We have to change the indices in loading blocks too
+                    UpdatedBlockPos[PosIndex++] = CentralBlockPos +
+                        v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
+                }
+            }
+        }
+        Assert(PosIndex == BlockCount);
+        
+        uint32 UpdatedBlockCount = PosIndex;
+        for(PosIndex = 0; PosIndex < UpdatedBlockCount; ++PosIndex)
+        {
+            bool32 HasPos = false;
+            uint32 OldIndex = BlockCount + 1;
+            for(size_t Index = 0; Index < BlockCount;  ++Index)
+            {
+                v3 OldPos = BlockPos[Index];
+                v3 NewPos = UpdatedBlockPos[PosIndex];
+                if(OldPos.X <= (NewPos.X + 0.001f) && OldPos.X >= (NewPos.X - 0.001f) &&
+                   OldPos.Y <= (NewPos.Y + 0.001f) && OldPos.Y >= (NewPos.Y - 0.001f) &&
+                   OldPos.Z <= (NewPos.Z + 0.001f) && OldPos.Z >= (NewPos.Z - 0.001f))
+                {
+                    HasPos = true;
+                    OldIndex = Index;
+                    break;
+                }
+            }
+            
+            if(HasPos)
+            {
+                if(TerrainBlocks[OldIndex].Loaded)
+                {
+                    // NOTE: If we already had this block, and its loaded, we just copy it.
+                    // NOTE: If it has loaded, being in LoadingBlocks doesnt matter 
+                    //      because its thread is done with the important part. 
+                    //      So we can just delete its index and handle it normally.
+                    uint32 LoadIdx;
+                    bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, OldIndex, &LoadIdx);
+                    if(IsLoading)
+                    {
+                        LoadingBlocks[LoadIdx] = -1;
+                        --ActiveThreadCount;
+                    }
+                
+                    //TODO: Maybe if an object is discareded, because it gets out of scope
+                    // , before its thread finishes, then the app crashes?
+                    // So i should just save the loading objects?
+                    UpdatedTerrainBlocks[PosIndex] = TerrainBlocks[OldIndex];
+                }
+                else
+                {
+                    uint32 LoadIdx;
+                    bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, OldIndex, &LoadIdx);
+                    if(IsLoading)
+                    {
+                        // TODO: What to do if its loading now? just trashing it is wasteful.
+                    }
+                    // NOTE: do nothing, if it wasnt loaded, and we wont even need it.
+                }
+            }
+        }
+        
+        ArrayCopyV3(BlockPos, UpdatedBlockPos, BlockCount);
+        ArrayCopyTerrain3D(TerrainBlocks, UpdatedTerrainBlocks, BlockCount);
+        // BlockPos = UpdatedBlockPos;
+        // TerrainBlocks = UpdatedTerrainBlocks;
+        
         for(size_t BlockIndex = 0; 
             BlockIndex < BlockCount; 
             ++BlockIndex)
@@ -303,6 +412,7 @@ struct world_grid
                     --ActiveThreadCount;
                 }
             }
+            // TODO: Maybe sleep would be better?
             std::this_thread::yield();
         }
     }
@@ -379,8 +489,10 @@ WinMain(HINSTANCE Instance,
             if(FAILED(HResult))
             {
                 char* ErrMsg = DXResources.GetDebugMessage(HResult);
+#if TEREPGEN_DEBUG
                 OutputDebugStringA(("[TEREPGEN_DEBUG] Initialize error: " +
                     std::string(ErrMsg)).c_str());
+#endif
                 //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
                 DXResources.Release();
                 return 1;
@@ -404,8 +516,10 @@ WinMain(HINSTANCE Instance,
             {
                 //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
                 char* ErrMsg = DXResources.GetDebugMessage(HResult);
+#if TEREPGEN_DEBUG
                 OutputDebugStringA(("[TEREPGEN_DEBUG] terrainRenderer init error: " +
                     std::string(ErrMsg)).c_str());
+#endif
                 TRenderer.Release();
                 Camera.Release();
                 DXResources.Release();
@@ -432,8 +546,10 @@ WinMain(HINSTANCE Instance,
                     if(FAILED(HResult)) 
                     {
                         char* ErrMsg = DXResources.GetDebugMessage(HResult);
+#if TEREPGEN_DEBUG
                         OutputDebugStringA(("[TEREPGEN_DEBUG] Resize error: " +
                             std::string(ErrMsg)).c_str());
+#endif
                         break;
                     }
                     Camera.Resize(ScreenInfo);
@@ -452,12 +568,13 @@ WinMain(HINSTANCE Instance,
                     GlobalInput.MouseX = MouseP.x;
                     GlobalInput.MouseY = -MouseP.y;
                 }
+                
                 LARGE_INTEGER NewTime = Win32GetWallClock();
                 real64 TimePassed = Win32GetSecondsElapsed(WorldTime, NewTime);
                 WorldTime.QuadPart = NewTime.QuadPart;
                 
                 Camera.Update(&GlobalInput, TimePassed);
-                WorldTerrain.Update(GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                WorldTerrain.Update(Camera.GetPos(), GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 // NOTE: Rendering
                 DXResources.LoadResource(Camera.SceneConstantBuffer,

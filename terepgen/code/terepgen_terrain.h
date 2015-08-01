@@ -124,7 +124,6 @@ struct terrain3D
     grid3D TerrainGrid;
     v3 GridPos;
     v3 RenderPos;
-    color Color;
     
     uint32 MaxVertexCount;  
     uint32 CurrentVertexCount;
@@ -134,6 +133,28 @@ struct terrain3D
     uint32 LastSeed;
     real32 LastPersistence;
     terrain_render_mode LastRenderMode;
+    
+    //terrain3D(const terrain3D&) = delete;
+    terrain3D& operator=(const terrain3D& Other)
+    {
+        this->TerrainDimension   = Other.TerrainDimension;
+        this->TerrainGrid        = Other.TerrainGrid;
+        this->GridPos            = Other.GridPos;
+        this->RenderPos          = Other.RenderPos;
+        this->MaxVertexCount     = Other.MaxVertexCount;  
+        this->CurrentVertexCount = Other.CurrentVertexCount;
+        this->Vertices           = Other.Vertices;
+        bool32 Temp;
+        this->Loaded             = Temp = Other.Loaded;
+        this->LastSeed           = Other.LastSeed;
+        this->LastPersistence    = Other.LastPersistence;
+        this->LastRenderMode     = Other.LastRenderMode;
+        return *this;
+    }
+    // ~terrain3D()
+    // {
+        // OutputDebugStringA("[TEREPGEN_DEBUG] terrain3D Destrutor\n");
+    // }
     
     void Initialize(uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize);
     virtual void GenerateTerrain(uint32 Seed, real32 Persistence);

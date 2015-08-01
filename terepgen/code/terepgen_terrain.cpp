@@ -346,7 +346,8 @@ Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
 
 std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
 {
-    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
+    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount],
+        [](vertex *V){delete[] V;});
     color PointColor0 = color{0.0, 1.0f, 0.0f, 1.0f};
     v3 Normal = v3{0.0f, 1.0f, 0.0f};
     
@@ -437,7 +438,8 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices(uint32 CubeSize)
     real32 CellDiff = (real32)CubeSize;
     color GreenColor = color{0.0, 1.0f, 0.0f, 1.0f};
     
-    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
+    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount],
+        [](vertex *V){delete[] V;});
     
     uint32 VertexCount = 0;
     // NOTE: Using marching cubes, so we index to dim-1, to make cubes
@@ -481,10 +483,6 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices(uint32 CubeSize)
                     v3 Point0 = Triangles[TriangleIndex].p[0];
                     v3 Point1 = Triangles[TriangleIndex].p[1];
                     v3 Point2 = Triangles[TriangleIndex].p[2];
-                    // NOTE: Ths is the inverse of the real normal but this works properly, why?
-                    // Because GPU works in a left handed system, so we need to multiply the result of 
-                    // cross by -1, because it computes in right handed system.
-                    // v3 Normal = Cross(Point1 - Point0, Point2 - Point0); //Simple normal
                                         
                     v3 Normal0 = GetPointNormal(TerrainGrid, Point0);
                     v3 Normal1 = GetPointNormal(TerrainGrid, Point1);
