@@ -151,10 +151,10 @@ struct terrain3D
         this->LastRenderMode     = Other.LastRenderMode;
         return *this;
     }
-    // ~terrain3D()
-    // {
-        // OutputDebugStringA("[TEREPGEN_DEBUG] terrain3D Destrutor\n");
-    // }
+    ~terrain3D()
+    {
+        OutputDebugStringA("[TEREPGEN_DEBUG] terrain3D Destrutor\n");
+    }
     
     void Initialize(uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize);
     virtual void GenerateTerrain(uint32 Seed, real32 Persistence);

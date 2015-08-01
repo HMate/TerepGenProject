@@ -44,6 +44,10 @@ struct v3
         }
         return true;
     }
+    bool32 operator != (v3 &Other)
+    {
+        return !(*this == Other);
+    }
 };
 
 internal 

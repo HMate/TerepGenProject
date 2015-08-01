@@ -184,6 +184,7 @@ void terrain::Update(uint32 Seed, real32 Persistence)
 void terrain3D::Initialize(uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize)
 {      
     Loaded = false;
+    LastSeed = Seed + 1;
     TerrainDimension = 64 + 1;
     TerrainGrid = grid3D{TerrainDimension};
     GridPos = WorldPos;

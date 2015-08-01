@@ -131,8 +131,14 @@ struct grid3D
     bool32 operator==(const grid3D &OtherGrid)
     {
         bool32 Result = true;
-        if(this->Dimension != OtherGrid.Dimension) Result = false;
-        else if(this->Elements != OtherGrid.Elements) Result = false;
+        if(this->Dimension != OtherGrid.Dimension) 
+        {
+            Result = false;
+        }
+        else if(this->Elements != OtherGrid.Elements)
+        {            
+            Result = false;
+        }
         return Result;
     }
     
@@ -143,6 +149,7 @@ struct grid3D
     
     grid3D& operator +=(grid3D& OtherGrid)
     {
+        Assert(Dimension <= OtherGrid.Dimension);
         for(uint32 Plane = 0;
             Plane < Dimension;
             ++Plane)

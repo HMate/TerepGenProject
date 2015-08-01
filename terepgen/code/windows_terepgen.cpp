@@ -160,7 +160,7 @@ WindowProc(HWND Window,
 //#include <chrono>
 
 internal bool32
-IsInLoadingBlocks(int32 LoadingBlocks[], uint32 ArraySize, uint32 BlockIndex, uint32 *LoadIdx)
+IsInLoadingBlocks(int32 LoadingBlocks[], uint32 ArraySize, uint32 BlockIndex)
 {
     bool32 Result = false;
     for(size_t Index = 0; Index < ArraySize; Index++)
@@ -168,7 +168,21 @@ IsInLoadingBlocks(int32 LoadingBlocks[], uint32 ArraySize, uint32 BlockIndex, ui
         if(LoadingBlocks[Index] == BlockIndex) 
         {
             Result = true;
-            *LoadIdx = Index;
+        }
+    }
+    return Result;
+}
+
+internal uint32
+GetLoadingBlockIndex(int32 LoadingBlocks[], uint32 ArraySize, uint32 BlockIndex)
+{
+    uint32 Result = ArraySize;
+    for(size_t Index = 0; Index < ArraySize; Index++)
+    {
+        if(LoadingBlocks[Index] == BlockIndex) 
+        {
+            Result = Index;
+            break;
         }
     }
     return Result;
@@ -206,9 +220,33 @@ ArrayCopyTerrain3D(terrain3D To[], terrain3D From[], uint32 Count)
     }
 }
 
+struct grid_thread
+{
+    std::thread t;
+    terrain3D Terrain;
+    bool32 Loading = false;
+    
+    void InitGrid(uint32 Seed, real32 Persistence, v3 BlockPos, uint32 CubeSize)
+    {
+        Loading = true;
+        t = std::thread(&terrain3D::Initialize, &(Terrain),
+                Seed, Persistence, BlockPos, CubeSize);
+        t.detach();
+    }
+    
+    bool32 IsLoading()
+    {
+        if(Loading)
+        {
+            Loading = Terrain.Loaded ? false : true;
+        }
+        return Loading;
+    }
+};
+
 struct world_grid
 {
-    const static uint32 BlockCount = 8;
+    const static uint32 BlockCount = 27;
     const static uint32 ThreadCount = 7;
     
     uint32 BlockDimension;
@@ -216,9 +254,10 @@ struct world_grid
     uint32 CubeSize = 4;
     real32 BlockSize;
     terrain3D TerrainBlocks[BlockCount];
+    v3 LastCameraPos;
     v3 BlockPos[BlockCount];
     
-    std::thread t[ThreadCount];
+    grid_thread Thread[ThreadCount];
     uint32 InitBlockIndex;
     uint32 ActiveThreadCount;
     int32 LoadingBlocks[ThreadCount];
@@ -232,9 +271,11 @@ struct world_grid
         CentralBlockPos = v3{FloorReal32(CentralBlockPos.X), 
                              FloorReal32(CentralBlockPos.Y),
                              FloorReal32(CentralBlockPos.Z) + 2.0f};
+        LastCameraPos = CentralBlockPos;
         
         uint32 PosIndex = 0;
-        int32 Start = 0, End = 2;
+        int32 Start = -1;
+        int32 End = 2;
         for(int32 XIndex = Start; XIndex < End; ++XIndex)
         {
             for(int32 YIndex = Start; YIndex < End; ++YIndex)
@@ -255,9 +296,8 @@ struct world_grid
             InitBlockIndex < ThreadCount; 
             ++InitBlockIndex)
         {
-            t[InitBlockIndex] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[InitBlockIndex]),
-                Seed, Persistence, BlockPos[InitBlockIndex] * BlockSize, CubeSize);
-            t[InitBlockIndex].detach();
+            Thread[InitBlockIndex].InitGrid(Seed, Persistence, 
+                BlockPos[InitBlockIndex] * BlockSize, CubeSize);
             LoadingBlocks[ActiveThreadCount] = InitBlockIndex;
             ActiveThreadCount++;
         }
@@ -267,9 +307,6 @@ struct world_grid
     
     void Update(v3 Position, uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
     {
-        // TODO: Get Pos and update the grid based on that
-        //  For this, we need a collection, that remembers grids based on Pos,
-        //  to know which grids are not needed anymore, or needed to be updated.
         // TODO: Bring Update logic here from terrain3D?
         
         v3 CentralBlockPos = Position / BlockSize;
@@ -277,93 +314,80 @@ struct world_grid
                              FloorReal32(CentralBlockPos.Y),
                              FloorReal32(CentralBlockPos.Z) + 2.0f};
         
-        v3 UpdatedBlockPos[BlockCount];
-        terrain3D UpdatedTerrainBlocks[BlockCount];
-        uint32 PosIndex = 0;
-        int32 Start = 0, End = 2;
-        for(int32 XIndex = Start; XIndex < End; ++XIndex)
+        if(LastCameraPos != CentralBlockPos)
         {
-            for(int32 YIndex = Start; YIndex < End; ++YIndex)
+            LastCameraPos = CentralBlockPos;
+            v3 UpdatedBlockPos[BlockCount];
+            terrain3D UpdatedTerrainBlocks[BlockCount];
+            uint32 PosIndex = 0;
+            int32 Start = -1;
+            int32 End = 2;
+            for(int32 XIndex = Start; XIndex < End; ++XIndex)
             {
-                for(int32 ZIndex = Start; ZIndex < End; ++ZIndex)
+                for(int32 YIndex = Start; YIndex < End; ++YIndex)
                 {
-                    // NOTE: If the block is already loaded, and still needed, 
-                    //      we have to update the indices, in TerrrainBlocks,
-                    //      so they are at their new index.
-                    //      + We have to change the indices in loading blocks too
-                    UpdatedBlockPos[PosIndex++] = CentralBlockPos +
-                        v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
+                    for(int32 ZIndex = Start; ZIndex < End; ++ZIndex)
+                    {
+                        // NOTE: If the block is already loaded, and still needed, 
+                        //      we have to update the indices, in TerrrainBlocks,
+                        //      so they are at their new index.
+                        //      + We have to change the indices in loading blocks too
+                        UpdatedBlockPos[PosIndex++] = CentralBlockPos +
+                            v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
+                    }
                 }
             }
-        }
-        Assert(PosIndex == BlockCount);
-        
-        uint32 UpdatedBlockCount = PosIndex;
-        for(PosIndex = 0; PosIndex < UpdatedBlockCount; ++PosIndex)
-        {
-            bool32 HasPos = false;
-            uint32 OldIndex = BlockCount + 1;
-            for(size_t Index = 0; Index < BlockCount;  ++Index)
+            Assert(PosIndex == BlockCount);
+            
+            uint32 UpdatedBlockCount = PosIndex;
+            for(PosIndex = 0; PosIndex < UpdatedBlockCount; ++PosIndex)
             {
-                v3 OldPos = BlockPos[Index];
-                v3 NewPos = UpdatedBlockPos[PosIndex];
-                if(OldPos.X <= (NewPos.X + 0.001f) && OldPos.X >= (NewPos.X - 0.001f) &&
-                   OldPos.Y <= (NewPos.Y + 0.001f) && OldPos.Y >= (NewPos.Y - 0.001f) &&
-                   OldPos.Z <= (NewPos.Z + 0.001f) && OldPos.Z >= (NewPos.Z - 0.001f))
+                bool32 HasPos = false;
+                uint32 OldIndex = BlockCount + 1;
+                for(size_t Index = 0; Index < BlockCount;  ++Index)
                 {
-                    HasPos = true;
-                    OldIndex = Index;
-                    break;
+                    if(BlockPos[Index] == UpdatedBlockPos[PosIndex])
+                    {
+                        HasPos = true;
+                        OldIndex = Index;
+                        break;
+                    }
+                }
+                
+                if(HasPos)
+                {
+                    if(TerrainBlocks[OldIndex].Loaded)
+                    {
+                        // NOTE: If we already had this block, and its loaded, we just copy it.
+                        UpdatedTerrainBlocks[PosIndex] = TerrainBlocks[OldIndex];
+                    }
+                    else
+                    {
+                        bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, OldIndex);
+                        if(IsLoading)
+                        {
+                            // NOTE: If its loading now we just memorize its new index.
+                            uint32 LoadIdx = GetLoadingBlockIndex(LoadingBlocks, ThreadCount, OldIndex);
+                            LoadingBlocks[LoadIdx] = PosIndex;
+                        }
+                        // NOTE: do nothing, if it isnt loading, and we wont even need it.
+                    }
                 }
             }
             
-            if(HasPos)
-            {
-                if(TerrainBlocks[OldIndex].Loaded)
-                {
-                    // NOTE: If we already had this block, and its loaded, we just copy it.
-                    // NOTE: If it has loaded, being in LoadingBlocks doesnt matter 
-                    //      because its thread is done with the important part. 
-                    //      So we can just delete its index and handle it normally.
-                    uint32 LoadIdx;
-                    bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, OldIndex, &LoadIdx);
-                    if(IsLoading)
-                    {
-                        LoadingBlocks[LoadIdx] = -1;
-                        --ActiveThreadCount;
-                    }
-                
-                    //TODO: Maybe if an object is discareded, because it gets out of scope
-                    // , before its thread finishes, then the app crashes?
-                    // So i should just save the loading objects?
-                    UpdatedTerrainBlocks[PosIndex] = TerrainBlocks[OldIndex];
-                }
-                else
-                {
-                    uint32 LoadIdx;
-                    bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, OldIndex, &LoadIdx);
-                    if(IsLoading)
-                    {
-                        // TODO: What to do if its loading now? just trashing it is wasteful.
-                    }
-                    // NOTE: do nothing, if it wasnt loaded, and we wont even need it.
-                }
-            }
+            ArrayCopyV3(BlockPos, UpdatedBlockPos, BlockCount);
+            ArrayCopyTerrain3D(TerrainBlocks, UpdatedTerrainBlocks, BlockCount);
         }
-        
-        ArrayCopyV3(BlockPos, UpdatedBlockPos, BlockCount);
-        ArrayCopyTerrain3D(TerrainBlocks, UpdatedTerrainBlocks, BlockCount);
-        // BlockPos = UpdatedBlockPos;
-        // TerrainBlocks = UpdatedTerrainBlocks;
         
         for(size_t BlockIndex = 0; 
             BlockIndex < BlockCount; 
             ++BlockIndex)
         {
-            uint32 LoadIdx;
-            bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, BlockIndex, &LoadIdx);
-            if(TerrainBlocks[BlockIndex].Loaded && IsLoading)
+            bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, BlockIndex);
+            uint32 LoadIdx = GetLoadingBlockIndex(LoadingBlocks, ThreadCount, BlockIndex);
+            if(IsLoading && Thread[LoadIdx].Terrain.Loaded)
             {
+                TerrainBlocks[BlockIndex] = Thread[LoadIdx].Terrain;
                 LoadingBlocks[LoadIdx] = -1;
                 --ActiveThreadCount;
             }
@@ -376,9 +400,8 @@ struct world_grid
             {
                 // NOTE: Start loading block, if there is a free thread
                 int32 ThreadIdx = GetEmptyThread(LoadingBlocks, ThreadCount);
-                t[ThreadIdx] = std::thread(&terrain3D::Initialize, &(TerrainBlocks[BlockIndex]),
-                    Seed, Persistence, BlockPos[BlockIndex] * BlockSize, CubeSize);
-                t[ThreadIdx].detach();
+                Thread[ThreadIdx].InitGrid(Seed, Persistence,
+                    BlockPos[BlockIndex] * BlockSize, CubeSize);
                 LoadingBlocks[ThreadIdx] = BlockIndex;
                 ActiveThreadCount++;
             }
@@ -400,15 +423,14 @@ struct world_grid
     {
         while(ActiveThreadCount > 0)
         {
-            for(size_t BlockIndex = 0; 
-                BlockIndex < BlockCount; 
-                ++BlockIndex)
+            for(size_t ThreadIdx = 0; 
+                ThreadIdx < ThreadCount; 
+                ++ThreadIdx)
             {
-                uint32 LoadIdx;
-                bool32 IsLoading = IsInLoadingBlocks(LoadingBlocks, ThreadCount, BlockIndex, &LoadIdx);
-                if(TerrainBlocks[BlockIndex].Loaded && IsLoading)
+                bool32 IsLoading = LoadingBlocks[ThreadIdx] != -1;
+                if(IsLoading && Thread[ThreadIdx].Terrain.Loaded)
                 {
-                    LoadingBlocks[LoadIdx] = -1;
+                    LoadingBlocks[ThreadIdx] = -1;
                     --ActiveThreadCount;
                 }
             }
