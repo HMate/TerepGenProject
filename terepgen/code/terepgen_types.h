@@ -127,6 +127,13 @@ Sqrt(real32 Val)
     return Val;
 }
 
+inline uint32
+Cbrt(uint32 Val)
+{
+    uint32 Result = cbrt(Val);
+    return Result;
+}
+
 inline real32 
 ClampReal32(real32 Value, real32 Min, real32 Max)
 {

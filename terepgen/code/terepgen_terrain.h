@@ -156,7 +156,7 @@ struct terrain3D
         OutputDebugStringA("[TEREPGEN_DEBUG] terrain3D Destrutor\n");
     }
     
-    void Initialize(uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize);
+    void Initialize(uint32 BlockDimension, uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize);
     virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
     std::shared_ptr<vertex> CreateRenderVertices(uint32 CubeSize);
     std::shared_ptr<vertex> CreateVerticesForPointRendering();

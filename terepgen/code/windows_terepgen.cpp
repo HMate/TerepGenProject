@@ -157,7 +157,6 @@ WindowProc(HWND Window,
 }
 
 #include <thread>
-//#include <chrono>
 
 internal bool32
 IsInLoadingBlocks(int32 LoadingBlocks[], uint32 ArraySize, uint32 BlockIndex)
@@ -226,10 +225,11 @@ struct grid_thread
     terrain3D Terrain;
     bool32 Loading = false;
     
-    void InitGrid(uint32 Seed, real32 Persistence, v3 BlockPos, uint32 CubeSize)
+    void InitGrid(uint32 BlockDimension, uint32 Seed, 
+                  real32 Persistence, v3 BlockPos, uint32 CubeSize)
     {
         Loading = true;
-        t = std::thread(&terrain3D::Initialize, &(Terrain),
+        t = std::thread(&terrain3D::Initialize, &(Terrain), BlockDimension,
                 Seed, Persistence, BlockPos, CubeSize);
         t.detach();
     }
@@ -246,7 +246,10 @@ struct grid_thread
 
 struct world_grid
 {
-    const static uint32 BlockCount = 27;
+    const static uint32 XBlocks = 5;
+    const static uint32 YBlocks = 5;
+    const static uint32 ZBlocks = 5;
+    const static uint32 BlockCount = XBlocks * YBlocks * ZBlocks;
     const static uint32 ThreadCount = 7;
     
     uint32 BlockDimension;
@@ -264,30 +267,16 @@ struct world_grid
     
     void Initialize(v3 Position, uint32 Seed, real32 Persistence)
     {
-        BlockDimension = 65;
-        BlockSize = 64.0f;
+        BlockDimension = 32 + 1;
+        BlockSize = real32(BlockDimension - 1);
         
         v3 CentralBlockPos = Position / BlockSize;
         CentralBlockPos = v3{FloorReal32(CentralBlockPos.X), 
                              FloorReal32(CentralBlockPos.Y),
-                             FloorReal32(CentralBlockPos.Z) + 2.0f};
+                             FloorReal32(CentralBlockPos.Z)};
         LastCameraPos = CentralBlockPos;
         
-        uint32 PosIndex = 0;
-        int32 Start = -1;
-        int32 End = 2;
-        for(int32 XIndex = Start; XIndex < End; ++XIndex)
-        {
-            for(int32 YIndex = Start; YIndex < End; ++YIndex)
-            {
-                for(int32 ZIndex = Start; ZIndex < End; ++ZIndex)
-                {
-                    BlockPos[PosIndex++] = CentralBlockPos +
-                        v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
-                }
-            }
-        }
-        Assert(PosIndex == BlockCount);
+        CalculateBlockPositions(BlockPos, CentralBlockPos);
         
         InitBlockIndex = 0;
         ActiveThreadCount = 0;
@@ -296,7 +285,7 @@ struct world_grid
             InitBlockIndex < ThreadCount; 
             ++InitBlockIndex)
         {
-            Thread[InitBlockIndex].InitGrid(Seed, Persistence, 
+            Thread[InitBlockIndex].InitGrid(BlockDimension, Seed, Persistence, 
                 BlockPos[InitBlockIndex] * BlockSize, CubeSize);
             LoadingBlocks[ActiveThreadCount] = InitBlockIndex;
             ActiveThreadCount++;
@@ -312,41 +301,29 @@ struct world_grid
         v3 CentralBlockPos = Position / BlockSize;
         CentralBlockPos = v3{FloorReal32(CentralBlockPos.X), 
                              FloorReal32(CentralBlockPos.Y),
-                             FloorReal32(CentralBlockPos.Z) + 2.0f};
+                             FloorReal32(CentralBlockPos.Z)};
         
         if(LastCameraPos != CentralBlockPos)
         {
             LastCameraPos = CentralBlockPos;
             v3 UpdatedBlockPos[BlockCount];
             terrain3D UpdatedTerrainBlocks[BlockCount];
-            uint32 PosIndex = 0;
-            int32 Start = -1;
-            int32 End = 2;
-            for(int32 XIndex = Start; XIndex < End; ++XIndex)
-            {
-                for(int32 YIndex = Start; YIndex < End; ++YIndex)
-                {
-                    for(int32 ZIndex = Start; ZIndex < End; ++ZIndex)
-                    {
-                        // NOTE: If the block is already loaded, and still needed, 
-                        //      we have to update the indices, in TerrrainBlocks,
-                        //      so they are at their new index.
-                        //      + We have to change the indices in loading blocks too
-                        UpdatedBlockPos[PosIndex++] = CentralBlockPos +
-                            v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
-                    }
-                }
-            }
-            Assert(PosIndex == BlockCount);
             
-            uint32 UpdatedBlockCount = PosIndex;
-            for(PosIndex = 0; PosIndex < UpdatedBlockCount; ++PosIndex)
+            // NOTE: If the block is already loaded, and still needed, 
+            //      we have to update the indices, in TerrrainBlocks,
+            //      so they are at their new index.
+            //      + We have to change the indices in loading blocks too
+            
+            CalculateBlockPositions(UpdatedBlockPos, CentralBlockPos);
+            
+            uint32 UpdatedBlockCount = BlockCount;
+            for(size_t BlockIndex = 0; BlockIndex < UpdatedBlockCount; ++BlockIndex)
             {
                 bool32 HasPos = false;
                 uint32 OldIndex = BlockCount + 1;
                 for(size_t Index = 0; Index < BlockCount;  ++Index)
                 {
-                    if(BlockPos[Index] == UpdatedBlockPos[PosIndex])
+                    if(BlockPos[Index] == UpdatedBlockPos[BlockIndex])
                     {
                         HasPos = true;
                         OldIndex = Index;
@@ -359,7 +336,7 @@ struct world_grid
                     if(TerrainBlocks[OldIndex].Loaded)
                     {
                         // NOTE: If we already had this block, and its loaded, we just copy it.
-                        UpdatedTerrainBlocks[PosIndex] = TerrainBlocks[OldIndex];
+                        UpdatedTerrainBlocks[BlockIndex] = TerrainBlocks[OldIndex];
                     }
                     else
                     {
@@ -368,7 +345,7 @@ struct world_grid
                         {
                             // NOTE: If its loading now we just memorize its new index.
                             uint32 LoadIdx = GetLoadingBlockIndex(LoadingBlocks, ThreadCount, OldIndex);
-                            LoadingBlocks[LoadIdx] = PosIndex;
+                            LoadingBlocks[LoadIdx] = BlockIndex;
                         }
                         // NOTE: do nothing, if it isnt loading, and we wont even need it.
                     }
@@ -400,12 +377,46 @@ struct world_grid
             {
                 // NOTE: Start loading block, if there is a free thread
                 int32 ThreadIdx = GetEmptyThread(LoadingBlocks, ThreadCount);
-                Thread[ThreadIdx].InitGrid(Seed, Persistence,
+                Thread[ThreadIdx].InitGrid(BlockDimension, Seed, Persistence,
                     BlockPos[BlockIndex] * BlockSize, CubeSize);
                 LoadingBlocks[ThreadIdx] = BlockIndex;
                 ActiveThreadCount++;
             }
         }
+    }
+    
+    void CalculateBlockPositions(v3 BlockPositions[], v3 CentralBlockPos)
+    {
+        uint32 XIndexDelta = XBlocks/2;
+        int32  XStart = -XIndexDelta;
+        int32  XEnd = XBlocks - XIndexDelta;
+        
+        uint32 YIndexDelta = YBlocks/2;
+        int32  YStart = -YIndexDelta;
+        int32  YEnd = YBlocks - YIndexDelta;
+        
+        uint32 ZIndexDelta = ZBlocks/2;
+        int32  ZStart = -ZIndexDelta;
+        int32  ZEnd = ZBlocks - ZIndexDelta;
+        
+        //uint32 CubeRoot = Cbrt(BlockCount);
+        // uint32 IndexDelta = CubeRoot/2;
+        // int32 Start = -IndexDelta;
+        // int32 End = CubeRoot - IndexDelta;
+        
+        uint32 PosIndex = 0;
+        for(int32 XIndex = XStart; XIndex < XEnd; ++XIndex)
+        {
+            for(int32 YIndex = YStart; YIndex < YEnd; ++YIndex)
+            {
+                for(int32 ZIndex = ZStart; ZIndex < ZEnd; ++ZIndex)
+                {
+                    BlockPositions[PosIndex++] = CentralBlockPos +
+                        v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
+                }
+            }
+        }
+        Assert(PosIndex == BlockCount);
     }
     
     void Draw(terrainRenderer *TRenderer)

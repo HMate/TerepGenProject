@@ -181,11 +181,11 @@ void terrain::Update(uint32 Seed, real32 Persistence)
 
 // Terrain 3D
 
-void terrain3D::Initialize(uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize)
+void terrain3D::Initialize(uint32 BlockDimension, uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize)
 {      
     Loaded = false;
     LastSeed = Seed + 1;
-    TerrainDimension = 64 + 1;
+    TerrainDimension = BlockDimension;
     TerrainGrid = grid3D{TerrainDimension};
     GridPos = WorldPos;
     RenderPos = WorldPos;
