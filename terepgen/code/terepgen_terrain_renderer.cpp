@@ -69,7 +69,9 @@ HRESULT terrainRenderer::Initialize(dx_resource *DXResources, uint32 MaxVertexCo
     
     Assert(BufferDesc.ByteWidth <= MEGABYTE(120))
 #if TEREPGEN_DEBUG
-        OutputDebugStringA(("[TEREPGEN_DEBUG] VertBuff Max Vertex Count:" + std::to_string(MaxVertexCount) + "\n").c_str());
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] VertBuff Max Vertex Count: %d\n", MaxVertexCount);
+    OutputDebugStringA(DebugBuffer);
 #endif  
 
     HResult = DXResources->Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);

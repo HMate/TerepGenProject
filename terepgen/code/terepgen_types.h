@@ -5,7 +5,6 @@
 */
 
 #include <stdint.h>
-#include <string>
 #include <cmath>
 
 #define global_variable static

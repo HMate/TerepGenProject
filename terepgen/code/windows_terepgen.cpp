@@ -5,9 +5,8 @@
 
 #include <windows.h>
 
-#include "terepgen_types.h"
 #include "terepgen_terrain.h"
-#include "terepgen_dxresources.h"
+//#include "terepgen_dxresources.h"
 
 global_variable bool32 GlobalRunning = true;
 global_variable input GlobalInput;
@@ -250,7 +249,7 @@ struct world_grid
     const static uint32 YBlocks = 5;
     const static uint32 ZBlocks = 5;
     const static uint32 BlockCount = XBlocks * YBlocks * ZBlocks;
-    const static uint32 ThreadCount = 7;
+    const static uint32 ThreadCount = 3;
     
     uint32 BlockDimension;
     uint32 BlockVertexCount;
@@ -296,7 +295,7 @@ struct world_grid
     
     void Update(v3 Position, uint32 Seed, real32 Persistence, terrain_render_mode RenderMode)
     {
-        // TODO: Bring Update logic here from terrain3D?
+        // TODO: Bring Update logic here from terrain3D
         
         v3 CentralBlockPos = Position / BlockSize;
         CentralBlockPos = v3{FloorReal32(CentralBlockPos.X), 
@@ -532,7 +531,7 @@ WinMain(HINSTANCE Instance,
             }
             
             camera Camera;
-            Camera.Initialize(&DXResources, ScreenInfo);
+            Camera.Initialize(&DXResources, ScreenInfo.Width, ScreenInfo.Height);
             
             Persistence = 0.4f;
             
@@ -585,7 +584,7 @@ WinMain(HINSTANCE Instance,
 #endif
                         break;
                     }
-                    Camera.Resize(ScreenInfo);
+                    Camera.Resize(ScreenInfo.Width, ScreenInfo.Height);
                     Resize = false;
                 }
         
@@ -631,7 +630,9 @@ WinMain(HINSTANCE Instance,
                 real64 SecondsElapsed = Win32GetSecondsElapsed(FrameStartTime, FrameEndTime);
                 FrameStartTime.QuadPart = FrameEndTime.QuadPart;
 #if TEREPGEN_DEBUG
-                OutputDebugStringA(("[TEREPGEN_DEBUG] FPS:" + std::to_string(1.0/SecondsElapsed) + "\n").c_str());
+                char DebugBuffer[256];
+                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] FPS: %f\n", 1.0/SecondsElapsed);
+                OutputDebugStringA(DebugBuffer);
 #endif
             }
             

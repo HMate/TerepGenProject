@@ -6,178 +6,6 @@
 #include "terepgen_terrain.h"
 #include "terepgen_marching_cubes.cpp"
 
-internal real32
-SmoothGridPointLinearly(grid2D &RoughGrid, uint32 Row, uint32 Column)
-{
-    real32 Corners, Sides, Center;
-    
-    Corners = (RoughGrid[Row-1][Column-1] +
-               RoughGrid[Row+1][Column-1] +
-               RoughGrid[Row+1][Column+1] +
-               RoughGrid[Row-1][Column+1]) / 16.0f;
-    Sides = (RoughGrid[Row-1][Column] +
-             RoughGrid[Row][Column-1] +
-             RoughGrid[Row+1][Column] +
-             RoughGrid[Row][Column+1]) / 8.0f;
-    Center = RoughGrid[Row][Column] / 4.0f;
-    
-    return Corners + Sides + Center; 
-}
-
-void terrain::GenerateTerrain(uint32 Seed, real32 Persistence)
-{
-    TerrainGrid.ZeroOutGridPoints();
-    RandomGenerator Rng(Seed);
-        
-    uint32 OctaveCount = Log2(TerrainDimension);
-    
-    for(uint32 Octaves = 0;
-        Octaves < OctaveCount;
-        ++Octaves)
-    {
-        // float freq = 2^i;
-        // float amplitude = persistence^i;
-        
-        real32 Weight = Pow(Persistence, OctaveCount-Octaves-1);
-        uint32 WaveLength = Pow2(Octaves);
-        uint32 PGDimension = (TerrainDimension/WaveLength);
-        
-        grid2D PerlinGrid = {PGDimension};
-        for(uint32 Row = 0;
-            Row < PerlinGrid.Dimension;
-            ++Row)
-        {
-            for(uint32 Column = 0;
-                Column < PerlinGrid.Dimension;
-                ++Column)
-            {
-                PerlinGrid[Row][Column] = 
-                    Rng.RandomFloat(Row*WaveLength, Column*WaveLength) * Weight;
-                Assert(PerlinGrid.GetXY(Row,Column) == PerlinGrid[Row][Column]);
-            }
-        }
-        
-        grid2D StrechedPerlinGrid = {TerrainDimension};
-        for(uint32 Row = 0;
-            Row < StrechedPerlinGrid.Dimension;
-            ++Row)
-        {
-                
-            real32 RowRatio = (real32)Row * (PGDimension-1) / (TerrainGrid.Dimension - 1);
-            uint32 PGRow = (uint32)RowRatio;
-            RowRatio = RowRatio - (real32)PGRow;
-            
-            for(uint32 Column = 0;
-                Column < StrechedPerlinGrid.Dimension;
-                ++Column)
-            {                
-                real32 ColumnRatio = (real32)Column * (PGDimension-1) / (TerrainGrid.Dimension - 1);
-                uint32 PGColumn = (uint32)ColumnRatio;
-                ColumnRatio = ColumnRatio - (real32)PGColumn;
-                
-                Assert(((RowRatio+1) < PGDimension) && ((ColumnRatio+1) < PGDimension));
-                StrechedPerlinGrid[Row][Column] = 
-                    (((1.0f-ColumnRatio) * PerlinGrid[PGRow][PGColumn] + 
-                     (ColumnRatio) * PerlinGrid[PGRow][PGColumn+1]) * (1.0f-RowRatio)) +
-                    ((((1.0f-ColumnRatio) * PerlinGrid[PGRow+1][PGColumn]) + 
-                     ((ColumnRatio) * PerlinGrid[PGRow+1][PGColumn+1])) * (RowRatio));
-            }
-        }
-        
-        TerrainGrid += StrechedPerlinGrid;
-    }
-    
-    /*grid2D SmoothGrid = {TerrainDimension};
-    for(uint32 Row = 0;
-        Row < SmoothGrid.Dimension;
-        ++Row)
-    {
-        for(uint32 Column = 0;
-            Column < SmoothGrid.Dimension;
-            ++Column)
-        {
-            SmoothGrid[Row][Column] = SmoothGridPointLinearly(TerrainGrid, Row, Column);
-        }
-    }
-    TerrainGrid = SmoothGrid;*/
-}
-
-internal vertex
-GetGridVertex(grid2D *Grid, v3 GridPos, uint32 GridX, uint32 GridY, color Color)
-{
-    real32 Scale = 1.0f;
-    real32 Height = Scale * 15.0f;
-    vertex Result = {GridPos.X + (Scale * (real32)GridX), 
-                     GridPos.Y + Height * Grid->GetXY(GridY, GridX), 
-                     GridPos.Z + (Scale * (real32)GridY), 1.0f, 
-                     0.0f, 0.0f, 0.0f, 1.0f,
-                     Color};
-    return Result;
-}
-
-std::shared_ptr<vertex> terrain::CreateRenderVertices()
-{
-    std::shared_ptr<vertex> Vertices = std::shared_ptr<vertex>(new vertex[MaxVertexCount]);
-    uint32 VertexCount = 0;
-    v3 GridPos = v3{10.0f, -10.0f, 10.0f};
-    for(uint32 GridY = 0;
-        GridY < TerrainGrid.Dimension;
-        ++GridY)
-    {
-        for(uint32 GridX = 0;
-            GridX < TerrainGrid.Dimension;
-            ++GridX)
-        {
-            if((GridY + 1) < TerrainGrid.Dimension)
-            {
-                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY, Color);
-                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY+1, Color);
-            }                                                        
-            if((GridX + 1) < TerrainGrid.Dimension)                            
-            {                                                        
-                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY, Color);
-                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY, Color);
-            }
-            if(((GridX + 1) < TerrainGrid.Dimension) && ((GridY + 1) < TerrainGrid.Dimension))
-            {
-                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX, GridY+1, Color);
-                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY+1, Color);
-                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY+1, Color);
-                Vertices.get()[VertexCount++] = GetGridVertex(&TerrainGrid, GridPos, GridX+1, GridY, Color);
-            }
-        }
-    }
-    Assert(MaxVertexCount == VertexCount);
-    
-    return Vertices;
-}
-
-void terrain::Initialize(uint32 Seed, real32 Persistence)
-{        
-    TerrainDimension = 128;
-    TerrainGrid = grid2D{TerrainDimension};
-    
-    uint32 RowCount = TerrainDimension;
-    uint32 ColumnCount = TerrainDimension;
-    MaxVertexCount = 2 * (4 * (RowCount-1) * (ColumnCount-1) + RowCount + ColumnCount - 2);
-    
-    GenerateTerrain(Seed, Persistence);
-    LastSeed = Seed;
-    LastPersistence = Persistence;
-    Vertices = CreateRenderVertices();
-}
-
-void terrain::Update(uint32 Seed, real32 Persistence)
-{
-    if(LastSeed != Seed || Persistence != LastPersistence)
-    {
-        GenerateTerrain(Seed, Persistence);
-        LastSeed = Seed;
-        LastPersistence = Persistence;
-        Vertices = CreateRenderVertices();
-    }
-}
-
 
 // Terrain 3D
 
@@ -389,8 +217,9 @@ std::shared_ptr<vertex> terrain3D::CreateVerticesForPointRendering()
     CurrentVertexCount = VertexCount;
     
 #if TEREPGEN_DEBUG
-    OutputDebugStringA(("[TERPEGEN_DEBUG] Current Vertex Count: " +
-        std::to_string(CurrentVertexCount) + "\n").c_str());
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Current Vertex Count: %d\n", CurrentVertexCount);
+    OutputDebugStringA(DebugBuffer);
 #endif
     return Vertices;
 }
@@ -499,8 +328,9 @@ std::shared_ptr<vertex> terrain3D::CreateRenderVertices(uint32 CubeSize)
     CurrentVertexCount = VertexCount;
     
 #if TEREPGEN_DEBUG
-    OutputDebugStringA(("[TERPEGEN_DEBUG] Current Vertex Count: " +
-        std::to_string(CurrentVertexCount) + "\n").c_str());
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Current Vertex Count: %d\n", CurrentVertexCount);
+    OutputDebugStringA(DebugBuffer);
 #endif
     return Vertices;
 }

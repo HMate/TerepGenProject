@@ -7,8 +7,8 @@
 #include <random>
 #include <atomic>
 
-#include "terepgen_types.h"
 #include "terepgen_dxresources.h"
+#include "terepgen_types.h"
 #include "terepgen_grid.h"
 #include "terepgen_vector.h"
 
@@ -100,22 +100,6 @@ enum class terrain_render_mode
     Triangles = 0,
     Wireframe = 1,
     Points = 2
-};
-
-struct terrain
-{
-    uint32 TerrainDimension;
-    grid2D TerrainGrid;
-    color Color;
-    uint32 LastSeed;
-    real32 LastPersistence;
-    uint32 MaxVertexCount;   
-    std::shared_ptr<vertex> Vertices; 
-    
-    void Initialize(uint32 Seed, real32 Persistence);
-    virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
-    std::shared_ptr<vertex> CreateRenderVertices();
-    void Update(uint32 Seed, real32 Persistence);
 };
 
 struct terrain3D

@@ -198,18 +198,7 @@ struct dx_resource
         // Create depth stencil state
         Device->CreateDepthStencilState(&dsDesc, &DepthStencilState);
         DeviceContext->OMSetDepthStencilState(DepthStencilState, 1);
-        
-        // NOTE: Create RasterizerState
-        // D3D11_RASTERIZER_DESC RSDesc;
-        // ZeroMemory(&RSDesc, sizeof(D3D11_RASTERIZER_DESC));
-        // RSDesc.FillMode = D3D11_FILL_SOLID; //D3D11_FILL_WIREFRAME D3D11_FILL_SOLID 
-        // RSDesc.CullMode = D3D11_CULL_BACK; //D3D11_CULL_NONE D3D11_CULL_FRONT D3D11_CULL_BACK
-        // RSDesc.DepthClipEnable = false;
-        // RSDesc.FrontCounterClockwise = true; // NOTE: false means clockwise triangles
-        // Device->CreateRasterizerState(&RSDesc, &RasterizerState);
-        
-        // DeviceContext->RSSetState(RasterizerState);
-        
+                
         // NOTE: Compile Shaders
         ID3D10Blob *BlobVs, *BlobPs;
         ID3D10Blob *BlobError = nullptr;
@@ -273,8 +262,9 @@ struct dx_resource
                         D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
         if(FAILED(HResult))
         {
-            std::string ErrMsg(GetDebugMessage(HResult));
-            OutputDebugStringA(("[TEREPGEN_DEBUG] Load Resource failed: " + ErrMsg).c_str());
+            char DebugBuffer[256];
+            sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Load Resource failed: %s\n", GetDebugMessage(HResult));
+            OutputDebugStringA(DebugBuffer);
         }
         memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
         DeviceContext->Unmap(Buffer, NULL);
@@ -290,8 +280,9 @@ struct dx_resource
                         D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
         if(FAILED(HResult))
         {
-            std::string ErrMsg(GetDebugMessage(HResult));
-            OutputDebugStringA(("[TEREPGEN_DEBUG] Load Resource failed: " + ErrMsg).c_str());
+            char DebugBuffer[256];
+            sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Load Resource failed: %s\n", GetDebugMessage(HResult));
+            OutputDebugStringA(DebugBuffer);
         }
         memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
         DeviceContext->Unmap(VBuffer, NULL);
@@ -306,8 +297,9 @@ struct dx_resource
                         D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
         if(FAILED(HResult))
         {
-            std::string ErrMsg(GetDebugMessage(HResult));
-            OutputDebugStringA(("[TEREPGEN_DEBUG] Load Resource failed: " + ErrMsg).c_str());
+            char DebugBuffer[256];
+            sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Load Resource failed: %s\n", GetDebugMessage(HResult));
+            OutputDebugStringA(DebugBuffer);
         }
         memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
         DeviceContext->Unmap(VBuffer, NULL);
@@ -372,8 +364,11 @@ struct dx_resource
         if(SwapChain && ScreenWidth && ScreenHeight)
         {
 #if TEREPGEN_DEBUG
-            OutputDebugStringA(("[TEREPGEN_DEBUG] Resize Width:" + std::to_string(ScreenWidth) + "\n").c_str());
-            OutputDebugStringA(("[TEREPGEN_DEBUG] Resize Height:" + std::to_string(ScreenHeight) + "\n").c_str());
+            char DebugBuffer[256];
+            sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Resize Width: %d\n", ScreenWidth);
+            OutputDebugStringA(DebugBuffer);
+            sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Resize Height: %d\n", ScreenHeight);
+            OutputDebugStringA(DebugBuffer);
 #endif  
             DeviceContext->OMSetRenderTargets(0, 0, 0);
 
@@ -480,17 +475,21 @@ struct camera
         return Result;
     }
     
-    void Initialize(dx_resource *DXResources, screen_info Screen)
+    void Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 ScreenHeight)
     {   
         XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
             XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));            
 #if TEREPGEN_DEBUG
-        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Width:" + std::to_string(Screen.Width) + "\n").c_str());
-        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Height:" + std::to_string(Screen.Height) + "\n").c_str());
-        OutputDebugStringA(("[TEREPGEN_DEBUG] Camera ApectRatio:" + std::to_string((real32)Screen.Width/Screen.Height) + "\n").c_str());
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera Width: %d\n", ScreenWidth);
+        OutputDebugStringA(DebugBuffer);
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera Height: %d\n", ScreenHeight);
+        OutputDebugStringA(DebugBuffer);
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera ApectRatio: %f\n", (real32)ScreenWidth/ScreenHeight);
+        OutputDebugStringA(DebugBuffer);
 #endif  
         XMStoreFloat4x4(&ProjMx, 
-            XMMatrixPerspectiveFovLH(Fov, (real32)Screen.Width/Screen.Height, 1.0f, 2000.0f));
+            XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, 1.0f, 2000.0f));
         XMStoreFloat4x4(&ViewProjMx,
             XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
                                       XMLoadFloat4x4(&ProjMx)));
@@ -612,17 +611,21 @@ struct camera
         SceneConstants.ViewProjMx = ViewProjMx;
     }
     
-    void Resize(screen_info Screen)
+    void Resize(uint32 ScreenWidth, uint32 ScreenHeight)
     {
-        if(Screen.Width && Screen.Height)
+        if(ScreenWidth && ScreenHeight)
         {
 #if TEREPGEN_DEBUG
-            OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Width:" + std::to_string(Screen.Width) + "\n").c_str());
-            OutputDebugStringA(("[TEREPGEN_DEBUG] Camera Height:" + std::to_string(Screen.Height) + "\n").c_str());
-            OutputDebugStringA(("[TEREPGEN_DEBUG] Camera ApectRatio:" + std::to_string((real32)Screen.Width/Screen.Height) + "\n").c_str());
+            char DebugBuffer[256];
+            sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera Width: %d\n", ScreenWidth);
+            OutputDebugStringA(DebugBuffer);
+            sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera Height: %d\n", ScreenHeight);
+            OutputDebugStringA(DebugBuffer);
+            sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera ApectRatio: %f\n", (real32)ScreenWidth/ScreenHeight);
+            OutputDebugStringA(DebugBuffer);
 #endif        
             XMStoreFloat4x4(&ProjMx, 
-                XMMatrixPerspectiveFovLH(Fov, (real32)Screen.Width/Screen.Height, 1.0f, 2000.0f));
+                XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, 1.0f, 2000.0f));
             XMStoreFloat4x4(&ViewProjMx,
                 XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx), XMLoadFloat4x4(&ProjMx)));
         }
