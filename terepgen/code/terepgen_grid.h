@@ -4,74 +4,35 @@
 
 */
 
-#include <memory>
-
 #define GRID_DIMENSION 33
 
-struct grid3D
+struct dynamic_grid3D
 {
     uint32 Dimension;
-    // TODO: shared pointers should be vreated with make_shared, but its not trivial with arrays
-    std::shared_ptr<real32> Elements;
+    real32* Elements;
     
-    grid3D()
+    dynamic_grid3D()
     {
         this->Dimension = 0;
         Elements = nullptr;
     }
     
-    // ~grid3D()
-    // {
-        // OutputDebugStringA("[TEREPGEN_DEBUG] Grid3D being deleted\n");
-    // }
-    
-    grid3D(uint32 Dimension)
+    dynamic_grid3D(uint32 Dimension)
     {
         this->Dimension = Dimension;
-        // NOTE: sharedptr array needs custom deleter.
-        Elements = std::shared_ptr<real32>(new real32[Dimension * Dimension * Dimension],
-            [](real32 *E){delete[] E;});
+        Elements = new real32[Dimension * Dimension * Dimension];
     }
     
-    bool32 operator==(const grid3D &OtherGrid)
+    dynamic_grid3D(const dynamic_grid3D&) = delete;
+    dynamic_grid3D operator=(const dynamic_grid3D&) = delete;
+    
+    ~dynamic_grid3D()
     {
-        bool32 Result = true;
-        if(this->Dimension != OtherGrid.Dimension) 
+        if(Elements)
         {
-            Result = false;
+            delete[] Elements;
+            Elements = nullptr;
         }
-        else if(this->Elements != OtherGrid.Elements)
-        {            
-            Result = false;
-        }
-        return Result;
-    }
-    
-    bool32 operator!=(const grid3D &OtherGrid)
-    {
-        return !(*this == OtherGrid);
-    }
-    
-    grid3D& operator +=(grid3D& OtherGrid)
-    {
-        Assert(Dimension <= OtherGrid.Dimension);
-        for(uint32 Plane = 0;
-            Plane < Dimension;
-            ++Plane)
-        {
-            for(uint32 Row = 0;
-                Row < Dimension;
-                ++Row)
-            {
-                for(uint32 Column = 0;
-                    Column < Dimension;
-                    ++Column)
-                {
-                    GetPRC(Plane, Row, Column) += OtherGrid.GetPRC(Plane, Row, Column);
-                }
-            }
-        }
-        return *this;
     }
     
     real32& GetPRC(uint32 Plane, uint32 Row, uint32 Column)
@@ -79,21 +40,55 @@ struct grid3D
         if(Row > Dimension - 1) Row = Dimension - 1;
         if(Column > Dimension - 1) Column = Dimension - 1;
         if(Plane > Dimension - 1) Plane = Dimension - 1;
-        return Elements.get()[Plane*Dimension*Dimension + Row*Dimension + Column];
+        return Elements[Plane*Dimension*Dimension + Row*Dimension + Column];
     }
+};
+
+struct grid3D
+{
+    uint32 Dimension;
+    real32* Elements;
     
-    real32& GetPRC(int32 Plane, int32 Row, int32 Column)
+    grid3D()
     {
-        if(Row < 0) Row = 0;
-        else if(Row > Dimension - 1) Row = Dimension - 1;
-        if(Column < 0) Column = 0;
-        else if(Column > Dimension - 1) Column = Dimension - 1;
-        if(Plane < 0) Plane = 0;
-        else if(Plane > Dimension - 1) Plane = Dimension - 1;
-        return Elements.get()[Plane*Dimension*Dimension + Row*Dimension + Column];
+        this->Dimension = 0;
+        Elements = nullptr;
     }
     
-    // TODO: Do I need this?
+    grid3D(uint32 Dimension)
+    {
+        this->Dimension = Dimension;
+        Elements = new real32[Dimension * Dimension * Dimension];
+    }
+    
+    grid3D(const grid3D&) = delete;
+    // grid3D operator=(const grid3D&) = delete;
+    grid3D& operator=(grid3D& Other)
+    {
+        this->Dimension = Other.Dimension;
+        this->Elements = Other.Elements;
+        Other.Elements = nullptr;
+        
+        return *this;
+    }
+    
+    ~grid3D()
+    {
+        if(Elements)
+        {
+            delete[] Elements;
+            Elements = nullptr;
+        }
+    }
+    
+    real32& GetPRC(uint32 Plane, uint32 Row, uint32 Column)
+    {
+        if(Row > Dimension - 1) Row = Dimension - 1;
+        if(Column > Dimension - 1) Column = Dimension - 1;
+        if(Plane > Dimension - 1) Plane = Dimension - 1;
+        return Elements[Plane*Dimension*Dimension + Row*Dimension + Column];
+    }
+    
     real32 GetPRCWithInterpolate(real32 Plane, real32 Row, real32 Column)
     {
         Assert(Plane >= 0.0f && Plane <= (real32)(Dimension - 1));
@@ -108,11 +103,11 @@ struct grid3D
         real32 ColumnRemainder = Column - (real32)ColumnWhole;
         
         if(PlaneRemainder < 0.0001f && RowRemainder < 0.0001f && ColumnRemainder < 0.0001f)
-            return Elements.get()[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
+            return Elements[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
         else if(RowRemainder < 0.0001f && ColumnRemainder < 0.0001f)
         {
-            real32 Elem1 = Elements.get()[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
-            real32 Elem2 = Elements.get()[(PlaneWhole+1)*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
+            real32 Elem1 = Elements[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
+            real32 Elem2 = Elements[(PlaneWhole+1)*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
         
             real32 Result = Elem1 + PlaneRemainder * (Elem2 - Elem1);
             return Result;
@@ -133,19 +128,7 @@ struct grid3D
             real32 Result = Elem1 + ColumnRemainder * (Elem2 - Elem1);
             return Result;
         }
-        
     }
-    
-    // NOTE: X == Plane
-    //       Y == Row
-    //       Z == Column
-    // NOTE: Used to transform between the two systems some other way, but scratched it
-    real32& GetXYZ(int32 X, int32 Y, int32 Z)
-    {
-        // return GetPRC(Y, Z, X); //old version
-        return GetPRC(X, Y, Z);
-    }
-    
     
     void ZeroOutGridPoints()
     {
@@ -165,44 +148,6 @@ struct grid3D
                 }
             }
         }
-    }
-    
-    struct GridRow
-    {
-        float* Elem;
-        uint32 Dimension;
-        GridRow(float *Elem, uint32 Dimension) : Elem(Elem), Dimension(Dimension){}
-        float& operator[](int32 Index)
-        {
-            if(Index < 0) Index = 0;
-            else if(Index > Dimension-1) Index = Dimension-1;
-            return *(Elem+Index);
-        }
-    };
-    
-    struct GridPlane
-    {
-        float* Plane;
-        uint32 Dimension;
-        GridPlane(float *Plane, uint32 Dimension) : Plane(Plane), Dimension(Dimension){}
-        GridRow operator[](int32 RowIndex)
-        {
-            if(RowIndex < 0) RowIndex = 0;
-            else if(RowIndex > Dimension-1) RowIndex = Dimension-1;
-            float *Row = (Plane + RowIndex*Dimension);
-            return GridRow(Row, Dimension);
-        }
-    };
-    
-    // NOTE: returning GridRow& would be faster, but its dangerous,
-    //       because it gives back the reference of a local variable. 
-    // TODO: could it be fixed?
-    GridPlane operator[](int32 PlaneIndex)
-    {
-        if(PlaneIndex < 0) PlaneIndex = 0;
-        else if(PlaneIndex > Dimension-1) PlaneIndex = Dimension-1;
-        float *Elem = &(Elements.get()[PlaneIndex*Dimension*Dimension]);
-        return GridPlane(Elem, Dimension);
     }
 };
 

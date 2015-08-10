@@ -253,7 +253,7 @@ struct world_grid
     
     uint32 BlockDimension;
     uint32 BlockVertexCount;
-    uint32 CubeSize = 4;
+    uint32 CubeSize = 1;
     real32 BlockSize;
     terrain3D TerrainBlocks[BlockCount];
     v3 LastCameraPos;
