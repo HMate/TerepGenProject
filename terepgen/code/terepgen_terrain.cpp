@@ -29,14 +29,16 @@ void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode Rend
     if(LastSeed != Seed || Persistence != LastPersistence)
     {
         Loaded = false;
+        
         GenerateTerrain(Seed, Persistence);
         LastSeed = Seed;
         LastPersistence = Persistence;
         LastRenderMode = RenderMode;
         if(RenderMode == terrain_render_mode::Points)  
             Vertices = CreateVerticesForPointRendering();
-        else //if(RenderMode == terrain_render_mode::Triangles)
+        else 
             Vertices = CreateRenderVertices(CubeSize);
+                    
         Loaded = true;
     } 
     else if(LastRenderMode != RenderMode)
@@ -51,151 +53,155 @@ void terrain3D::Update(uint32 Seed, real32 Persistence, terrain_render_mode Rend
     }
 }
 
-void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
-{
-    TerrainGrid.ZeroOutGridPoints();
-    RandomGenerator Rng(Seed);
-        
-    uint32 FirstOctave = 0;
-    uint32 OctaveCount = Log2(TerrainDimension);
-    
-    for(uint32 Octaves = FirstOctave;
-        Octaves < OctaveCount;
-        ++Octaves)
-    {
-        /*
-        float freq = 2^i;
-        float amplitude = persistence^i;
-        */
-        real32 Weight = Pow(Persistence, OctaveCount-Octaves-1);
-        int32 WaveLength = (int32)Pow2(Octaves);
-        real32 Frequency = 1.0f / (WaveLength + 1);
-        uint32 PGDimension = ((TerrainDimension-1)/WaveLength) + 1;
-        
-        dynamic_grid3D PerlinGrid{PGDimension};
-        /* NOTE: Plane is axis X
-                 Row is axis Y
-                 Column is axis Z
-        */
-        for(int32 Plane = 0;
-            Plane < PerlinGrid.Dimension;
-            ++Plane)
-        {
-            for(int32 Row = 0;
-                Row < PerlinGrid.Dimension;
-                ++Row)
-            {
-                for(int32 Column = 0;
-                    Column < PerlinGrid.Dimension;
-                    ++Column)
-                {
-                    /*NOTE: Only works properly, if GridPoses are apart from each other 
-                         with value TerrainDimension. To correct this PerlinGrid dimension 
-                         should be 1 bigger, and during streching we need to check 
-                         which octave we are in.*/
-                    int32 WorldX = Plane + FloorInt32(GridPos.X/WaveLength);
-                    int32 WorldY = Row + FloorInt32(GridPos.Y/WaveLength);
-                    int32 WorldZ = Column + FloorInt32(GridPos.Z/WaveLength);
-                    real32 RandomVal = Rng.RandomFloat(WorldX * WaveLength,
-                                                       WorldY * WaveLength,
-                                                       WorldZ * WaveLength); 
-                    RandomVal = RandomVal * Weight;
-                    real32 Dampening = (WorldY)*(1.0f/(4.0f * TerrainDimension));
-                    PerlinGrid.GetPRC(Plane, Row, Column) = RandomVal + Dampening;
-                }
-            }
-        }
-        
-        /*NOTE: Have to stretch out the little grids to match the size of the terrain
-             During strech, we get the inner points by interpolating between the Perlin grid values
-        */
-        for(uint32 Plane = 0;
-            Plane < TerrainDimension;
-            ++Plane)
-        {  
-            real32 PlaneRatio = (real32)Plane * (PGDimension-1) / (TerrainDimension - 1);
-            uint32 PGPlane = FloorUint32(PlaneRatio);
-            PlaneRatio = PlaneRatio - (real32)PGPlane;
-            
-            for(uint32 Row = 0;
-                Row < TerrainDimension;
-                ++Row)
-            {
-                real32 RowRatio = (real32)Row * (PGDimension-1) / (TerrainDimension - 1);
-                uint32 PGRow = FloorUint32(RowRatio);
-                RowRatio = RowRatio - (real32)PGRow;
-                
-                for(uint32 Column = 0;
-                    Column < TerrainDimension;
-                    ++Column)
-                {                
-                    real32 ColumnRatio = (real32)Column * (PGDimension-1) / (TerrainDimension - 1);
-                    uint32 PGColumn = FloorUint32(ColumnRatio);
-                    ColumnRatio = ColumnRatio - (real32)PGColumn;
-                    
-                    Assert(((PGColumn+1) <= PGDimension) &&
-                           ((PGRow+1) <= PGDimension) &&
-                           ((PGPlane+1) <= PGDimension));
-                    
-                    real32 InnerValue = 
-                        (1.0f - PlaneRatio) *
-                        ((1.0f-RowRatio) * 
-                            ((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane, PGRow, PGColumn) + 
-                            (ColumnRatio) * PerlinGrid.GetPRC(PGPlane, PGRow, PGColumn+1)) +
-                        ( RowRatio * 
-                            (((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane, PGRow+1, PGColumn)) + 
-                            ( ColumnRatio * PerlinGrid.GetPRC(PGPlane, PGRow+1, PGColumn+1)) )
-                        )) +
-                        PlaneRatio * 
-                        ((1.0f-RowRatio) * 
-                            ((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane+1, PGRow, PGColumn) + 
-                            (ColumnRatio) * PerlinGrid.GetPRC(PGPlane+1, PGRow, PGColumn+1)) +
-                        ( RowRatio * 
-                            (((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane+1, PGRow+1, PGColumn)) + 
-                            ( ColumnRatio * PerlinGrid.GetPRC(PGPlane+1, PGRow+1, PGColumn+1)) )
-                        ));
-                    TerrainGrid.GetPRC(Plane, Row, Column) += InnerValue;
-                }
-            }
-        }
-    }
-}
-
 // void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
 // {
     // TerrainGrid.ZeroOutGridPoints();
     // RandomGenerator Rng(Seed);
+        
+    // uint32 FirstOctave = 0;
+    // uint32 OctaveCount = Log2(TerrainDimension);
     
-    // for(int32 Plane = 0;
-        // Plane < TerrainDimension;
-        // ++Plane)
+    // for(uint32 Octaves = FirstOctave;
+        // Octaves < OctaveCount;
+        // ++Octaves)
     // {
-        // for(int32 Row = 0;
-            // Row < TerrainDimension;
-            // ++Row)
+        // /*
+        // float freq = 2^i;
+        // float amplitude = persistence^i;
+        // */
+        // real32 Weight = Pow(Persistence, OctaveCount-Octaves-1);
+        // int32 WaveLength = (int32)Pow2(Octaves);
+        // real32 Frequency = 1.0f / (WaveLength + 1);
+        // uint32 PGDimension = ((TerrainDimension-1)/WaveLength) + 1;
+        
+        // dynamic_grid3D PerlinGrid{PGDimension};
+        // /* NOTE: Plane is axis X
+                 // Row is axis Y
+                 // Column is axis Z
+        // */
+        // for(int32 Plane = 0;
+            // Plane < PerlinGrid.Dimension;
+            // ++Plane)
         // {
-            // for(int32 Column = 0;
-                // Column < TerrainDimension;
-                // ++Column)
+            // for(int32 Row = 0;
+                // Row < PerlinGrid.Dimension;
+                // ++Row)
             // {
-                // real32 DensityValue = GridPos.Y + (real32)Row;//*(1.0f/(4.0f * TerrainDimension));
+                // for(int32 Column = 0;
+                    // Column < PerlinGrid.Dimension;
+                    // ++Column)
+                // {
+                    // /*NOTE: Only works properly, if GridPoses are apart from each other 
+                         // with value TerrainDimension. To correct this PerlinGrid dimension 
+                         // should be 1 bigger, and during streching we need to check 
+                         // which octave we are in.*/
+                    // int32 WorldX = Plane + FloorInt32(GridPos.X/WaveLength);
+                    // int32 WorldY = Row + FloorInt32(GridPos.Y/WaveLength);
+                    // int32 WorldZ = Column + FloorInt32(GridPos.Z/WaveLength);
+                    // real32 RandomVal = Rng.RandomFloat(WorldX * WaveLength,
+                                                       // WorldY * WaveLength,
+                                                       // WorldZ * WaveLength); 
+                    // RandomVal = RandomVal * Weight;
+                    // real32 Dampening = (WorldY)*(1.0f/(4.0f * TerrainDimension));
+                    // PerlinGrid.GetPRC(Plane, Row, Column) = RandomVal + Dampening;
+                // }
+            // }
+        // }
+        
+        // /*NOTE: Have to stretch out the little grids to match the size of the terrain
+             // During strech, we get the inner points by interpolating between the Perlin grid values
+        // */
+        // for(uint32 Plane = 0;
+            // Plane < TerrainDimension;
+            // ++Plane)
+        // {  
+            // real32 PlaneRatio = (real32)Plane * (PGDimension-1) / (TerrainDimension - 1);
+            // uint32 PGPlane = FloorUint32(PlaneRatio);
+            // PlaneRatio = PlaneRatio - (real32)PGPlane;
+            
+            // for(uint32 Row = 0;
+                // Row < TerrainDimension;
+                // ++Row)
+            // {
+                // real32 RowRatio = (real32)Row * (PGDimension-1) / (TerrainDimension - 1);
+                // uint32 PGRow = FloorUint32(RowRatio);
+                // RowRatio = RowRatio - (real32)PGRow;
                 
-                // real32 WorldX = GridPos.X + Plane;
-                // real32 WorldY = GridPos.Y + Row;
-                // real32 WorldZ = GridPos.Z + Column;
-                
-                // v3 WorldPos = {WorldX, WorldY, WorldZ};
-             
-                // DensityValue += Rng.RandomFloat(WorldPos) * 1.0f;
-                // DensityValue += Rng.RandomFloat(WorldPos * 0.51f) * 2.0f;
-                // DensityValue += Rng.RandomFloat(WorldPos * 0.248f) * 4.0f;
-                // DensityValue += Rng.RandomFloat(WorldPos * 0.128f) * 8.0f;
-                                                                   
-                // TerrainGrid.GetPRC(Plane, Row, Column) = DensityValue;
+                // for(uint32 Column = 0;
+                    // Column < TerrainDimension;
+                    // ++Column)
+                // {                
+                    // real32 ColumnRatio = (real32)Column * (PGDimension-1) / (TerrainDimension - 1);
+                    // uint32 PGColumn = FloorUint32(ColumnRatio);
+                    // ColumnRatio = ColumnRatio - (real32)PGColumn;
+                    
+                    // Assert(((PGColumn+1) <= PGDimension) &&
+                           // ((PGRow+1) <= PGDimension) &&
+                           // ((PGPlane+1) <= PGDimension));
+                    
+                    // real32 InnerValue = 
+                        // (1.0f - PlaneRatio) *
+                        // ((1.0f-RowRatio) * 
+                            // ((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane, PGRow, PGColumn) + 
+                            // (ColumnRatio) * PerlinGrid.GetPRC(PGPlane, PGRow, PGColumn+1)) +
+                        // ( RowRatio * 
+                            // (((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane, PGRow+1, PGColumn)) + 
+                            // ( ColumnRatio * PerlinGrid.GetPRC(PGPlane, PGRow+1, PGColumn+1)) )
+                        // )) +
+                        // PlaneRatio * 
+                        // ((1.0f-RowRatio) * 
+                            // ((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane+1, PGRow, PGColumn) + 
+                            // (ColumnRatio) * PerlinGrid.GetPRC(PGPlane+1, PGRow, PGColumn+1)) +
+                        // ( RowRatio * 
+                            // (((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane+1, PGRow+1, PGColumn)) + 
+                            // ( ColumnRatio * PerlinGrid.GetPRC(PGPlane+1, PGRow+1, PGColumn+1)) )
+                        // ));
+                    // TerrainGrid.GetPRC(Plane, Row, Column) += InnerValue;
+                // }
             // }
         // }
     // }
 // }
+
+void terrain3D::GenerateTerrain(uint32 Seed, real32 Persistence)
+{
+    TerrainGrid.ZeroOutGridPoints();
+    RandomGenerator Rng(Seed);
+    Rng.SetSeed(Seed);
+    
+    for(int32 Plane = 0;
+        Plane < TerrainDimension;
+        ++Plane)
+    {
+        for(int32 Row = 0;
+            Row < TerrainDimension;
+            ++Row)
+        {
+            for(int32 Column = 0;
+                Column < TerrainDimension;
+                ++Column)
+            {
+                real32 DensityValue = GridPos.Y + (real32)Row;//*(1.0f/(4.0f * TerrainDimension));
+                
+                real32 WorldX = GridPos.X + Plane;
+                real32 WorldY = GridPos.Y + Row;
+                real32 WorldZ = GridPos.Z + Column;
+                
+                v3 WorldPos = {WorldX, WorldY, WorldZ};
+             
+                DensityValue += Rng.RandomFloat(WorldPos) * 1.0f;
+                DensityValue += Rng.RandomFloat(WorldPos * 0.51f) * 2.0f;
+                DensityValue += Rng.RandomFloat(WorldPos * 0.248f) * 4.0f;
+                DensityValue += Rng.RandomFloat(WorldPos * 0.128f) * 8.0f;
+                DensityValue += Rng.RandomFloat(WorldPos * 0.0621f) * 16.0f;
+                DensityValue += Rng.RandomFloat(WorldPos * 0.03127f) * 32.0f;
+                DensityValue += Rng.RandomFloat(WorldPos * 0.015622f) * 64.0f;
+                                                                   
+                TerrainGrid.GetPRC(Plane, Row, Column) = DensityValue;
+            }
+        }
+    }
+}
 
 internal vertex
 Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
@@ -384,7 +390,7 @@ terrain3D::~terrain3D()
 #if TEREPGEN_DEBUG
     OutputDebugStringA("[TEREPGEN_DEBUG] terrain3D Destrutor\n");
 #endif
-    if(Vertices)
+    if(Vertices != nullptr)
     {
         delete[] Vertices;
     }

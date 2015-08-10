@@ -89,6 +89,7 @@ struct grid3D
         return Elements[Plane*Dimension*Dimension + Row*Dimension + Column];
     }
     
+    // TODO: Use interpolating like in random generator?
     real32 GetPRCWithInterpolate(real32 Plane, real32 Row, real32 Column)
     {
         Assert(Plane >= 0.0f && Plane <= (real32)(Dimension - 1));

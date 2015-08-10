@@ -14,8 +14,8 @@ global_variable bool32 Resize;
 global_variable bool32 DrawTerrain1;   
 global_variable bool32 DrawTerrain2;   
 global_variable uint32 GlobalSeed;  
-global_variable real32 Persistence;   
-global_variable LARGE_INTEGER GlobalPerfCountFrequency;
+global_variable real32 Persistence;
+global_variable LARGE_INTEGER GlobalPerfCountFrequency;   
 
 internal screen_info 
 GetWindowDimension(HWND Window)
@@ -477,8 +477,6 @@ WinMain(HINSTANCE Instance,
         LPSTR CommandLine,
         int ShowCode)
 {
-    
-    int32 A = (int32)-10.f;
     WNDCLASS WindowClass = {};
     
     WindowClass.style = CS_HREDRAW|CS_VREDRAW;

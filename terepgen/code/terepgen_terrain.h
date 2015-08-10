@@ -26,13 +26,25 @@ struct vertex
 struct RandomGenerator
 {
     uint32 Seed;
+    grid3D RandomTex;
     std::ranlux48 Rng;
     std::uniform_real_distribution<> UniformRng;
     
-    RandomGenerator(uint32 Seed)
+    RandomGenerator(uint32 Seed) : Seed(Seed),RandomTex(GRID_DIMENSION)
     {
         UniformRng = std::uniform_real_distribution<>(-1.0f, 1.0f);
+        //this->Seed = Seed;
+    }
+    
+    void SetSeed(uint32 Seed)
+    {
         this->Seed = Seed;
+        Rng.seed(Seed);
+        uint32 TexSize = RandomTex.Dimension * RandomTex.Dimension * RandomTex.Dimension;
+        for(uint32 Index = 0; Index < TexSize; Index++)
+        {
+            RandomTex.Elements[Index] = UniformRng(Rng);
+        }
     }
     
     // Gives a random float in the (-1, 1) range based on 2d coordinates
@@ -68,26 +80,32 @@ struct RandomGenerator
         real32 Result = UniformRng(Rng);
         return Result;
     }
-    
-    // TODO: This is really expensive now
+        
     real32 RandomFloat(real32 Plane, real32 Row, real32 Column)
     {
+        real32 PlaneMod = ModReal32(Plane, (real32)GRID_DIMENSION);
+        uint32 PlaneWhole = FloorInt32(PlaneMod);
+        uint32 PlaneWhole2 = (PlaneWhole+1) % GRID_DIMENSION;
+        real32 PlaneRemainder = PlaneMod - (real32)PlaneWhole;
         
-        int32 PlaneWhole = FloorInt32(Plane);
-        real32 PlaneRemainder = Plane - (real32)PlaneWhole;
-        int32 RowWhole = FloorInt32(Row);
-        real32 RowRemainder = Row - (real32)RowWhole;
-        int32 ColumnWhole = FloorInt32(Column);
-        real32 ColumnRemainder = Column - (real32)ColumnWhole;
+        real32 RowMod = ModReal32(Row, (real32)GRID_DIMENSION);
+        uint32 RowWhole = FloorInt32(RowMod);
+        uint32 RowWhole2 = (RowWhole+1) % GRID_DIMENSION;
+        real32 RowRemainder = RowMod - (real32)RowWhole;
         
-        real32 R000 = RandomFloat(PlaneWhole  , RowWhole  , ColumnWhole  );
-        real32 R001 = RandomFloat(PlaneWhole  , RowWhole  , ColumnWhole+1);
-        real32 R010 = RandomFloat(PlaneWhole  , RowWhole+1, ColumnWhole  );
-        real32 R011 = RandomFloat(PlaneWhole  , RowWhole+1, ColumnWhole+1);
-        real32 R100 = RandomFloat(PlaneWhole+1, RowWhole  , ColumnWhole  );
-        real32 R101 = RandomFloat(PlaneWhole+1, RowWhole  , ColumnWhole+1);
-        real32 R110 = RandomFloat(PlaneWhole+1, RowWhole+1, ColumnWhole  );
-        real32 R111 = RandomFloat(PlaneWhole+1, RowWhole+1, ColumnWhole+1);
+        real32 ColumnMod = ModReal32(Column, (real32)GRID_DIMENSION);
+        uint32 ColumnWhole = FloorInt32(ColumnMod);
+        uint32 ColumnWhole2 = (ColumnWhole+1) % GRID_DIMENSION;
+        real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
+        
+        real32 R000 = RandomTex.GetPRC(PlaneWhole , RowWhole , ColumnWhole );
+        real32 R001 = RandomTex.GetPRC(PlaneWhole , RowWhole , ColumnWhole2);
+        real32 R010 = RandomTex.GetPRC(PlaneWhole , RowWhole2, ColumnWhole );
+        real32 R011 = RandomTex.GetPRC(PlaneWhole , RowWhole2, ColumnWhole2);
+        real32 R100 = RandomTex.GetPRC(PlaneWhole2, RowWhole , ColumnWhole );
+        real32 R101 = RandomTex.GetPRC(PlaneWhole2, RowWhole , ColumnWhole2);
+        real32 R110 = RandomTex.GetPRC(PlaneWhole2, RowWhole2, ColumnWhole );
+        real32 R111 = RandomTex.GetPRC(PlaneWhole2, RowWhole2, ColumnWhole2);
         
         real32 I00 = R000 + ColumnRemainder * (R001-R000);
         real32 I01 = R010 + ColumnRemainder * (R011-R010);
@@ -156,7 +174,10 @@ struct terrain3D
     real32 LastPersistence;
     terrain_render_mode LastRenderMode;
     
-    //terrain3D(const terrain3D&) = delete;
+    terrain3D(){
+        Vertices = nullptr;
+    };
+    terrain3D(const terrain3D&) = delete;
     terrain3D& operator=(terrain3D& Other)
     {
         this->TerrainDimension   = Other.TerrainDimension;

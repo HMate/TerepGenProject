@@ -142,5 +142,14 @@ ClampReal32(real32 Value, real32 Min, real32 Max)
     return Result;
 }
 
+inline real32
+ModReal32(real32 Value, real32 Base)
+{
+    real32 Result = fmod(Value, Base);
+    if(Result < 0.0f) 
+        Result = Base + Result;
+    return Result;
+}
+
 #define TEREPGEN_TYPES_H
 #endif
