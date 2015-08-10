@@ -89,7 +89,6 @@ struct grid3D
         return Elements[Plane*Dimension*Dimension + Row*Dimension + Column];
     }
     
-    // TODO: Use interpolating like in random generator?
     real32 GetPRCWithInterpolate(real32 Plane, real32 Row, real32 Column)
     {
         Assert(Plane >= 0.0f && Plane <= (real32)(Dimension - 1));
@@ -103,17 +102,18 @@ struct grid3D
         uint32 ColumnWhole = FloorUint32(Column);
         real32 ColumnRemainder = Column - (real32)ColumnWhole;
         
+        // NOTE: If every parameter is whole number, we can just give back the grid value
         if(PlaneRemainder < 0.0001f && RowRemainder < 0.0001f && ColumnRemainder < 0.0001f)
             return Elements[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
-        else if(RowRemainder < 0.0001f && ColumnRemainder < 0.0001f)
+        else if(PlaneRemainder < 0.0001f && RowRemainder < 0.0001f)
         {
             real32 Elem1 = Elements[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
-            real32 Elem2 = Elements[(PlaneWhole+1)*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
+            real32 Elem2 = Elements[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole + 1];
         
-            real32 Result = Elem1 + PlaneRemainder * (Elem2 - Elem1);
+            real32 Result = Elem1 + ColumnRemainder * (Elem2 - Elem1);
             return Result;
         }
-        else if(ColumnRemainder < 0.0001f)
+        else if(PlaneRemainder < 0.0001f)
         {
             real32 Elem1 = GetPRCWithInterpolate(Plane, (real32)RowWhole, Column);
             real32 Elem2 = GetPRCWithInterpolate(Plane, (real32)(RowWhole+1), Column);
@@ -123,10 +123,10 @@ struct grid3D
         }
         else
         {
-            real32 Elem1 = GetPRCWithInterpolate(Plane, Row, (real32)ColumnWhole);
-            real32 Elem2 = GetPRCWithInterpolate(Plane, Row, (real32)(ColumnWhole+1));
+            real32 Elem1 = GetPRCWithInterpolate((real32)PlaneWhole, Row, Column);
+            real32 Elem2 = GetPRCWithInterpolate((real32)(PlaneWhole+1), Row, Column);
             
-            real32 Result = Elem1 + ColumnRemainder * (Elem2 - Elem1);
+            real32 Result = Elem1 + PlaneRemainder * (Elem2 - Elem1);
             return Result;
         }
     }

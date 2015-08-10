@@ -13,7 +13,7 @@ void terrain3D::Initialize(uint32 BlockDimension, uint32 Seed, real32 Persistenc
 {      
     Loaded = false;
     LastSeed = Seed + 1;
-    TerrainDimension = BlockDimension;
+    TerrainDimension = BlockDimension+4;
     TerrainGrid = grid3D{TerrainDimension};
     GridPos = WorldPos;
     RenderPos = WorldPos;
@@ -223,16 +223,16 @@ vertex* terrain3D::CreateVerticesForPointRendering()
     
     uint32 VertexCount = 0;
     // NOTE: No marching cubes, indexing to full dimension.
-    for(uint32 Plane = 0;
-        Plane < TerrainGrid.Dimension;
+    for(uint32 Plane = 2;
+        Plane < TerrainGrid.Dimension-2;
         ++Plane)
     {
-        for(uint32 Row = 0;
-            Row < TerrainGrid.Dimension;
+        for(uint32 Row = 2;
+            Row < TerrainGrid.Dimension-2;
             ++Row)
         {
-            for(uint32 Column = 0;
-                Column < TerrainGrid.Dimension;
+            for(uint32 Column = 2;
+                Column < TerrainGrid.Dimension-2;
                 ++Column)
             {    
                 v3 Pos = v3{(real32)Plane, (real32)Row, (real32)Column};
@@ -313,16 +313,16 @@ vertex* terrain3D::CreateRenderVertices(uint32 CubeSize)
     
     uint32 VertexCount = 0;
     // NOTE: Using marching cubes, so we index to dim-1, to make cubes
-    for(uint32 Plane = 0;
-        Plane < TerrainGrid.Dimension-1;
+    for(uint32 Plane = 2;
+        Plane < TerrainGrid.Dimension-3;
         Plane += CubeSize)
     {
-        for(uint32 Row = 0;
-            Row < TerrainGrid.Dimension-1;
+        for(uint32 Row = 2;
+            Row < TerrainGrid.Dimension-3;
             Row += CubeSize)
         {
-            for(uint32 Column = 0;
-                Column < TerrainGrid.Dimension-1;
+            for(uint32 Column = 2;
+                Column < TerrainGrid.Dimension-3;
                 Column += CubeSize)
             {                
                 GRIDCELL Cell;
