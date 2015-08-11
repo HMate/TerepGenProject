@@ -20,7 +20,7 @@ REM -opt:ref Eliminates functions and data that are not referenced
 set CommonLinkerFlags= -incremental:no -opt:ref user32.lib d3d11.lib dxgi.lib d3dcompiler.lib
 
 REM List the cpp files to compile here
-set CompiledFiles= ..\code\windows_terepgen.cpp ..\code\terepgen_terrain.cpp^
+set CompiledFiles= ..\code\windows_terepgen.cpp^
     ..\code\terepgen_terrain_renderer.cpp
 
 if not exist ..\build mkdir ..\build

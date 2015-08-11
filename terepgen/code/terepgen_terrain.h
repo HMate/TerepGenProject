@@ -23,6 +23,8 @@ struct vertex
     color Color;
 };
 
+#define RANDOM_TEX_SIZE 33
+
 struct RandomGenerator
 {
     uint32 Seed;
@@ -30,7 +32,7 @@ struct RandomGenerator
     std::ranlux48 Rng;
     std::uniform_real_distribution<> UniformRng;
     
-    RandomGenerator(uint32 Seed) : Seed(Seed),RandomTex(GRID_DIMENSION)
+    RandomGenerator(uint32 Seed) : Seed(Seed),RandomTex(RANDOM_TEX_SIZE)
     {
         UniformRng = std::uniform_real_distribution<>(-1.0f, 1.0f);
         //this->Seed = Seed;
@@ -83,19 +85,19 @@ struct RandomGenerator
         
     real32 RandomFloat(real32 Plane, real32 Row, real32 Column)
     {
-        real32 PlaneMod = ModReal32(Plane, (real32)GRID_DIMENSION);
+        real32 PlaneMod = ModReal32(Plane, (real32)RANDOM_TEX_SIZE);
         uint32 PlaneWhole = FloorInt32(PlaneMod);
-        uint32 PlaneWhole2 = (PlaneWhole+1) % GRID_DIMENSION;
+        uint32 PlaneWhole2 = (PlaneWhole+1) % RANDOM_TEX_SIZE;
         real32 PlaneRemainder = PlaneMod - (real32)PlaneWhole;
         
-        real32 RowMod = ModReal32(Row, (real32)GRID_DIMENSION);
+        real32 RowMod = ModReal32(Row, (real32)RANDOM_TEX_SIZE);
         uint32 RowWhole = FloorInt32(RowMod);
-        uint32 RowWhole2 = (RowWhole+1) % GRID_DIMENSION;
+        uint32 RowWhole2 = (RowWhole+1) % RANDOM_TEX_SIZE;
         real32 RowRemainder = RowMod - (real32)RowWhole;
         
-        real32 ColumnMod = ModReal32(Column, (real32)GRID_DIMENSION);
+        real32 ColumnMod = ModReal32(Column, (real32)RANDOM_TEX_SIZE);
         uint32 ColumnWhole = FloorInt32(ColumnMod);
-        uint32 ColumnWhole2 = (ColumnWhole+1) % GRID_DIMENSION;
+        uint32 ColumnWhole2 = (ColumnWhole+1) % RANDOM_TEX_SIZE;
         real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
         
         real32 R000 = RandomTex.GetPRC(PlaneWhole , RowWhole , ColumnWhole );
@@ -206,11 +208,27 @@ struct terrain3D
     void Draw(terrainRenderer *Renderer);
 };
 
-struct terrain_render_vertices
+struct terrain_density_block
 {
-    v3 RenderPos;
-    vertex Vertices[GRID_DIMENSION * GRID_DIMENSION * GRID_DIMENSION * 4];
+    v3 Pos;
+    static_grid3D Grid;
 };
+
+#define TERRAIN_BLOCK_SIZE 32
+
+struct terrain_render_block
+{
+    v3 Pos;
+    uint32 VertexCount;
+    vertex Vertices[TERRAIN_BLOCK_SIZE * TERRAIN_BLOCK_SIZE * TERRAIN_BLOCK_SIZE * 4];
+};
+
+
+internal void
+GenerateTerrain(terrain_render_block*, v3*, uint32, v3, uint32);
+
+internal void
+RenderTerrain(terrainRenderer*, terrain_render_block*, uint32);
 
 #define TEREPGEN_TERRAIN_H
 #endif

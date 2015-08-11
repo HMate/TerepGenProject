@@ -5,7 +5,7 @@
 
 #include <windows.h>
 
-#include "terepgen_terrain.h"
+#include "terepgen_terrain.cpp"
 //#include "terepgen_dxresources.h"
 
 global_variable bool32 GlobalRunning = true;
@@ -537,11 +537,17 @@ WinMain(HINSTANCE Instance,
             // Terrain.Color = color{1.0f, 1.0f, 1.0f, 1.0f};
             // Terrain.Initialize(GlobalSeed, Persistence);
                         
-            world_grid WorldTerrain;
-            WorldTerrain.Initialize(Camera.GetPos(), GlobalSeed, Persistence);
+            //world_grid WorldTerrain;
+            //WorldTerrain.Initialize(Camera.GetPos(), GlobalSeed, Persistence);
+            
+            const uint32 BlockCount = 125;
+            terrain_render_block *RenderBlocks = new terrain_render_block[BlockCount];
+            v3 BlockPositions[BlockCount];
+            GenerateTerrain(RenderBlocks, BlockPositions, BlockCount, Camera.GetPos(), GlobalSeed);
             
             terrainRenderer TRenderer;
-            HResult = TRenderer.Initialize(&DXResources, WorldTerrain.BlockVertexCount);
+            uint32 MaxVertexCount = TERRAIN_BLOCK_SIZE * TERRAIN_BLOCK_SIZE * TERRAIN_BLOCK_SIZE * 4;
+            HResult = TRenderer.Initialize(&DXResources, MaxVertexCount);
             if(FAILED(HResult))
             {
                 //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
@@ -604,7 +610,7 @@ WinMain(HINSTANCE Instance,
                 WorldTime.QuadPart = NewTime.QuadPart;
                 
                 Camera.Update(&GlobalInput, TimePassed);
-                WorldTerrain.Update(Camera.GetPos(), GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
+                //WorldTerrain.Update(Camera.GetPos(), GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 // NOTE: Rendering
                 DXResources.LoadResource(Camera.SceneConstantBuffer,
@@ -618,8 +624,10 @@ WinMain(HINSTANCE Instance,
                 
                 TRenderer.DrawAxis(100.0f);
                 // TRenderer.DrawDebugTriangle();
-                WorldTerrain.Draw(&TRenderer);
+                // WorldTerrain.Draw(&TRenderer);
                 // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
+                
+                RenderTerrain(&TRenderer, RenderBlocks, BlockCount);
                 
                 DXResources.SwapChain->Present(0, 0);
                 
@@ -634,6 +642,7 @@ WinMain(HINSTANCE Instance,
 #endif
             }
             
+            delete[] RenderBlocks;
             Camera.Release();
             DXResources.Release();
         }
