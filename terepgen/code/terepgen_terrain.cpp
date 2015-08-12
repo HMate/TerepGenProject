@@ -10,7 +10,7 @@
 // Terrain 3D
 
 internal void 
-GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng)
+GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng, uint32 BlockResolution)
 {
     uint32 TerrainDimension = DensityBlock->Grid.Dimension;
     for(uint32 Plane = 0;
@@ -25,11 +25,11 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng)
                 Column < TerrainDimension;
                 ++Column)
             {
-                real32 DensityValue = DensityBlock->Pos.Y + (real32)Row;
+                real32 DensityValue = DensityBlock->Pos.Y + (real32)(((int32)Row-2) * (real32)BlockResolution);
                 
-                real32 WorldX = DensityBlock->Pos.X + Plane;
-                real32 WorldY = DensityBlock->Pos.Y + Row;
-                real32 WorldZ = DensityBlock->Pos.Z + Column;
+                real32 WorldX = DensityBlock->Pos.X + ((((int32)Plane)-2) * (real32)BlockResolution);
+                real32 WorldY = DensityBlock->Pos.Y + ((((int32)Row)-2) * (real32)BlockResolution);
+                real32 WorldZ = DensityBlock->Pos.Z + ((((int32)Column)-2) * (real32)BlockResolution);
                 
                 v3 WorldPos = {WorldX, WorldY, WorldZ};
              
@@ -159,8 +159,9 @@ GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, 
 }
 
 internal v3
-GetPointNormal(terrain_density_block *DensityBlock, v3 Point, real32 Diff)
+GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
 {    
+    real32 Diff = 1.0f;
     real32 DimensionBound = (real32)DensityBlock->Grid.Dimension-1.0f;
     
     real32 DiffXMin = Point.X - Diff;
@@ -196,10 +197,7 @@ GetPointNormal(terrain_density_block *DensityBlock, v3 Point, real32 Diff)
 internal vertex
 Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
 {
-    real32 Scale = 1.0f;
-    vertex Result = {(Scale * LocalPos.X), 
-                     (Scale * LocalPos.Y), 
-                     (Scale * LocalPos.Z), 1.0f, 
+    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 1.0f, 
                      Normal.X, Normal.Y, Normal.Z, 1.0f,
                      Color};
     return Result;
@@ -212,7 +210,8 @@ Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
         +2 at each side to calculate proper normals
 */
 internal void
-CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *DensityBlock, uint32 CubeSize)
+CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *DensityBlock,
+                     uint32 CubeSize)
 {
     Assert(CubeSize > 0);
     real32 CellDiff = (real32)CubeSize;
@@ -224,36 +223,36 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
     uint32 VertexCount = 0;
     for(uint32 Plane = 2;
         Plane < TerrainDimension-3;
-        Plane += CubeSize)
+        Plane += 1)
     {
         for(uint32 Row = 2;
             Row < TerrainDimension-3;
-            Row += CubeSize)
+            Row += 1)
         {
             for(uint32 Column = 2;
                 Column < TerrainDimension-3;
-                Column += CubeSize)
+                Column += 1)
             {                
                 GRIDCELL Cell;
                 real32 Planef = (real32)Plane;
                 real32 Rowf = (real32)Row;
                 real32 Columnf = (real32)Column;
-                Cell.p[0] = v3{Planef         , Rowf+CellDiff, Columnf         };
-                Cell.p[1] = v3{Planef         , Rowf+CellDiff, Columnf+CellDiff};
-                Cell.p[2] = v3{Planef         , Rowf         , Columnf+CellDiff};
-                Cell.p[3] = v3{Planef         , Rowf         , Columnf         };
-                Cell.p[4] = v3{Planef+CellDiff, Rowf+CellDiff, Columnf         };
-                Cell.p[5] = v3{Planef+CellDiff, Rowf+CellDiff, Columnf+CellDiff};
-                Cell.p[6] = v3{Planef+CellDiff, Rowf         , Columnf+CellDiff};
-                Cell.p[7] = v3{Planef+CellDiff, Rowf         , Columnf         };
-                Cell.val[0] = GetGridPRC(&DensityBlock->Grid, Plane         , Row+CubeSize, Column         );
-                Cell.val[1] = GetGridPRC(&DensityBlock->Grid, Plane         , Row+CubeSize, Column+CubeSize);
-                Cell.val[2] = GetGridPRC(&DensityBlock->Grid, Plane         , Row         , Column+CubeSize);
-                Cell.val[3] = GetGridPRC(&DensityBlock->Grid, Plane         , Row         , Column         );
-                Cell.val[4] = GetGridPRC(&DensityBlock->Grid, Plane+CubeSize, Row+CubeSize, Column         );
-                Cell.val[5] = GetGridPRC(&DensityBlock->Grid, Plane+CubeSize, Row+CubeSize, Column+CubeSize);
-                Cell.val[6] = GetGridPRC(&DensityBlock->Grid, Plane+CubeSize, Row         , Column+CubeSize);
-                Cell.val[7] = GetGridPRC(&DensityBlock->Grid, Plane+CubeSize, Row         , Column         );
+                Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf         };
+                Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
+                Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
+                Cell.p[3] = v3{Planef     , Rowf     , Columnf         };
+                Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf         };
+                Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
+                Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
+                Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf         };
+                Cell.val[0] = GetGridPRC(&DensityBlock->Grid, Plane  , Row+1, Column         );
+                Cell.val[1] = GetGridPRC(&DensityBlock->Grid, Plane  , Row+1, Column+1);
+                Cell.val[2] = GetGridPRC(&DensityBlock->Grid, Plane  , Row  , Column+1);
+                Cell.val[3] = GetGridPRC(&DensityBlock->Grid, Plane  , Row  , Column         );
+                Cell.val[4] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row+1, Column         );
+                Cell.val[5] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row+1, Column+1);
+                Cell.val[6] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column+1);
+                Cell.val[7] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column         );
                 TRIANGLE Triangles[5];
                 uint32 TriangleCount = Polygonise(Cell, 0.05f, Triangles);
                 
@@ -263,13 +262,16 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
                     v3 Point1 = Triangles[TriangleIndex].p[1];
                     v3 Point2 = Triangles[TriangleIndex].p[2];
                                         
-                    v3 Normal0 = GetPointNormal(DensityBlock, Point0, CellDiff);
-                    v3 Normal1 = GetPointNormal(DensityBlock, Point1, CellDiff);
-                    v3 Normal2 = GetPointNormal(DensityBlock, Point2, CellDiff);
+                    v3 Normal0 = GetPointNormal(DensityBlock, Point0);
+                    v3 Normal1 = GetPointNormal(DensityBlock, Point1);
+                    v3 Normal2 = GetPointNormal(DensityBlock, Point2);
                     
-                    RenderBlock->Vertices[VertexCount++] = Get3DGridVertex(Point0-PosDiff, Normal0, GreenColor);
-                    RenderBlock->Vertices[VertexCount++] = Get3DGridVertex(Point1-PosDiff, Normal1, GreenColor);
-                    RenderBlock->Vertices[VertexCount++] = Get3DGridVertex(Point2-PosDiff, Normal2, GreenColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DGridVertex((Point0-PosDiff) * CellDiff, Normal0, GreenColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DGridVertex((Point1-PosDiff) * CellDiff, Normal1, GreenColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DGridVertex((Point2-PosDiff) * CellDiff, Normal2, GreenColor);
                 }
             }
         }
@@ -311,6 +313,7 @@ GenerateTerrain(terrain_render_block *RenderBlocks, v3 *BlockPositions, uint32 B
                 v3 CameraPos, uint32 Seed)
 {
     real32 BlockSize = real32(TERRAIN_BLOCK_SIZE);
+    uint32 BlockResolution = 8;
     
     v3 CentralBlockPos = CameraPos / BlockSize;
     CentralBlockPos = v3{FloorReal32(CentralBlockPos.X), 
@@ -323,9 +326,9 @@ GenerateTerrain(terrain_render_block *RenderBlocks, v3 *BlockPositions, uint32 B
     Rng.SetSeed(1000);
     for(size_t BlockIndex = 0; BlockIndex < BlockCount; BlockIndex++)
     {
-        DensityBlock.Pos = BlockPositions[BlockIndex] * BlockSize;
-        GenerateDensityGrid(&DensityBlock, &Rng);
-        CreateRenderVertices(&(RenderBlocks[BlockIndex]), &DensityBlock, 4);
+        DensityBlock.Pos = BlockPositions[BlockIndex] * BlockSize * BlockResolution;
+        GenerateDensityGrid(&DensityBlock, &Rng, BlockResolution);
+        CreateRenderVertices(&(RenderBlocks[BlockIndex]), &DensityBlock, BlockResolution);
     }
 }
 
