@@ -154,7 +154,7 @@ WindowProc(HWND Window,
 
     return Result;
 }
-
+/*
 #include <thread>
 
 internal bool32
@@ -243,6 +243,7 @@ struct grid_thread
     }
 };
 
+/*
 struct world_grid
 {
     const static uint32 XBlocks = 5;
@@ -449,6 +450,7 @@ struct world_grid
         }
     }
 };
+*/
 
 // win32_clock
 // {
@@ -546,7 +548,7 @@ WinMain(HINSTANCE Instance,
             GenerateTerrain(RenderBlocks, BlockPositions, BlockCount, Camera.GetPos(), GlobalSeed);
             
             terrainRenderer TRenderer;
-            uint32 MaxVertexCount = TERRAIN_BLOCK_SIZE * TERRAIN_BLOCK_SIZE * TERRAIN_BLOCK_SIZE * 4;
+            uint32 MaxVertexCount = VERTEX_COUNT;
             HResult = TRenderer.Initialize(&DXResources, MaxVertexCount);
             if(FAILED(HResult))
             {
@@ -637,7 +639,8 @@ WinMain(HINSTANCE Instance,
                 FrameStartTime.QuadPart = FrameEndTime.QuadPart;
 #if TEREPGEN_DEBUG
                 char DebugBuffer[256];
-                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] FPS: %f\n", 1.0/SecondsElapsed);
+                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] ms: %f, FPS: %f\n",
+                    SecondsElapsed * 1000.0, 1.0/SecondsElapsed);
                 OutputDebugStringA(DebugBuffer);
 #endif
             }

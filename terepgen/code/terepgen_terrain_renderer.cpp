@@ -86,7 +86,6 @@ void terrainRenderer::SetTransformations(v3 Translation)
                                              0, 0, 0, 1);
 }
 
-// TODO: Instead of this, use rsterizer state
 void terrainRenderer::DrawWireframe(vertex *Vertices, uint32 VertCount)
 {         
     DXResource->DeviceContext->RSSetState(RSWireFrame);
@@ -103,7 +102,6 @@ void terrainRenderer::DrawWireframe(vertex *Vertices, uint32 VertCount)
     DXResource->DeviceContext->Draw(VertCount, 0);
 }
 
-//TODO: triangulization have holes
 void terrainRenderer::DrawTriangles(vertex *Vertices, uint32 VertCount)
 {           
     DXResource->DeviceContext->RSSetState(RSDefault);

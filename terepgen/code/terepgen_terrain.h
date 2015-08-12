@@ -28,7 +28,7 @@ struct vertex
 struct RandomGenerator
 {
     uint32 Seed;
-    grid3D RandomTex;
+    dynamic_grid3D RandomTex;
     std::ranlux48 Rng;
     std::uniform_real_distribution<> UniformRng;
     
@@ -152,14 +152,14 @@ struct terrainRenderer
     void DrawDebugTriangle();
     void DrawAxis(real32 Size = 1.0f);
 };
-
+/*
 enum class terrain_render_mode
 {
     Triangles = 0,
     Wireframe = 1,
     Points = 2
-};
-
+};*/
+/*
 struct terrain3D
 {
     uint32 TerrainDimension;
@@ -207,7 +207,7 @@ struct terrain3D
     void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode, uint32 CubeSize);
     void Draw(terrainRenderer *Renderer);
 };
-
+*/
 struct terrain_density_block
 {
     v3 Pos;
@@ -215,20 +215,15 @@ struct terrain_density_block
 };
 
 #define TERRAIN_BLOCK_SIZE 32
+#define VERTEX_COUNT 45000
 
 struct terrain_render_block
 {
     v3 Pos;
     uint32 VertexCount;
-    vertex Vertices[TERRAIN_BLOCK_SIZE * TERRAIN_BLOCK_SIZE * TERRAIN_BLOCK_SIZE * 4];
+    vertex Vertices[VERTEX_COUNT];
 };
 
-
-internal void
-GenerateTerrain(terrain_render_block*, v3*, uint32, v3, uint32);
-
-internal void
-RenderTerrain(terrainRenderer*, terrain_render_block*, uint32);
 
 #define TEREPGEN_TERRAIN_H
 #endif
