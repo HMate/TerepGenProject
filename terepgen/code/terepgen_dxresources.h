@@ -3,10 +3,6 @@
     Terep generátor by Hidvégi Máté @2015
 
 */
-#include <d3dcompiler.h>
-#include <dxgi.h>
-#include <d3d11.h>
-#include <DirectXMath.h>
 
 #include "terepgen_types.h"
 #include "terepgen_vector.h"

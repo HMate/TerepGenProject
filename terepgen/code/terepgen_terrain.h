@@ -4,13 +4,11 @@
 
 */
 
-#include <random>
-#include <atomic>
-
-#include "terepgen_dxresources.h"
 #include "terepgen_types.h"
 #include "terepgen_grid.h"
 #include "terepgen_vector.h"
+#include "terepgen_dxresources.h"
+#include "terepgen_marching_cubes.cpp"
 
 struct vertex
 {
@@ -128,86 +126,6 @@ struct RandomGenerator
     }
 };
 
-struct terrainRenderer
-{
-    dx_resource *DXResource;
-    object_constants ObjectConstants;
-    ID3D11Buffer *ObjectConstantBuffer;
-    ID3D11Buffer *VertexBuffer;  
-    ID3D11RasterizerState *RSWireFrame = nullptr; 
-    ID3D11RasterizerState *RSDefault = nullptr;
-    uint32 MaxVertexCount;
-    bool32 DXReleased;
-    
-    terrainRenderer();
-    terrainRenderer(const terrainRenderer&) = delete;
-    
-    HRESULT Initialize(dx_resource *DXResources, uint32 MaxVertexCount);
-    ~terrainRenderer();
-    void Release();
-    
-    void SetTransformations(v3 Translation);
-    void DrawWireframe(vertex *Vertices, uint32 VertexCount);
-    void DrawTriangles(vertex *Vertices, uint32 VertexCount);
-    void DrawDebugTriangle();
-    void DrawAxis(real32 Size = 1.0f);
-};
-/*
-enum class terrain_render_mode
-{
-    Triangles = 0,
-    Wireframe = 1,
-    Points = 2
-};*/
-/*
-struct terrain3D
-{
-    uint32 TerrainDimension;
-    grid3D TerrainGrid;
-    v3 GridPos;
-    v3 RenderPos;
-    
-    uint32 MaxVertexCount;  
-    uint32 CurrentVertexCount;
-    vertex *Vertices;
-    std::atomic<bool32> Loaded = false;
-    
-    uint32 LastSeed;
-    real32 LastPersistence;
-    terrain_render_mode LastRenderMode;
-    
-    terrain3D(){
-        Vertices = nullptr;
-    };
-    terrain3D(const terrain3D&) = delete;
-    terrain3D& operator=(terrain3D& Other)
-    {
-        this->TerrainDimension   = Other.TerrainDimension;
-        this->TerrainGrid        = Other.TerrainGrid;
-        this->GridPos            = Other.GridPos;
-        this->RenderPos          = Other.RenderPos;
-        this->MaxVertexCount     = Other.MaxVertexCount;  
-        this->CurrentVertexCount = Other.CurrentVertexCount;
-        this->Vertices           = Other.Vertices;
-        Other.Vertices = nullptr;
-        bool32 Temp;
-        this->Loaded             = Temp = Other.Loaded;
-        this->LastSeed           = Other.LastSeed;
-        this->LastPersistence    = Other.LastPersistence;
-        this->LastRenderMode     = Other.LastRenderMode;
-        return *this;
-    }
-    ~terrain3D();
-    
-    void Initialize(uint32 BlockDimension, uint32 Seed, real32 Persistence, v3 WorldPos, uint32 CubeSize);
-    virtual void GenerateTerrain(uint32 Seed, real32 Persistence);
-    vertex* CreateRenderVertices(uint32 CubeSize);
-    vertex* CreateVerticesForPointRendering();
-    
-    void Update(uint32 Seed, real32 Persistence, terrain_render_mode RenderMode, uint32 CubeSize);
-    void Draw(terrainRenderer *Renderer);
-};
-*/
 struct terrain_density_block
 {
     v3 Pos;

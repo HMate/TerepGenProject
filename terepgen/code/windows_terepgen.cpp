@@ -4,8 +4,14 @@
 */
 
 #include <windows.h>
+#include <stdio.h>
 
-#include "terepgen_terrain.cpp"
+#include <d3dcompiler.h>
+#include <dxgi.h>
+#include <d3d11.h>
+#include <DirectXMath.h>
+
+#include "terepgen.cpp"
 //#include "terepgen_dxresources.h"
 
 global_variable bool32 GlobalRunning = true;
@@ -522,10 +528,11 @@ WinMain(HINSTANCE Instance,
             {
                 char* ErrMsg = DXResources.GetDebugMessage(HResult);
 #if TEREPGEN_DEBUG
-                OutputDebugStringA(("[TEREPGEN_DEBUG] Initialize error: " +
-                    std::string(ErrMsg)).c_str());
+                char DebugBuffer[256];
+                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Initialize error: %s\n", ErrMsg);
+                OutputDebugStringA(DebugBuffer);
+                MessageBox(NULL, DebugBuffer, NULL, MB_OK);
 #endif
-                //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
                 DXResources.Release();
                 return 1;
             }
@@ -535,19 +542,10 @@ WinMain(HINSTANCE Instance,
             
             Persistence = 0.4f;
             
-			// terrain Terrain;
-            // Terrain.Color = color{1.0f, 1.0f, 1.0f, 1.0f};
-            // Terrain.Initialize(GlobalSeed, Persistence);
-                        
-            //world_grid WorldTerrain;
-            //WorldTerrain.Initialize(Camera.GetPos(), GlobalSeed, Persistence);
+            game_state *GameState = new game_state;
+            GameState->Initialized = false;
             
-            const uint32 BlockCount = 125;
-            terrain_render_block *RenderBlocks = new terrain_render_block[BlockCount];
-            v3 BlockPositions[BlockCount];
-            GenerateTerrain(RenderBlocks, BlockPositions, BlockCount, Camera.GetPos(), GlobalSeed);
-            
-            terrainRenderer TRenderer;
+            terrain_renderer TRenderer;
             uint32 MaxVertexCount = VERTEX_COUNT;
             HResult = TRenderer.Initialize(&DXResources, MaxVertexCount);
             if(FAILED(HResult))
@@ -555,8 +553,10 @@ WinMain(HINSTANCE Instance,
                 //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
                 char* ErrMsg = DXResources.GetDebugMessage(HResult);
 #if TEREPGEN_DEBUG
-                OutputDebugStringA(("[TEREPGEN_DEBUG] terrainRenderer init error: " +
-                    std::string(ErrMsg)).c_str());
+                char DebugBuffer[256];
+                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] terrain_renderer init error: %s\n", ErrMsg);
+                OutputDebugStringA(DebugBuffer);
+                MessageBox(NULL, DebugBuffer, NULL, MB_OK);
 #endif
                 TRenderer.Release();
                 Camera.Release();
@@ -612,6 +612,9 @@ WinMain(HINSTANCE Instance,
                 WorldTime.QuadPart = NewTime.QuadPart;
                 
                 Camera.Update(&GlobalInput, TimePassed);
+                GameState->CameraPos = Camera.GetPos();
+                GameState->Seed = GlobalSeed;
+                UpdateGameState(GameState);
                 //WorldTerrain.Update(Camera.GetPos(), GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 // NOTE: Rendering
@@ -619,7 +622,6 @@ WinMain(HINSTANCE Instance,
                               &Camera.SceneConstants, sizeof(Camera.SceneConstants));
                 
                 color BackgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
-                //color BackgroundColor = {0.3f, 0.3f, 0.3f, 1.0f}; //grey
                 DXResources.DeviceContext->ClearDepthStencilView(DXResources.DepthStencilView, 
                     D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, 1.0f, 0);
                 DXResources.DeviceContext->ClearRenderTargetView(DXResources.BackBuffer, BackgroundColor.C);
@@ -627,9 +629,8 @@ WinMain(HINSTANCE Instance,
                 TRenderer.DrawAxis(100.0f);
                 // TRenderer.DrawDebugTriangle();
                 // WorldTerrain.Draw(&TRenderer);
-                // if(DrawTerrain2)Terrain3D.UpdateAndDrawPoints(DXResources, GlobalSeed, Persistence);
                 
-                RenderTerrain(&TRenderer, RenderBlocks, BlockCount);
+                RenderGame(&TRenderer, GameState);
                 
                 DXResources.SwapChain->Present(0, 0);
                 
@@ -645,7 +646,7 @@ WinMain(HINSTANCE Instance,
 #endif
             }
             
-            delete[] RenderBlocks;
+            delete GameState;
             Camera.Release();
             DXResources.Release();
         }

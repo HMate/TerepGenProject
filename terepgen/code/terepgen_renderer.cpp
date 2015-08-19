@@ -3,16 +3,16 @@
 
 */
 
-#include "terepgen_terrain.h"
+#include "terepgen_renderer.h"
 
-terrainRenderer::terrainRenderer()
+terrain_renderer::terrain_renderer()
 {
     DXReleased = false;
     VertexBuffer = nullptr;
     ObjectConstantBuffer = nullptr;
 }
 
-HRESULT terrainRenderer::Initialize(dx_resource *DXResources, uint32 MaxVertexCount)
+HRESULT terrain_renderer::Initialize(dx_resource *DXResources, uint32 MaxVertexCount)
 {
     DXReleased = false;
     this->DXResource = DXResources;
@@ -78,7 +78,7 @@ HRESULT terrainRenderer::Initialize(dx_resource *DXResources, uint32 MaxVertexCo
     return HResult; 
 }
 
-void terrainRenderer::SetTransformations(v3 Translation)
+void terrain_renderer::SetTransformations(v3 Translation)
 {
     ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, Translation.X,
                                              0, 1, 0, Translation.Y,
@@ -86,7 +86,7 @@ void terrainRenderer::SetTransformations(v3 Translation)
                                              0, 0, 0, 1);
 }
 
-void terrainRenderer::DrawWireframe(vertex *Vertices, uint32 VertCount)
+void terrain_renderer::DrawWireframe(vertex *Vertices, uint32 VertCount)
 {         
     DXResource->DeviceContext->RSSetState(RSWireFrame);
     
@@ -102,7 +102,7 @@ void terrainRenderer::DrawWireframe(vertex *Vertices, uint32 VertCount)
     DXResource->DeviceContext->Draw(VertCount, 0);
 }
 
-void terrainRenderer::DrawTriangles(vertex *Vertices, uint32 VertCount)
+void terrain_renderer::DrawTriangles(vertex *Vertices, uint32 VertCount)
 {           
     DXResource->DeviceContext->RSSetState(RSDefault);
     
@@ -128,7 +128,7 @@ Get3DVertex(v3 LocalPos, color Color)
     return Result;
 }
 
-void terrainRenderer::DrawDebugTriangle()
+void terrain_renderer::DrawDebugTriangle()
 {       
     DXResource->DeviceContext->RSSetState(RSDefault);
     
@@ -150,7 +150,7 @@ void terrainRenderer::DrawDebugTriangle()
     DXResource->DeviceContext->Draw(FalseCount, 0);
 }
 
-void terrainRenderer::DrawAxis(real32 Size)
+void terrain_renderer::DrawAxis(real32 Size)
 {      
     DXResource->DeviceContext->RSSetState(RSDefault);
     
@@ -177,7 +177,7 @@ void terrainRenderer::DrawAxis(real32 Size)
     DXResource->DeviceContext->Draw(VertCount, 0);
 }
 
-void terrainRenderer::Release()
+void terrain_renderer::Release()
 {
     if(RSDefault) RSDefault->Release();
     if(RSWireFrame) RSWireFrame->Release();
@@ -186,7 +186,7 @@ void terrainRenderer::Release()
     DXReleased = true;
 }
    
-terrainRenderer::~terrainRenderer()
+terrain_renderer::~terrain_renderer()
 {
     if(!DXReleased) Release();
 }

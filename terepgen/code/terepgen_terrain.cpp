@@ -4,7 +4,6 @@
 */
 
 #include "terepgen_terrain.h"
-#include "terepgen_marching_cubes.cpp"
 
 
 // Terrain 3D
@@ -283,64 +282,6 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
     sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Current Vertex Count: %d\n", VertexCount);
     OutputDebugStringA(DebugBuffer);
 #endif
-}
-    
-internal void 
-CalculateBlockPositions(v3 *BlockPositions, uint32 BlockCount, v3 CentralBlockPos)
-{    
-    uint32 CubeRoot = Cbrt(BlockCount);
-    uint32 IndexDelta = CubeRoot/2;
-    int32 Start = -IndexDelta;
-    int32 End = CubeRoot - IndexDelta;
-    
-    uint32 PosIndex = 0;
-    for(int32 XIndex = Start; XIndex < End; ++XIndex)
-    {
-        for(int32 YIndex = Start; YIndex < End; ++YIndex)
-        {
-            for(int32 ZIndex = Start; ZIndex < End; ++ZIndex)
-            {
-                BlockPositions[PosIndex++] = CentralBlockPos +
-                    v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
-            }
-        }
-    }
-    Assert(PosIndex == BlockCount);
-}
-
-internal void
-GenerateTerrain(terrain_render_block *RenderBlocks, v3 *BlockPositions, uint32 BlockCount,
-                v3 CameraPos, uint32 Seed)
-{
-    real32 BlockSize = real32(TERRAIN_BLOCK_SIZE);
-    uint32 BlockResolution = 8;
-    
-    v3 CentralBlockPos = CameraPos / BlockSize;
-    CentralBlockPos = v3{FloorReal32(CentralBlockPos.X), 
-                         FloorReal32(CentralBlockPos.Y),
-                         FloorReal32(CentralBlockPos.Z)};
-    CalculateBlockPositions(BlockPositions, BlockCount, CentralBlockPos);
-                         
-    terrain_density_block DensityBlock;
-    RandomGenerator Rng(Seed);
-    Rng.SetSeed(1000);
-    for(size_t BlockIndex = 0; BlockIndex < BlockCount; BlockIndex++)
-    {
-        DensityBlock.Pos = BlockPositions[BlockIndex] * BlockSize * BlockResolution;
-        GenerateDensityGrid(&DensityBlock, &Rng, BlockResolution);
-        CreateRenderVertices(&(RenderBlocks[BlockIndex]), &DensityBlock, BlockResolution);
-    }
-}
-
-internal void
-RenderTerrain(terrainRenderer *Renderer, terrain_render_block *RenderBlocks, uint32 BlockCount)
-{
-    for(size_t BlockIndex = 0; BlockIndex < BlockCount; BlockIndex++)
-    {
-        Renderer->SetTransformations(RenderBlocks[BlockIndex].Pos);
-        Renderer->DrawTriangles(RenderBlocks[BlockIndex].Vertices, RenderBlocks[BlockIndex].VertexCount);
-        Renderer->SetTransformations(v3{});
-    }
 }
 
 

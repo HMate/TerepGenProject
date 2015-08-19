@@ -7,9 +7,7 @@ REM chcp 1252>nul
 echo TerepGen compile starting at %TIME%
 
 cd /d Y:\code
-REM call "D:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
-REM call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x64
-call "D:\Programf jlok (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
+call "..\misc\load_msvc.bat"
 
 REM -MTd Multithreaded version of run-time library build and links to LIBCMT.lib
 REM -Od Disables optimization and build faster
@@ -20,8 +18,7 @@ REM -opt:ref Eliminates functions and data that are not referenced
 set CommonLinkerFlags= -incremental:no -opt:ref user32.lib d3d11.lib dxgi.lib d3dcompiler.lib
 
 REM List the cpp files to compile here
-set CompiledFiles= ..\code\windows_terepgen.cpp^
-    ..\code\terepgen_terrain_renderer.cpp
+set CompiledFiles= ..\code\windows_terepgen.cpp
 
 if not exist ..\build mkdir ..\build
 pushd ..\build

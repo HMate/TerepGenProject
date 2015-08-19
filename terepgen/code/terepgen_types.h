@@ -4,7 +4,12 @@
 
 */
 
+
+#include <random>
+#include <atomic>
+
 #include <stdint.h>
+#include <stddef.h>
 #include <cmath>
 
 #define global_variable static
