@@ -18,7 +18,7 @@ struct terrain_renderer
     terrain_renderer();
     terrain_renderer(const terrain_renderer&) = delete;
     
-    HRESULT Initialize(dx_resource *DXResources, uint32 MaxVertexCount);
+    HRESULT Initialize(dx_resource *DXResources);
     ~terrain_renderer();
     void Release();
     

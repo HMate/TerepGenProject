@@ -28,18 +28,18 @@ struct RandomGenerator
     uint32 Seed;
     dynamic_grid3D RandomTex;
     std::ranlux48 Rng;
-    std::uniform_real_distribution<> UniformRng;
+    std::uniform_real_distribution<real32> UniformRng;
     
     RandomGenerator(uint32 Seed) : Seed(Seed),RandomTex(RANDOM_TEX_SIZE)
     {
-        UniformRng = std::uniform_real_distribution<>(-1.0f, 1.0f);
+        UniformRng = std::uniform_real_distribution<real32>(-1.0f, 1.0f);
         //this->Seed = Seed;
     }
     
-    void SetSeed(uint32 Seed)
+    void SetSeed(uint32 NewSeed)
     {
-        this->Seed = Seed;
-        Rng.seed(Seed);
+        this->Seed = NewSeed;
+        Rng.seed(NewSeed);
         uint32 TexSize = RandomTex.Dimension * RandomTex.Dimension * RandomTex.Dimension;
         for(uint32 Index = 0; Index < TexSize; Index++)
         {
@@ -133,13 +133,13 @@ struct terrain_density_block
 };
 
 #define TERRAIN_BLOCK_SIZE 32
-#define VERTEX_COUNT 45000
+#define RENDER_BLOCK_VERTEX_COUNT 45000
 
 struct terrain_render_block
 {
     v3 Pos;
     uint32 VertexCount;
-    vertex Vertices[VERTEX_COUNT];
+    vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];
 };
 
 

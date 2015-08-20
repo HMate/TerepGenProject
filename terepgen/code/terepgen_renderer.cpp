@@ -12,11 +12,11 @@ terrain_renderer::terrain_renderer()
     ObjectConstantBuffer = nullptr;
 }
 
-HRESULT terrain_renderer::Initialize(dx_resource *DXResources, uint32 MaxVertexCount)
+HRESULT terrain_renderer::Initialize(dx_resource *DXResources)
 {
     DXReleased = false;
     this->DXResource = DXResources;
-    this->MaxVertexCount = MaxVertexCount;
+    this->MaxVertexCount = RENDER_BLOCK_VERTEX_COUNT;
     ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, 0,
                                              0, 1, 0, 0,
                                              0, 0, 1, 0,
@@ -121,7 +121,7 @@ void terrain_renderer::DrawTriangles(vertex *Vertices, uint32 VertCount)
 internal vertex
 Get3DVertex(v3 LocalPos, color Color)
 {
-    real32 Scale = 1.0f;
+//    real32 Scale = 1.0f;
     vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 1.0f, 
                      0.0f, 1.0f, 0.0f, 1.0f,
                      Color};

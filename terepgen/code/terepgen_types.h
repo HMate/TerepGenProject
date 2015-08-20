@@ -50,8 +50,8 @@ union color
 
 struct screen_info
 {
-    uint32 Width;
-    uint32 Height;
+    int32 Width;
+    int32 Height;
 };
 
 struct input
@@ -128,13 +128,13 @@ inline real32
 Sqrt(real32 Val)
 {
     real32 Result = sqrt(Val);
-    return Val;
+    return Result;
 }
 
-inline uint32
+inline int32
 Cbrt(uint32 Val)
 {
-    uint32 Result = cbrt(Val);
+    int32 Result = (int32)cbrt(Val);
     return Result;
 }
 

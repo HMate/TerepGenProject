@@ -497,10 +497,8 @@ WinMain(HINSTANCE Instance,
 	int32 MaxScreenHeight = GetSystemMetrics(SM_CYSCREEN);
     
     screen_info ScreenInfo;
-    ScreenInfo.Width = 1280;
-	ScreenInfo.Height = 800;
-	// ScreenInfo.Width = 800;
-	// ScreenInfo.Height = 600;
+    ScreenInfo.Width = MaxScreenWidth*3/4;//1280;
+	ScreenInfo.Height = MaxScreenHeight*3/4;//800;
     
     if(RegisterClassA(&WindowClass))
     {
@@ -546,8 +544,7 @@ WinMain(HINSTANCE Instance,
             GameState->Initialized = false;
             
             terrain_renderer TRenderer;
-            uint32 MaxVertexCount = VERTEX_COUNT;
-            HResult = TRenderer.Initialize(&DXResources, MaxVertexCount);
+            HResult = TRenderer.Initialize(&DXResources);
             if(FAILED(HResult))
             {
                 //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);

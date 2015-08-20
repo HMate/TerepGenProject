@@ -9,8 +9,8 @@
 internal void 
 CalculateBlockPositions(game_state *GameState, v3 CentralBlockPos)
 {    
-    uint32 CubeRoot = Cbrt(ArrayCount(GameState->BlockPositions));
-    uint32 IndexDelta = CubeRoot/2;
+    int32 CubeRoot = Cbrt(ArrayCount(GameState->BlockPositions));
+    int32 IndexDelta = CubeRoot/2;
     int32 Start = -IndexDelta;
     int32 End = CubeRoot - IndexDelta;
     
@@ -48,7 +48,7 @@ GenerateTerrain(game_state *GameState)
         BlockIndex < ArrayCount(GameState->RenderBlocks);
         BlockIndex++)
     {
-        DensityBlock.Pos = GameState->BlockPositions[BlockIndex] * BlockSize * BlockResolution;
+        DensityBlock.Pos = GameState->BlockPositions[BlockIndex] * BlockSize * (real32)BlockResolution;
         GenerateDensityGrid(&DensityBlock, &Rng, BlockResolution);
         CreateRenderVertices(&(GameState->RenderBlocks[BlockIndex]), &DensityBlock, BlockResolution);
     }

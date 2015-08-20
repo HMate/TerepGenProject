@@ -61,7 +61,7 @@ struct dx_resource
         if(FAILED(HResult))
             return HResult;
         
-        for(int32 i = 0; i < NumModes; ++i)
+        for(uint32 i = 0; i < NumModes; ++i)
         {
             if(DisplayModeList[i].Width == (uint32)ScreenWidth)
             {
@@ -416,7 +416,6 @@ struct dx_resource
     char* GetDebugMessage(DWORD dwErrorMsgId)
     {
         DWORD ret;        // Temp space to hold a return value.
-        HINSTANCE hInst;  // Instance handle for DLL.
         char* pBuffer;   // Buffer to hold the textual error description.
         
         ret = FormatMessage(  
@@ -534,7 +533,7 @@ struct camera
             CameraSpeed *= 0.9f;
             Input->SpeedDown = false;
         }
-        real64 MoveDelta = CameraSpeed * TimeDelta;
+        real32 MoveDelta = CameraSpeed * (real32)TimeDelta;
         // NOTE: Gather where to move with camera
         if(Input->MoveForward) 
         {
@@ -574,7 +573,7 @@ struct camera
             XMLoadFloat3(&TargetPos) + XMLoadFloat3(&dCameraPos));
         
         bool32 MouseLeftIsDown = GetKeyState(VK_LBUTTON) & (1 << 15);
-        bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
+        //bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
         
         // NOTE: rotate camera
         auto dMouseX = Input->MouseX - Input->OldMouseX;
@@ -583,8 +582,8 @@ struct camera
         {
             XMVECTOR NewTargetDir = TargetDirection;
             NewTargetDir = NewTargetDir + 
-                XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * dMouseX + 
-                XMLoadFloat3(&UpDirection) * dMouseY;
+                XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * (real32)dMouseX + 
+                XMLoadFloat3(&UpDirection) * (real32)dMouseY;
             real32 Angle = XMScalarACos( XMVectorGetX(
                 XMVector3Dot(NewTargetDir, TargetDirection) /
                 (XMVector3Length(NewTargetDir) * XMVector3Length(TargetDirection)))) / 30.0f;

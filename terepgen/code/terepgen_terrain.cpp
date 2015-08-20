@@ -65,7 +65,7 @@ GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, 
         */
         real32 Weight = Pow(Persistence, OctaveCount-Octaves-1);
         int32 WaveLength = (int32)Pow2(Octaves);
-        real32 Frequency = 1.0f / (WaveLength + 1);
+        //real32 Frequency = 1.0f / (WaveLength + 1);
         uint32 PGDimension = ((TerrainDimension-1)/WaveLength) + 1;
         
         dynamic_grid3D PerlinGrid{PGDimension};
@@ -73,15 +73,15 @@ GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, 
                  Row is axis Y
                  Column is axis Z
         */
-        for(int32 Plane = 0;
+        for(uint32 Plane = 0;
             Plane < PerlinGrid.Dimension;
             ++Plane)
         {
-            for(int32 Row = 0;
+            for(uint32 Row = 0;
                 Row < PerlinGrid.Dimension;
                 ++Row)
             {
-                for(int32 Column = 0;
+                for(uint32 Column = 0;
                     Column < PerlinGrid.Dimension;
                     ++Column)
                 {
