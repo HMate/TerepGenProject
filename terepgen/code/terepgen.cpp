@@ -7,7 +7,7 @@
 
     
 internal void 
-CalculateBlockPositions(game_state *GameState, v3 CentralBlockPos)
+CalculateBlockPositions(game_state *GameState, world_block_pos CentralBlockPos)
 {    
     int32 CubeRoot = Cbrt(ArrayCount(GameState->BlockPositions));
     int32 IndexDelta = CubeRoot/2;
@@ -21,12 +21,38 @@ CalculateBlockPositions(game_state *GameState, v3 CentralBlockPos)
         {
             for(int32 ZIndex = Start; ZIndex < End; ++ZIndex)
             {
-                GameState->BlockPositions[PosIndex++] = CentralBlockPos +
-                    v3{(real32)XIndex, (real32)YIndex, (real32)ZIndex};
+                GameState->BlockPositions[PosIndex].BlockX = CentralBlockPos.BlockX + XIndex;
+                GameState->BlockPositions[PosIndex].BlockY = CentralBlockPos.BlockY + YIndex;
+                GameState->BlockPositions[PosIndex].BlockZ = CentralBlockPos.BlockZ + ZIndex;
+                PosIndex++;
             }
         }
     }
     Assert(PosIndex == ArrayCount(GameState->BlockPositions));
+}
+
+inline world_block_pos
+GetWorldPosFromV3(v3 Pos, real32 BlockSize)
+{
+    world_block_pos Result = {};
+    
+    v3 CentralBlockPos = Pos / BlockSize;
+    Result.BlockX = FloorInt32(CentralBlockPos.X); 
+    Result.BlockY = FloorInt32(CentralBlockPos.Y);
+    Result.BlockZ = FloorInt32(CentralBlockPos.Z);
+     
+    return Result;
+}
+
+inline v3
+GetV3FromWorldPos(world_block_pos Pos)
+{
+    v3 Result = {};
+    Result.X = (real32)Pos.BlockX;
+    Result.Y = (real32)Pos.BlockY;
+    Result.Z = (real32)Pos.BlockZ;
+    
+    return Result;
 }
 
 internal void
@@ -35,10 +61,7 @@ GenerateTerrain(game_state *GameState)
     real32 BlockSize = real32(TERRAIN_BLOCK_SIZE);
     uint32 BlockResolution = 8;
     
-    v3 CentralBlockPos = GameState->CameraPos / BlockSize;
-    CentralBlockPos = v3{FloorReal32(CentralBlockPos.X), 
-                         FloorReal32(CentralBlockPos.Y),
-                         FloorReal32(CentralBlockPos.Z)};
+    world_block_pos CentralBlockPos = GetWorldPosFromV3(GameState->CameraPos, BlockSize);
     CalculateBlockPositions(GameState, CentralBlockPos);
                          
     terrain_density_block DensityBlock;
@@ -48,7 +71,7 @@ GenerateTerrain(game_state *GameState)
         BlockIndex < ArrayCount(GameState->RenderBlocks);
         BlockIndex++)
     {
-        DensityBlock.Pos = GameState->BlockPositions[BlockIndex] * BlockSize * (real32)BlockResolution;
+        DensityBlock.Pos = GetV3FromWorldPos(GameState->BlockPositions[BlockIndex]) * BlockSize * (real32)BlockResolution;
         GenerateDensityGrid(&DensityBlock, &Rng, BlockResolution);
         CreateRenderVertices(&(GameState->RenderBlocks[BlockIndex]), &DensityBlock, BlockResolution);
     }

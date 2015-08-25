@@ -5,40 +5,40 @@
 
 #include "terepgen_terrain.h"
 
-
-// Terrain 3D
-
 internal void 
 GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng, uint32 BlockResolution)
 {
-    uint32 TerrainDimension = DensityBlock->Grid.Dimension;
-    for(uint32 Plane = 0;
+    int32 TerrainDimension = DensityBlock->Grid.Dimension;
+    for(int32 Plane = 0;
         Plane < TerrainDimension;
-        ++Plane)
+        ++Plane) 
     {
-        for(uint32 Row = 0;
+        for(int32 Row = 0;
             Row < TerrainDimension;
             ++Row)
         {
-            for(uint32 Column = 0;
+            for(int32 Column = 0;
                 Column < TerrainDimension;
                 ++Column)
             {
-                real32 DensityValue = DensityBlock->Pos.Y + (real32)(((int32)Row-2) * (real32)BlockResolution);
+                real32 DensityValue = DensityBlock->Pos.Y + (real32)((Row-2) * (real32)BlockResolution);
                 
-                real32 WorldX = DensityBlock->Pos.X + ((((int32)Plane)-2) * (real32)BlockResolution);
-                real32 WorldY = DensityBlock->Pos.Y + ((((int32)Row)-2) * (real32)BlockResolution);
-                real32 WorldZ = DensityBlock->Pos.Z + ((((int32)Column)-2) * (real32)BlockResolution);
+                real32 WorldX = DensityBlock->Pos.X + ((Plane-2) * (real32)BlockResolution);
+                real32 WorldY = DensityBlock->Pos.Y + ((Row-2) * (real32)BlockResolution);
+                real32 WorldZ = DensityBlock->Pos.Z + ((Column-2) * (real32)BlockResolution);
                 
                 v3 WorldPos = {WorldX, WorldY, WorldZ};
              
                 DensityValue += Rng->RandomFloat(WorldPos) * 1.0f;
-                DensityValue += Rng->RandomFloat(WorldPos * 0.51f) * 2.0f;
+                //DensityValue += Rng->RandomFloat(WorldPos * 0.51f) * 2.0f;
                 DensityValue += Rng->RandomFloat(WorldPos * 0.248f) * 4.0f;
-                DensityValue += Rng->RandomFloat(WorldPos * 0.128f) * 8.0f;
+                //DensityValue += Rng->RandomFloat(WorldPos * 0.128f) * 8.0f;
                 DensityValue += Rng->RandomFloat(WorldPos * 0.0621f) * 16.0f;
-                DensityValue += Rng->RandomFloat(WorldPos * 0.03127f) * 32.0f;
+                //DensityValue += Rng->RandomFloat(WorldPos * 0.03127f) * 32.0f;
                 DensityValue += Rng->RandomFloat(WorldPos * 0.015622f) * 64.0f;
+                
+                DensityValue += Rng->RandomFloat(WorldPos * 0.00192f) * 512.0f;
+                DensityValue += Rng->RandomFloat(WorldPos * 0.00098f) * 1024.0f;
                                                                    
                 GetGridPRC(&DensityBlock->Grid, Plane, Row, Column) = DensityValue;
             }
@@ -47,17 +47,19 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng, u
 }
 
 internal void 
-GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, real32 Persistence)
+GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, uint32 BlockResolution,
+                     real32 Persistence=0.4f)
 {
     ZeroOutGridPoints(&DensityBlock->Grid);
         
-    uint32 TerrainDimension = DensityBlock->Grid.Dimension;
-    uint32 FirstOctave = 0;
+    int32 TerrainDimension = (int32)DensityBlock->Grid.Dimension;
+    uint32 FirstOctave = 0;//Log2(BlockResolution);
     uint32 OctaveCount = Log2(TerrainDimension);
+    uint32 OctaveStep = 1;
     
     for(uint32 Octaves = FirstOctave;
         Octaves < OctaveCount;
-        ++Octaves)
+        Octaves += OctaveStep)
     {
         /*
         float freq = 2^i;
@@ -65,68 +67,68 @@ GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, 
         */
         real32 Weight = Pow(Persistence, OctaveCount-Octaves-1);
         int32 WaveLength = (int32)Pow2(Octaves);
-        //real32 Frequency = 1.0f / (WaveLength + 1);
-        uint32 PGDimension = ((TerrainDimension-1)/WaveLength) + 1;
+        int32 EdgePlus = Pow2(BlockResolution/WaveLength);
+        int32 PGDimension = ((TerrainDimension - 5)*BlockResolution/WaveLength) + 1 + 2*EdgePlus;
+        
+        real32 Step = (real32)(PGDimension-1-(2*EdgePlus)) / (TerrainDimension - 5);
+        int32 IntStep = (Step >= 1.0f) ? (int32)Step : 1;
         
         dynamic_grid3D PerlinGrid{PGDimension};
         /* NOTE: Plane is axis X
                  Row is axis Y
                  Column is axis Z
         */
-        for(uint32 Plane = 0;
+        for(int32 Plane = 0;
             Plane < PerlinGrid.Dimension;
-            ++Plane)
+            Plane += IntStep)
         {
-            for(uint32 Row = 0;
+            for(int32 Row = 0;
                 Row < PerlinGrid.Dimension;
-                ++Row)
+                Row += IntStep)
             {
-                for(uint32 Column = 0;
+                for(int32 Column = 0;
                     Column < PerlinGrid.Dimension;
-                    ++Column)
+                    Column += IntStep)
                 {
-                    /*NOTE: Only works properly, if GridPoses are apart from each other 
-                         with value TerrainDimension. To correct this PerlinGrid dimension 
-                         should be 1 bigger, and during streching we need to check 
-                         which octave we are in.*/
-                    int32 WorldX = Plane + FloorInt32(DensityBlock->Pos.X/WaveLength);
-                    int32 WorldY = Row + FloorInt32(DensityBlock->Pos.Y/WaveLength);
-                    int32 WorldZ = Column + FloorInt32(DensityBlock->Pos.Z/WaveLength);
-                    real32 RandomVal = Rng->RandomFloat(WorldX * WaveLength,
-                                                        WorldY * WaveLength,
-                                                        WorldZ * WaveLength); 
+                    int32 WorldX = Plane - EdgePlus + FloorInt32(DensityBlock->Pos.X/WaveLength);
+                    int32 WorldY = Row - EdgePlus + FloorInt32(DensityBlock->Pos.Y/WaveLength);
+                    int32 WorldZ = Column - EdgePlus + FloorInt32(DensityBlock->Pos.Z/WaveLength);
+                    // TODO: Should I multiply these with WaveLength?
+                    real32 RandomVal = Rng->RandomFloat(WorldX,
+                                                        WorldY,
+                                                        WorldZ);
                     RandomVal = RandomVal * Weight;
-                    real32 Dampening = (WorldY)*(1.0f/(4.0f * TerrainDimension));
+                    real32 Dampening = (WorldY)*((real32)WaveLength/(4.0f * TerrainDimension));
                     PerlinGrid.GetPRC(Plane, Row, Column) = RandomVal + Dampening;
                 }
             }
         }
         
-        /*NOTE: Have to stretch out the little grids to match the size of the terrain
-             During strech, we get the inner points by interpolating between the Perlin grid values
-        */
-        for(uint32 Plane = 0;
+        // NOTE: Have to stretch out the little grids to match the size of the terrain
+        // During strech, we get the inner points by interpolating between the Perlin grid values
+        
+        for(int32 Plane = 0;
             Plane < TerrainDimension;
             ++Plane)
         {  
-            real32 PlaneRatio = (real32)Plane * (PGDimension-1) / (TerrainDimension - 1);
-            uint32 PGPlane = FloorUint32(PlaneRatio);
+            real32 PlaneRatio = (real32)(Plane-2)*Step + EdgePlus;
+            int32 PGPlane = FloorInt32(PlaneRatio);
             PlaneRatio = PlaneRatio - (real32)PGPlane;
             
-            for(uint32 Row = 0;
+            for(int32 Row = 0;
                 Row < TerrainDimension;
                 ++Row)
             {
-                real32 RowRatio = (real32)Row * (PGDimension-1) / (TerrainDimension - 1);
-                uint32 PGRow = FloorUint32(RowRatio);
+                real32 RowRatio = (real32)(Row-2)*Step + EdgePlus;
+                int32 PGRow = FloorInt32(RowRatio);
                 RowRatio = RowRatio - (real32)PGRow;
                 
-                for(uint32 Column = 0;
+                for(int32 Column = 0;
                     Column < TerrainDimension;
                     ++Column)
-                {                
-                    real32 ColumnRatio = (real32)Column * (PGDimension-1) / (TerrainDimension - 1);
-                    uint32 PGColumn = FloorUint32(ColumnRatio);
+                { 
+                    real32 ColumnRatio = (real32)(Column-2)*Step + EdgePlus;
+                    int32 PGColumn = FloorInt32(ColumnRatio);
                     ColumnRatio = ColumnRatio - (real32)PGColumn;
                     
                     Assert(((PGColumn+1) <= PGDimension) &&

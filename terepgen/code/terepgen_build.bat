@@ -16,7 +16,7 @@ REM -D.. Sets the given variable for preprocessor directives
 REM -EH Exceptions handling. s: only c++ exceptions c: extern "C" functions never throw exceptions
 REM -W4 Turns on warnings -Wall turns on more warnings than -W4
 REM -WX Treat warnings as errors
-set CommonCompilerFlags= -MTd -nologo -Od -Z7 -EHsc -DTEREPGEN_DEBUG=1 -W4 -WX -wd4201 -wd4100 -wd4505
+set CommonCompilerFlags= -MTd -nologo -Od -Z7 -EHsc -DTEREPGEN_DEBUG=1 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189
 REM -opt:ref Eliminates functions and data that are not referenced
 set CommonLinkerFlags= -incremental:no -opt:ref user32.lib d3d11.lib dxgi.lib d3dcompiler.lib
 

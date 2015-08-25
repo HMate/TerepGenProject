@@ -86,10 +86,6 @@ inline int32
 FloorInt32(real32 Val)
 {
     int32 Result = (int32)floor(Val);
-    // if(Val >= 0.0f)
-        // Result = (int32)Val;
-    // else
-        // Result = (int32)(Val - 1);
     return Result;
 }
 
@@ -112,8 +108,8 @@ inline uint32
 Pow2(uint32 N)
 {
     Assert(N>=0);
-    if(N==0) return 1; 
-    return 2 * Pow2(N-1);
+    uint32 Result = 1 << N;
+    return Result;
 }
 
 inline uint32 

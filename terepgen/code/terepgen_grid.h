@@ -6,7 +6,7 @@
 
 struct dynamic_grid3D
 {
-    uint32 Dimension;
+    int32 Dimension;
     real32* Elements;
     
     dynamic_grid3D()
@@ -15,7 +15,7 @@ struct dynamic_grid3D
         Elements = nullptr;
     }
     
-    dynamic_grid3D(uint32 Dimension)
+    dynamic_grid3D(int32 Dimension)
     {
         this->Dimension = Dimension;
         Elements = new real32[Dimension * Dimension * Dimension];
@@ -33,7 +33,7 @@ struct dynamic_grid3D
         }
     }
     
-    real32& GetPRC(uint32 Plane, uint32 Row, uint32 Column)
+    real32& GetPRC(int32 Plane, int32 Row, int32 Column)
     {
         if(Row > Dimension - 1) Row = Dimension - 1;
         if(Column > Dimension - 1) Column = Dimension - 1;
@@ -46,13 +46,13 @@ struct dynamic_grid3D
 
 struct static_grid3D
 {
-    uint32 Dimension = GRID_DIMENSION;
+    int32 Dimension = GRID_DIMENSION;
     real32 Elements[GRID_DIMENSION * GRID_DIMENSION * GRID_DIMENSION];
 };
 
         
 internal real32& 
-GetGridPRC(static_grid3D *Grid, uint32 Plane, uint32 Row, uint32 Column)
+GetGridPRC(static_grid3D *Grid, int32 Plane, int32 Row, int32 Column)
 {
     uint32 Dimension = Grid->Dimension;
     Assert(Plane < GRID_DIMENSION && Row < GRID_DIMENSION && Column < GRID_DIMENSION);
@@ -107,16 +107,16 @@ GetGridPRCWithInterpolate(static_grid3D *Grid, real32 Plane, real32 Row, real32 
 internal void 
 ZeroOutGridPoints(static_grid3D *Grid)
 {
-    uint32 Dimension = Grid->Dimension;
-    for(uint32 Plane = 0;
+    int32 Dimension = Grid->Dimension;
+    for(int32 Plane = 0;
         Plane < Dimension;
         ++Plane)
     {
-        for(uint32 Row = 0;
+        for(int32 Row = 0;
             Row < Dimension;
             ++Row)
         {
-            for(uint32 Column = 0;
+            for(int32 Column = 0;
                 Column < Dimension;
                 ++Column)
             {

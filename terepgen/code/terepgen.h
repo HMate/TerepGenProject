@@ -9,13 +9,20 @@
 #include "terepgen_renderer.cpp"
 
 
+struct world_block_pos
+{
+    int32 BlockX;
+    int32 BlockY;
+    int32 BlockZ;
+};
+
 #define RENDER_BLOCK_COUNT 125
 
 struct game_state 
 {
     bool32 Initialized;
     terrain_render_block RenderBlocks[RENDER_BLOCK_COUNT];
-    v3 BlockPositions[RENDER_BLOCK_COUNT];
+    world_block_pos BlockPositions[RENDER_BLOCK_COUNT];
     v3 CameraPos;
     uint32 Seed;
 };

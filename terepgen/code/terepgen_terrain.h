@@ -133,7 +133,7 @@ struct terrain_density_block
 };
 
 #define TERRAIN_BLOCK_SIZE 32
-#define RENDER_BLOCK_VERTEX_COUNT 45000
+#define RENDER_BLOCK_VERTEX_COUNT 200000
 
 struct terrain_render_block
 {
