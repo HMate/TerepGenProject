@@ -5,6 +5,9 @@
 
 #include "terepgen_terrain.h"
 
+// NOTE: Block Resolution gives how many density values are skipped
+// This way a bigger area can be stored in the same block, 
+// if at rendering we only use every BlockResolution'th value too.
 internal void 
 GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng, uint32 BlockResolution)
 {
@@ -30,14 +33,16 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng, u
                 v3 WorldPos = {WorldX, WorldY, WorldZ};
              
                 DensityValue += Rng->RandomFloat(WorldPos) * 1.0f;
-                //DensityValue += Rng->RandomFloat(WorldPos * 0.51f) * 2.0f;
+                // DensityValue += Rng->RandomFloat(WorldPos * 0.51f) * 2.0f;
                 DensityValue += Rng->RandomFloat(WorldPos * 0.248f) * 4.0f;
-                //DensityValue += Rng->RandomFloat(WorldPos * 0.128f) * 8.0f;
+                // DensityValue += Rng->RandomFloat(WorldPos * 0.128f) * 8.0f;
                 DensityValue += Rng->RandomFloat(WorldPos * 0.0621f) * 16.0f;
                 //DensityValue += Rng->RandomFloat(WorldPos * 0.03127f) * 32.0f;
                 DensityValue += Rng->RandomFloat(WorldPos * 0.015622f) * 64.0f;
                 
-                DensityValue += Rng->RandomFloat(WorldPos * 0.00192f) * 512.0f;
+                DensityValue += Rng->RandomFloat(WorldPos * 0.00392f) * 256.0f;
+                // DensityValue += Rng->RandomFloat(WorldPos * 0.00192f) * 512.0f;
+                
                 DensityValue += Rng->RandomFloat(WorldPos * 0.00098f) * 1024.0f;
                                                                    
                 GetGridPRC(&DensityBlock->Grid, Plane, Row, Column) = DensityValue;
@@ -48,14 +53,14 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng, u
 
 internal void 
 GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, uint32 BlockResolution,
-                     real32 Persistence=0.4f)
+                     real32 Persistence = 0.5f)
 {
     ZeroOutGridPoints(&DensityBlock->Grid);
         
     int32 TerrainDimension = (int32)DensityBlock->Grid.Dimension;
     uint32 FirstOctave = 0;//Log2(BlockResolution);
     uint32 OctaveCount = Log2(TerrainDimension);
-    uint32 OctaveStep = 1;
+    uint32 OctaveStep = 2;
     
     for(uint32 Octaves = FirstOctave;
         Octaves < OctaveCount;
@@ -94,9 +99,9 @@ GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, 
                     int32 WorldY = Row - EdgePlus + FloorInt32(DensityBlock->Pos.Y/WaveLength);
                     int32 WorldZ = Column - EdgePlus + FloorInt32(DensityBlock->Pos.Z/WaveLength);
                     // TODO: Should I multiply these with WaveLength?
-                    real32 RandomVal = Rng->RandomFloat(WorldX,
-                                                        WorldY,
-                                                        WorldZ);
+                    real32 RandomVal = Rng->RandomFloat((real32)WorldX,
+                                                        (real32)WorldY,
+                                                        (real32)WorldZ);
                     RandomVal = RandomVal * Weight;
                     real32 Dampening = (WorldY)*((real32)WaveLength/(4.0f * TerrainDimension));
                     PerlinGrid.GetPRC(Plane, Row, Column) = RandomVal + Dampening;

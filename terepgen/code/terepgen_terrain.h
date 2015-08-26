@@ -132,8 +132,8 @@ struct terrain_density_block
     static_grid3D Grid;
 };
 
-#define TERRAIN_BLOCK_SIZE 32
-#define RENDER_BLOCK_VERTEX_COUNT 200000
+#define TERRAIN_BLOCK_SIZE GRID_DIMENSION-5
+#define RENDER_BLOCK_VERTEX_COUNT 5000
 
 struct terrain_render_block
 {

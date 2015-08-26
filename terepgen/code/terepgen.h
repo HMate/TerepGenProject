@@ -16,15 +16,25 @@ struct world_block_pos
     int32 BlockZ;
 };
 
-#define RENDER_BLOCK_COUNT 125
+struct block_hash
+{
+    world_block_pos Key;
+    uint32 BlockIndex;
+};
+
+#define BLOCK_POS_COUNT 1000
+#define RENDER_BLOCK_COUNT 500
 
 struct game_state 
 {
     bool32 Initialized;
-    terrain_render_block RenderBlocks[RENDER_BLOCK_COUNT];
-    world_block_pos BlockPositions[RENDER_BLOCK_COUNT];
-    v3 CameraPos;
     uint32 Seed;
+    v3 CameraPos;
+    uint32 RenderBlockCount;
+    terrain_render_block RenderBlocks[RENDER_BLOCK_COUNT];
+    world_block_pos BlockPositions[BLOCK_POS_COUNT];
+    // NOTE: This must be a power of two for now!
+    block_hash BlockHash[2048];
 };
 
 internal void UpdateGameState(game_state);

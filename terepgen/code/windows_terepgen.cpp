@@ -612,7 +612,6 @@ WinMain(HINSTANCE Instance,
                 GameState->CameraPos = Camera.GetPos();
                 GameState->Seed = GlobalSeed;
                 UpdateGameState(GameState);
-                //WorldTerrain.Update(Camera.GetPos(), GlobalSeed, Persistence, (terrain_render_mode)GlobalInput.RenderMode);
                 
                 // NOTE: Rendering
                 DXResources.LoadResource(Camera.SceneConstantBuffer,
@@ -625,7 +624,6 @@ WinMain(HINSTANCE Instance,
                 
                 TRenderer.DrawAxis(100.0f);
                 // TRenderer.DrawDebugTriangle();
-                // WorldTerrain.Draw(&TRenderer);
                 
                 RenderGame(&TRenderer, GameState);
                 
