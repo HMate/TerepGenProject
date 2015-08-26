@@ -30,11 +30,15 @@ struct game_state
     bool32 Initialized;
     uint32 Seed;
     v3 CameraPos;
+    RandomGenerator Rng;
+    
+    uint32 StoredRenderBlockCount;
+    terrain_render_block StoredRenderBlocks[RENDER_BLOCK_COUNT];
     uint32 RenderBlockCount;
-    terrain_render_block RenderBlocks[RENDER_BLOCK_COUNT];
+    terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
     world_block_pos BlockPositions[BLOCK_POS_COUNT];
     // NOTE: This must be a power of two for now!
-    block_hash BlockHash[2048];
+    block_hash BlockHash[4096];
 };
 
 internal void UpdateGameState(game_state);

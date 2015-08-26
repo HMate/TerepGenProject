@@ -5,14 +5,15 @@
 
 #include "terepgen.h"
 
-#define UNINITIALIZED_HASH UINT32_MAX
+#define HASH_UNINITIALIZED UINT32_MAX
+#define HASH_ZERO_BLOCK UINT32_MAX-1
     
 internal block_hash *
 GetBlockHash(game_state *GameState, world_block_pos P)
 {
     block_hash *Result = 0;
 
-    uint32 HashValue = 31*P.BlockX + 13*P.BlockY + 5*P.BlockZ;
+    uint32 HashValue = 151*P.BlockX + 37*P.BlockY + 5*P.BlockZ;
     uint32 HashMask = (ArrayCount(GameState->BlockHash) - 1);
     
     for(uint32 Offset = 0;
@@ -23,7 +24,7 @@ GetBlockHash(game_state *GameState, world_block_pos P)
         Assert(HashIndex < ArrayCount(GameState->BlockHash));
         block_hash *Hash = GameState->BlockHash + HashIndex;
         
-        if(Hash->BlockIndex == UNINITIALIZED_HASH || 
+        if(Hash->BlockIndex == HASH_UNINITIALIZED || 
            ((P.BlockX == Hash->Key.BlockX) && 
             (P.BlockY == Hash->Key.BlockY) && 
             (P.BlockZ == Hash->Key.BlockZ)))
@@ -32,6 +33,7 @@ GetBlockHash(game_state *GameState, world_block_pos P)
             break;
         }
     }
+    Assert(Result);
     
     return Result;
 }
@@ -63,12 +65,12 @@ CalculateBlockPositions(game_state *GameState, world_block_pos CentralBlockPos)
 }
 
 inline world_block_pos
-GetWorldPosFromV3(v3 Pos, real32 BlockSize)
+GetWorldPosFromV3(v3 Pos, real32 BlockSize, uint32 BlockResolution)
 {
     // TODO: Needs block resolution too?
     world_block_pos Result = {};
     
-    v3 CentralBlockPos = Pos / BlockSize;
+    v3 CentralBlockPos = Pos / (BlockSize*BlockResolution);
     Result.BlockX = FloorInt32(CentralBlockPos.X); 
     Result.BlockY = FloorInt32(CentralBlockPos.Y);
     Result.BlockZ = FloorInt32(CentralBlockPos.Z);
@@ -77,13 +79,13 @@ GetWorldPosFromV3(v3 Pos, real32 BlockSize)
 }
 
 inline v3
-GetV3FromWorldPos(world_block_pos Pos, real32 BlockSize)
+GetV3FromWorldPos(world_block_pos Pos, real32 BlockSize, uint32 BlockResolution)
 {
     // TODO: Needs block resolution too?
     v3 Result = {};
-    Result.X = (real32)Pos.BlockX * BlockSize;
-    Result.Y = (real32)Pos.BlockY * BlockSize;
-    Result.Z = (real32)Pos.BlockZ * BlockSize;
+    Result.X = (real32)Pos.BlockX * BlockSize * BlockResolution;
+    Result.Y = (real32)Pos.BlockY * BlockSize * BlockResolution;
+    Result.Z = (real32)Pos.BlockZ * BlockSize * BlockResolution;
     
     return Result;
 }
@@ -94,29 +96,31 @@ GenerateTerrain(game_state *GameState)
     real32 BlockSize = real32(TERRAIN_BLOCK_SIZE);
     uint32 BlockResolution = 8;
     
-    world_block_pos CentralBlockPos = GetWorldPosFromV3(GameState->CameraPos, BlockSize);
+    world_block_pos CentralBlockPos = GetWorldPosFromV3(GameState->CameraPos, BlockSize, BlockResolution);
     CalculateBlockPositions(GameState, CentralBlockPos);
-                         
-    terrain_density_block DensityBlock;
-    RandomGenerator Rng(GameState->Seed);
-    Rng.SetSeed(1000);
     
-    uint32 RenderBlockIndex = 0;
-    for(size_t BlockIndex = 0; 
-        BlockIndex < ArrayCount(GameState->BlockPositions);
-        ++BlockIndex)
+    terrain_density_block DensityBlock;
+    
+    for(size_t PosIndex = 0; 
+        PosIndex < ArrayCount(GameState->BlockPositions);
+        ++PosIndex)
     {
-        DensityBlock.Pos = GetV3FromWorldPos(GameState->BlockPositions[BlockIndex], BlockSize) * (real32)BlockResolution;
-        GenerateDensityGrid(&DensityBlock, &Rng, BlockResolution);
-        CreateRenderVertices(&(GameState->RenderBlocks[GameState->RenderBlockCount]), &DensityBlock, BlockResolution);
-        if(GameState->RenderBlocks[GameState->RenderBlockCount].VertexCount != 0)
+        DensityBlock.Pos = GetV3FromWorldPos(GameState->BlockPositions[PosIndex], BlockSize, BlockResolution);
+        GenerateDensityGrid(&DensityBlock, &GameState->Rng, BlockResolution);
+        CreateRenderVertices(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), &DensityBlock, BlockResolution);
+        
+        block_hash *Hash = GetBlockHash(GameState, GameState->BlockPositions[PosIndex]);
+        Assert(Hash && Hash->BlockIndex == HASH_UNINITIALIZED);
+        
+        Hash->Key = GameState->BlockPositions[PosIndex];
+        if(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount].VertexCount != 0)
         {
-            block_hash *Hash = GetBlockHash(GameState, GameState->BlockPositions[BlockIndex]);
-            Assert(Hash && Hash->BlockIndex == UNINITIALIZED_HASH);
-            
-            Hash->Key = GameState->BlockPositions[BlockIndex];
-            Hash->BlockIndex = GameState->RenderBlockCount++;
-            Assert(GameState->RenderBlockCount < ArrayCount(GameState->RenderBlocks));
+            Hash->BlockIndex = GameState->StoredRenderBlockCount++;
+            Assert(GameState->StoredRenderBlockCount < ArrayCount(GameState->StoredRenderBlocks));
+        }
+        else
+        {
+            Hash->BlockIndex = HASH_ZERO_BLOCK;
         }
     }
 }
@@ -129,7 +133,7 @@ InitHashTable(game_state *GameState)
         ++HashIndex)
     {
         block_hash *Hash = GameState->BlockHash + HashIndex;
-        Hash->BlockIndex = UNINITIALIZED_HASH;
+        Hash->BlockIndex = HASH_UNINITIALIZED;
     }
 }
 
@@ -138,12 +142,47 @@ UpdateGameState(game_state *GameState)
 {
     if(GameState->Initialized == false)
     {
-        GameState->RenderBlockCount = 0;
+        GameState->StoredRenderBlockCount = 0;
+        GameState->Rng.SetSeed(GameState->Seed);
         InitHashTable(GameState);
         GenerateTerrain(GameState);
         GameState->Initialized = true;
     }
-
+    real32 BlockSize = real32(TERRAIN_BLOCK_SIZE);
+    uint32 BlockResolution = 8;
+    
+    world_block_pos CentralBlockPos = GetWorldPosFromV3(GameState->CameraPos, BlockSize, BlockResolution);
+    CalculateBlockPositions(GameState, CentralBlockPos);
+    
+    GameState->RenderBlockCount = 0;
+    for(size_t PosIndex = 0; 
+        PosIndex < ArrayCount(GameState->BlockPositions);
+        ++PosIndex)
+    {
+        block_hash *Hash = GetBlockHash(GameState, GameState->BlockPositions[PosIndex]);
+        if(Hash->BlockIndex == HASH_UNINITIALIZED)
+        {
+            // NOTE: Initialize block
+            terrain_density_block DensityBlock;
+            DensityBlock.Pos = GetV3FromWorldPos(GameState->BlockPositions[PosIndex], BlockSize, BlockResolution);
+            GenerateDensityGrid(&DensityBlock, &GameState->Rng, BlockResolution);
+            CreateRenderVertices(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), &DensityBlock, BlockResolution);
+            if(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount].VertexCount != 0)
+            {
+                Hash->BlockIndex = GameState->StoredRenderBlockCount++;
+                Assert(GameState->StoredRenderBlockCount < ArrayCount(GameState->StoredRenderBlocks));
+            }
+            else
+            {
+                Hash->BlockIndex = HASH_ZERO_BLOCK;
+            }
+            Hash->Key = GameState->BlockPositions[PosIndex];
+        }
+        if(Hash->BlockIndex != HASH_ZERO_BLOCK)
+        {
+            GameState->RenderBlocks[GameState->RenderBlockCount++] = GameState->StoredRenderBlocks + Hash->BlockIndex;
+        }
+    }
 }
 
 internal void
@@ -153,10 +192,10 @@ RenderGame(terrain_renderer *Renderer, game_state *GameState)
         RenderBlockIndex < GameState->RenderBlockCount; 
         RenderBlockIndex++)
     {
-        Renderer->SetTransformations(GameState->RenderBlocks[RenderBlockIndex].Pos);
+        Renderer->SetTransformations(GameState->RenderBlocks[RenderBlockIndex]->Pos);
         Renderer->DrawTriangles(
-            GameState->RenderBlocks[RenderBlockIndex].Vertices,
-            GameState->RenderBlocks[RenderBlockIndex].VertexCount);
+            GameState->RenderBlocks[RenderBlockIndex]->Vertices,
+            GameState->RenderBlocks[RenderBlockIndex]->VertexCount);
         Renderer->SetTransformations(v3{});
     }
 }

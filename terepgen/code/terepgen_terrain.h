@@ -30,7 +30,7 @@ struct RandomGenerator
     std::ranlux48 Rng;
     std::uniform_real_distribution<real32> UniformRng;
     
-    RandomGenerator(uint32 Seed) : Seed(Seed),RandomTex(RANDOM_TEX_SIZE)
+    RandomGenerator(uint32 Seed = 1000) : Seed(Seed),RandomTex(RANDOM_TEX_SIZE)
     {
         UniformRng = std::uniform_real_distribution<real32>(-1.0f, 1.0f);
         //this->Seed = Seed;
@@ -133,7 +133,7 @@ struct terrain_density_block
 };
 
 #define TERRAIN_BLOCK_SIZE GRID_DIMENSION-5
-#define RENDER_BLOCK_VERTEX_COUNT 5000
+#define RENDER_BLOCK_VERTEX_COUNT 7000
 
 struct terrain_render_block
 {
