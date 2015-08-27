@@ -38,7 +38,8 @@ struct game_state
     terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
     world_block_pos BlockPositions[BLOCK_POS_COUNT];
     // NOTE: This must be a power of two for now!
-    block_hash BlockHash[4096];
+    block_hash BlockHash[2048];
+    block_hash ZeroHash[4096];
 };
 
 internal void UpdateGameState(game_state);

@@ -37,6 +37,36 @@ GetBlockHash(game_state *GameState, world_block_pos P)
     
     return Result;
 }
+
+internal block_hash *
+GetZeroHash(game_state *GameState, world_block_pos P)
+{
+    block_hash *Result = 0;
+
+    uint32 HashValue = 151*P.BlockX + 37*P.BlockY + 5*P.BlockZ;
+    uint32 HashMask = (ArrayCount(GameState->ZeroHash) - 1);
+    
+    for(uint32 Offset = 0;
+        Offset < ArrayCount(GameState->ZeroHash);
+        ++Offset)
+    {
+        uint32 HashIndex = (HashValue + Offset) & HashMask;
+        Assert(HashIndex < ArrayCount(GameState->ZeroHash));
+        block_hash *Hash = GameState->ZeroHash + HashIndex;
+        
+        if(Hash->BlockIndex == HASH_UNINITIALIZED || 
+           ((P.BlockX == Hash->Key.BlockX) && 
+            (P.BlockY == Hash->Key.BlockY) && 
+            (P.BlockZ == Hash->Key.BlockZ)))
+        {
+            Result = Hash;
+            break;
+        }
+    }
+    Assert(Result);
+    
+    return Result;
+}
     
     
 internal void 
@@ -67,7 +97,6 @@ CalculateBlockPositions(game_state *GameState, world_block_pos CentralBlockPos)
 inline world_block_pos
 GetWorldPosFromV3(v3 Pos, real32 BlockSize, uint32 BlockResolution)
 {
-    // TODO: Needs block resolution too?
     world_block_pos Result = {};
     
     v3 CentralBlockPos = Pos / (BlockSize*BlockResolution);
@@ -81,7 +110,6 @@ GetWorldPosFromV3(v3 Pos, real32 BlockSize, uint32 BlockResolution)
 inline v3
 GetV3FromWorldPos(world_block_pos Pos, real32 BlockSize, uint32 BlockResolution)
 {
-    // TODO: Needs block resolution too?
     v3 Result = {};
     Result.X = (real32)Pos.BlockX * BlockSize * BlockResolution;
     Result.Y = (real32)Pos.BlockY * BlockSize * BlockResolution;
@@ -109,17 +137,21 @@ GenerateTerrain(game_state *GameState)
         GenerateDensityGrid(&DensityBlock, &GameState->Rng, BlockResolution);
         CreateRenderVertices(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), &DensityBlock, BlockResolution);
         
-        block_hash *Hash = GetBlockHash(GameState, GameState->BlockPositions[PosIndex]);
-        Assert(Hash && Hash->BlockIndex == HASH_UNINITIALIZED);
-        
-        Hash->Key = GameState->BlockPositions[PosIndex];
         if(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount].VertexCount != 0)
         {
+            block_hash *Hash = GetBlockHash(GameState, GameState->BlockPositions[PosIndex]);
+            Assert(Hash && Hash->BlockIndex == HASH_UNINITIALIZED);
+            
+            Hash->Key = GameState->BlockPositions[PosIndex];
             Hash->BlockIndex = GameState->StoredRenderBlockCount++;
             Assert(GameState->StoredRenderBlockCount < ArrayCount(GameState->StoredRenderBlocks));
         }
         else
         {
+            block_hash *Hash = GetZeroHash(GameState, GameState->BlockPositions[PosIndex]);
+            Assert(Hash && Hash->BlockIndex == HASH_UNINITIALIZED);
+            
+            Hash->Key = GameState->BlockPositions[PosIndex];
             Hash->BlockIndex = HASH_ZERO_BLOCK;
         }
     }
@@ -133,6 +165,13 @@ InitHashTable(game_state *GameState)
         ++HashIndex)
     {
         block_hash *Hash = GameState->BlockHash + HashIndex;
+        Hash->BlockIndex = HASH_UNINITIALIZED;
+    }
+    for(uint32 HashIndex = 0;
+        HashIndex < ArrayCount(GameState->ZeroHash);
+        ++HashIndex)
+    {
+        block_hash *Hash = GameState->ZeroHash + HashIndex;
         Hash->BlockIndex = HASH_UNINITIALIZED;
     }
 }
@@ -159,28 +198,38 @@ UpdateGameState(game_state *GameState)
         PosIndex < ArrayCount(GameState->BlockPositions);
         ++PosIndex)
     {
-        block_hash *Hash = GetBlockHash(GameState, GameState->BlockPositions[PosIndex]);
-        if(Hash->BlockIndex == HASH_UNINITIALIZED)
+        block_hash *ZeroHash = GetZeroHash(GameState, GameState->BlockPositions[PosIndex]);
+        if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
         {
-            // NOTE: Initialize block
-            terrain_density_block DensityBlock;
-            DensityBlock.Pos = GetV3FromWorldPos(GameState->BlockPositions[PosIndex], BlockSize, BlockResolution);
-            GenerateDensityGrid(&DensityBlock, &GameState->Rng, BlockResolution);
-            CreateRenderVertices(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), &DensityBlock, BlockResolution);
-            if(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount].VertexCount != 0)
+            block_hash *BlockHash = GetBlockHash(GameState, GameState->BlockPositions[PosIndex]);
+            if(BlockHash->BlockIndex == HASH_UNINITIALIZED)
             {
-                Hash->BlockIndex = GameState->StoredRenderBlockCount++;
-                Assert(GameState->StoredRenderBlockCount < ArrayCount(GameState->StoredRenderBlocks));
+                // NOTE: Initialize block
+                terrain_density_block DensityBlock;
+                DensityBlock.Pos = GetV3FromWorldPos(GameState->BlockPositions[PosIndex], BlockSize, BlockResolution);
+                GenerateDensityGrid(&DensityBlock, &GameState->Rng, BlockResolution);
+                CreateRenderVertices(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), 
+                    &DensityBlock, BlockResolution);
+                if(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount].VertexCount != 0)
+                {
+                    BlockHash->Key = GameState->BlockPositions[PosIndex];
+                    BlockHash->BlockIndex = GameState->StoredRenderBlockCount++;
+                    Assert(GameState->StoredRenderBlockCount < ArrayCount(GameState->StoredRenderBlocks));
+                    
+                    GameState->RenderBlocks[GameState->RenderBlockCount++] = 
+                        GameState->StoredRenderBlocks + BlockHash->BlockIndex;
+                }
+                else
+                {
+                    ZeroHash->Key = GameState->BlockPositions[PosIndex];
+                    ZeroHash->BlockIndex = HASH_ZERO_BLOCK;
+                }
             }
             else
             {
-                Hash->BlockIndex = HASH_ZERO_BLOCK;
+                GameState->RenderBlocks[GameState->RenderBlockCount++] = 
+                    GameState->StoredRenderBlocks + BlockHash->BlockIndex;
             }
-            Hash->Key = GameState->BlockPositions[PosIndex];
-        }
-        if(Hash->BlockIndex != HASH_ZERO_BLOCK)
-        {
-            GameState->RenderBlocks[GameState->RenderBlockCount++] = GameState->StoredRenderBlocks + Hash->BlockIndex;
         }
     }
 }
