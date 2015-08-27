@@ -31,6 +31,8 @@ struct game_state
     uint32 Seed;
     v3 CameraPos;
     RandomGenerator Rng;
+    real32 BlockSize;
+    uint32 BlockResolution;
     
     uint32 StoredRenderBlockCount;
     terrain_render_block StoredRenderBlocks[RENDER_BLOCK_COUNT];

@@ -42,7 +42,7 @@ struct dynamic_grid3D
     }
 };
 
-#define GRID_DIMENSION 21
+#define GRID_DIMENSION 13
 
 struct static_grid3D
 {

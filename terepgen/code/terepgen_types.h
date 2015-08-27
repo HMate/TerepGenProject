@@ -31,9 +31,14 @@ typedef float real32;
 typedef double real64;
 
 // NOTE: This doesnt work, if the array is a pointer, (like when the array is a function parameter)
-//       because then sizeof gives the size of a pointer.
+// because then sizeof gives the size of a pointer. But works when the array is part of a struct.
 #define ArrayCount(Array) (sizeof(Array)/sizeof(*Array))
+
+#if TEREPGEN_DEBUG
 #define Assert(Test) if(!(Test)){*(int *)0 = 0;}
+#else
+#define Assert(Test) 
+#endif
 
 #define KILOBYTE(Size) ((Size)*1024)
 #define MEGABYTE(Size) ((Size)*1024*1024)

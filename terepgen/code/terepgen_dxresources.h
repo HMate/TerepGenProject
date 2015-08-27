@@ -456,6 +456,8 @@ struct camera
     real32 CameraSpeed = 60.0f;
     
     real32 Fov = 3.14f * 0.35f;
+    real32 NearClipZ = 1.0f;
+    real32 FarClipZ = 10000.0f;
     
     XMFLOAT4X4 ViewMx;
     XMFLOAT4X4 ProjMx;
@@ -484,7 +486,7 @@ struct camera
         OutputDebugStringA(DebugBuffer);
 #endif  
         XMStoreFloat4x4(&ProjMx, 
-            XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, 1.0f, 2000.0f));
+            XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearClipZ, FarClipZ));
         XMStoreFloat4x4(&ViewProjMx,
             XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
                                       XMLoadFloat4x4(&ProjMx)));
@@ -620,7 +622,7 @@ struct camera
             OutputDebugStringA(DebugBuffer);
 #endif        
             XMStoreFloat4x4(&ProjMx, 
-                XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, 1.0f, 2000.0f));
+                XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearClipZ, FarClipZ));
             XMStoreFloat4x4(&ViewProjMx,
                 XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx), XMLoadFloat4x4(&ProjMx)));
         }

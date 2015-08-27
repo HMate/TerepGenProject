@@ -9,7 +9,7 @@ echo TerepGen compile starting at %TIME%
 cd /d Y:\code
 call "..\misc\load_msvc.bat"
 
-REM -MTd Multithreaded version of run-time library build and links to LIBCMT.lib
+REM -MTd Multithreaded version of run-time library build and links to LIBCMT.lib in debug mode
 REM -Od Disables optimization and build faster
 REM -Z7 Produces an .obj with symbolic debugging information for debuggers
 REM -D.. Sets the given variable for preprocessor directives
