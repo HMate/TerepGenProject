@@ -22,8 +22,10 @@ struct block_hash
     uint32 BlockIndex;
 };
 
-#define BLOCK_POS_COUNT 1000
-#define RENDER_BLOCK_COUNT 500
+// NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
+#define POS_GRID_SIZE(n) (((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1
+#define BLOCK_POS_COUNT (uint32)POS_GRID_SIZE(10)
+#define RENDER_BLOCK_COUNT 1000
 
 struct game_state 
 {
@@ -38,6 +40,7 @@ struct game_state
     terrain_render_block StoredRenderBlocks[RENDER_BLOCK_COUNT];
     uint32 RenderBlockCount;
     terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
+    uint32 BlockPosCount;
     world_block_pos BlockPositions[BLOCK_POS_COUNT];
     // NOTE: This must be a power of two for now!
     block_hash BlockHash[2048];

@@ -102,28 +102,42 @@ GetZeroHash(game_state *GameState, world_block_pos P)
     
     
 internal void 
-CalculateBlockPositions(game_state *GameState, world_block_pos CentralBlockPos)
+CalculateBlockPositions(game_state *GameState, world_block_pos CentralBlockPos, int32 Radius)
 {    
-    int32 CubeRoot = Cbrt(ArrayCount(GameState->BlockPositions));
-    int32 IndexDelta = CubeRoot/2;
-    int32 Start = -IndexDelta;
-    int32 End = CubeRoot - IndexDelta;
-    
-    uint32 PosIndex = 0;
-    for(int32 XIndex = Start; XIndex < End; ++XIndex)
+    GameState->BlockPosCount = 0;
+    for(int32 Dist = 0;
+        Dist <= Radius;
+        Dist++)
     {
-        for(int32 YIndex = Start; YIndex < End; ++YIndex)
+        int32 YSign = 1, YDiff = 1, YIndex = 0;
+        while(Abs(YIndex) <= Dist)
         {
-            for(int32 ZIndex = Start; ZIndex < End; ++ZIndex)
+            int32 XSign = 1, XDiff = 1, XIndex = 0;
+            while(Abs(XIndex) <= Dist-Abs(YIndex))
             {
-                GameState->BlockPositions[PosIndex].BlockX = CentralBlockPos.BlockX + XIndex;
-                GameState->BlockPositions[PosIndex].BlockY = CentralBlockPos.BlockY + YIndex;
-                GameState->BlockPositions[PosIndex].BlockZ = CentralBlockPos.BlockZ + ZIndex;
-                PosIndex++;
+                int32 ZIndex = Dist-Abs(XIndex)-Abs(YIndex);
+                int32 ZSign = -1;
+                int32 ZDiff = (ZIndex) ? 2*ZIndex : 1;
+                while(Abs(ZIndex) <= Dist-Abs(XIndex)-Abs(YIndex))
+                {
+                    GameState->BlockPositions[GameState->BlockPosCount].BlockX = CentralBlockPos.BlockX + XIndex;
+                    GameState->BlockPositions[GameState->BlockPosCount].BlockY = CentralBlockPos.BlockY + YIndex;
+                    GameState->BlockPositions[GameState->BlockPosCount].BlockZ = CentralBlockPos.BlockZ + ZIndex;
+                    GameState->BlockPosCount++;
+                    
+                    ZIndex += ZSign * (ZDiff++);
+                    ZSign *= -1;
+                }
+                
+                XIndex += XSign * (XDiff++);
+                XSign *= -1;
             }
+            YIndex += YSign * (YDiff++);
+            YSign *= -1;
         }
     }
-    Assert(PosIndex == ArrayCount(GameState->BlockPositions));
+    
+    Assert(GameState->BlockPosCount <= ArrayCount(GameState->BlockPositions));
 }
 
 inline world_block_pos
@@ -184,14 +198,14 @@ UpdateGameState(game_state *GameState)
     
     
     world_block_pos CentralBlockPos = GetWorldPosFromV3(GameState, GameState->CameraPos);
-    CalculateBlockPositions(GameState, CentralBlockPos);
+    CalculateBlockPositions(GameState, CentralBlockPos, 10);
     
     //
     // NOTE: Delete blocks that are too far from the camera
     //
     // TODO: Same with zero blocks!
     
-    int32 LoadSpaceRadius = 7;
+    int32 LoadSpaceRadius = 13;
     for(uint32 StoreIndex = 0; 
         StoreIndex < GameState->StoredRenderBlockCount; 
         ++StoreIndex)
@@ -229,7 +243,7 @@ UpdateGameState(game_state *GameState)
     uint32 MaxBlocksToRenderInFrame = 3;
     GameState->RenderBlockCount = 0;
     for(size_t PosIndex = 0; 
-        PosIndex < ArrayCount(GameState->BlockPositions);
+        PosIndex < GameState->BlockPosCount;
         ++PosIndex)
     {
         block_hash *ZeroHash = GetZeroHash(GameState, GameState->BlockPositions[PosIndex]);

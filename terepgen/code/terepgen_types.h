@@ -78,7 +78,12 @@ struct input
     int32 OldMouseY;
 };
 
-
+inline int32
+Abs(int32 Val)
+{
+    int32 Result = abs(Val);
+    return Result;
+}
 
 inline uint32 
 FloorUint32(real32 Val)
