@@ -5,9 +5,9 @@
 
 #include "terepgen.h"
 
-#define HASH_UNINITIALIZED UINT32_MAX
-#define HASH_ZERO_BLOCK UINT32_MAX-1
-#define HASH_DELETED UINT32_MAX-2
+#define HASH_UNINITIALIZED -1
+#define HASH_ZERO_BLOCK -2
+#define HASH_DELETED -3
     
 internal block_hash *
 GetBlockHashForRead(game_state *GameState, world_block_pos P)
@@ -75,7 +75,7 @@ GetZeroHash(game_state *GameState, world_block_pos P)
 {
     block_hash *Result = 0;
 
-    uint32 HashValue = 151*P.BlockX + 37*P.BlockY + 5*P.BlockZ;
+    uint32 HashValue = 151*P.BlockX + 37*P.BlockY + 3*P.BlockZ;
     uint32 HashMask = (ArrayCount(GameState->ZeroHash) - 1);
     
     for(uint32 Offset = 0;
@@ -165,8 +165,11 @@ GetV3FromWorldPos(game_state *GameState, world_block_pos Pos)
 }
 
 inline void
-InitHashTable(game_state *GameState)
+InitBlockHash(game_state *GameState)
 {
+    // TODO: Does zeroing out stored block count belong here?
+    GameState->StoredRenderBlockCount = 0;
+    
     for(uint32 HashIndex = 0;
         HashIndex < ArrayCount(GameState->BlockHash);
         ++HashIndex)
@@ -174,6 +177,12 @@ InitHashTable(game_state *GameState)
         block_hash *Hash = GameState->BlockHash + HashIndex;
         Hash->BlockIndex = HASH_UNINITIALIZED;
     }
+}
+
+inline void
+InitZeroHash(game_state *GameState)
+{
+    GameState->ZeroBlockCount = 0;
     for(uint32 HashIndex = 0;
         HashIndex < ArrayCount(GameState->ZeroHash);
         ++HashIndex)
@@ -190,9 +199,9 @@ UpdateGameState(game_state *GameState)
     {
         GameState->BlockSize = real32(TERRAIN_BLOCK_SIZE);
         GameState->BlockResolution = 16;
-        GameState->StoredRenderBlockCount = 0;
         GameState->Rng.SetSeed(GameState->Seed);
-        InitHashTable(GameState);
+        InitBlockHash(GameState);
+        InitZeroHash(GameState);
         GameState->Initialized = true;
     }
     
@@ -203,7 +212,7 @@ UpdateGameState(game_state *GameState)
     //
     // NOTE: Delete blocks that are too far from the camera
     //
-    // TODO: Same with zero blocks!
+    // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
     
     int32 LoadSpaceRadius = 13;
     for(uint32 StoreIndex = 0; 
@@ -222,8 +231,8 @@ UpdateGameState(game_state *GameState)
             terrain_render_block *Last = GameState->StoredRenderBlocks + (--GameState->StoredRenderBlockCount);
             world_block_pos LastP = GetWorldPosFromV3(GameState, Last->Pos);
             
-            block_hash *RemovedHash = GetBlockHashForRead(GameState, BlockP);
             // NOTE: This is from stored blocks, so it cant be a zero block!
+            block_hash *RemovedHash = GetBlockHashForRead(GameState, BlockP);
             Assert(RemovedHash->BlockIndex != HASH_UNINITIALIZED && RemovedHash->BlockIndex != HASH_DELETED);
             block_hash *LastHash = GetBlockHashForRead(GameState, LastP);
             Assert(LastHash->BlockIndex != HASH_UNINITIALIZED && LastHash->BlockIndex != HASH_DELETED);
@@ -235,15 +244,51 @@ UpdateGameState(game_state *GameState)
         }
     }
     
+    if(GameState->ZeroBlockCount > (4096*3/4))
+    {
+        int32 ZeroSpaceRadius = LoadSpaceRadius + 3;
+        block_hash NewZeroHash[4096];
+        uint32 NewZeroHashEntryCount = GameState->ZeroBlockCount;
+        for(uint32 ZeroIndex = 0; 
+            ZeroIndex < ArrayCount(GameState->ZeroHash); 
+            ++ZeroIndex)
+        {
+            NewZeroHash[ZeroIndex] = GameState->ZeroHash[ZeroIndex];
+        }
+        
+        InitZeroHash(GameState);
+        
+        for(uint32 ZeroIndex = 0; 
+            ZeroIndex < ArrayCount(GameState->ZeroHash); 
+            ++ZeroIndex)
+        {
+            block_hash *Entry = NewZeroHash + ZeroIndex;
+            world_block_pos ZeroP = Entry->Key;
+            if((Entry->BlockIndex == HASH_ZERO_BLOCK) &&
+              ((CentralBlockPos.BlockX + ZeroSpaceRadius > ZeroP.BlockX) &&
+               (CentralBlockPos.BlockX - ZeroSpaceRadius < ZeroP.BlockX) &&
+               (CentralBlockPos.BlockY + ZeroSpaceRadius > ZeroP.BlockY) &&
+               (CentralBlockPos.BlockY - ZeroSpaceRadius < ZeroP.BlockY) &&
+               (CentralBlockPos.BlockZ + ZeroSpaceRadius > ZeroP.BlockZ) &&
+               (CentralBlockPos.BlockZ - ZeroSpaceRadius < ZeroP.BlockZ)))
+            {
+                block_hash *ZeroHash = GetZeroHash(GameState, ZeroP);
+                ZeroHash->Key = ZeroP;
+                ZeroHash->BlockIndex = HASH_ZERO_BLOCK;
+                GameState->ZeroBlockCount++;
+            }
+        }
+    }
+    
     //
     // NOTE: Collect the render block we want to draw to the screen
     //
     
     terrain_density_block DensityBlock;
-    uint32 MaxBlocksToRenderInFrame = 3;
+    uint32 MaxBlocksToGenerateInFrame = 2;
     GameState->RenderBlockCount = 0;
     for(size_t PosIndex = 0; 
-        PosIndex < GameState->BlockPosCount;
+        (PosIndex < GameState->BlockPosCount);
         ++PosIndex)
     {
         block_hash *ZeroHash = GetZeroHash(GameState, GameState->BlockPositions[PosIndex]);
@@ -252,12 +297,12 @@ UpdateGameState(game_state *GameState)
             block_hash *BlockHash = GetBlockHashForRead(GameState, GameState->BlockPositions[PosIndex]);
             // NOTE: This can give back a deleted hash, if it had the same key as this block,
             // and it was already deleted once, and wasn't overwritten since.
-            if(BlockHash->BlockIndex == HASH_UNINITIALIZED ||
-               BlockHash->BlockIndex == HASH_DELETED)
+            if((BlockHash->BlockIndex == HASH_UNINITIALIZED) ||
+               (BlockHash->BlockIndex == HASH_DELETED))
             {
-                if(MaxBlocksToRenderInFrame)
+                if(MaxBlocksToGenerateInFrame)
                 {
-                    MaxBlocksToRenderInFrame--;
+                    MaxBlocksToGenerateInFrame--;
                     // NOTE: Initialize block
                     
                     DensityBlock.Pos = GetV3FromWorldPos(GameState, GameState->BlockPositions[PosIndex]);
@@ -278,6 +323,7 @@ UpdateGameState(game_state *GameState)
                     {
                         ZeroHash->Key = GameState->BlockPositions[PosIndex];
                         ZeroHash->BlockIndex = HASH_ZERO_BLOCK;
+                        GameState->ZeroBlockCount++;
                     }
                 }
             }

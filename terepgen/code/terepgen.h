@@ -19,7 +19,7 @@ struct world_block_pos
 struct block_hash
 {
     world_block_pos Key;
-    uint32 BlockIndex;
+    int32 BlockIndex;
 };
 
 // NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
@@ -44,6 +44,7 @@ struct game_state
     world_block_pos BlockPositions[BLOCK_POS_COUNT];
     // NOTE: This must be a power of two for now!
     block_hash BlockHash[2048];
+    uint32 ZeroBlockCount;
     block_hash ZeroHash[4096];
 };
 
