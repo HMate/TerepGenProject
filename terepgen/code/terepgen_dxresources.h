@@ -472,6 +472,16 @@ struct camera
         return Result;
     }
     
+    v3 GetLookDirection()
+    {
+        v3 Result = {};
+        XMVECTOR TargetDirection =  XMLoadFloat3(&TargetPos) - XMLoadFloat3(&Position);
+        Result.X = XMVectorGetX(TargetDirection);
+        Result.Y = XMVectorGetY(TargetDirection);
+        Result.Z = XMVectorGetZ(TargetDirection);
+        return Result;
+    }
+    
     void Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 ScreenHeight)
     {   
         XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
@@ -586,6 +596,7 @@ struct camera
             NewTargetDir = NewTargetDir + 
                 XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * (real32)dMouseX + 
                 XMLoadFloat3(&UpDirection) * (real32)dMouseY;
+            // NOTE: Divide by 30 is just to slow down the rotation/frame
             real32 Angle = XMScalarACos( XMVectorGetX(
                 XMVector3Dot(NewTargetDir, TargetDirection) /
                 (XMVector3Length(NewTargetDir) * XMVector3Length(TargetDirection)))) / 30.0f;

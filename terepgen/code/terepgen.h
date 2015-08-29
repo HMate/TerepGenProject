@@ -32,6 +32,7 @@ struct game_state
     bool32 Initialized;
     uint32 Seed;
     v3 CameraPos;
+    v3 CameraDir;
     RandomGenerator Rng;
     real32 BlockSize;
     uint32 BlockResolution;

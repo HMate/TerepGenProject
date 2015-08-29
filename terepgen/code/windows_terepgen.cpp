@@ -610,6 +610,7 @@ WinMain(HINSTANCE Instance,
                 
                 Camera.Update(&GlobalInput, TimePassed);
                 GameState->CameraPos = Camera.GetPos();
+                GameState->CameraDir = Camera.GetLookDirection();
                 GameState->Seed = GlobalSeed;
                 UpdateGameState(GameState);
                 
