@@ -5,6 +5,9 @@
 */
 
 #include "terepgen_types.h"
+#include "terepgen_terrain.h"
+
+#include "terepgen_random.cpp"
 #include "terepgen_terrain.cpp"
 #include "terepgen_renderer.cpp"
 
@@ -33,16 +36,19 @@ struct game_state
     uint32 Seed;
     v3 CameraPos;
     v3 CameraDir;
-    RandomGenerator Rng;
+    perlin_noise_generator Rng;
     real32 BlockSize;
     uint32 BlockResolution;
     
+    uint32 BlockPosCount;
+    world_block_pos BlockPositions[BLOCK_POS_COUNT];
+    
+    uint32 DeletedBlockCount;
     uint32 StoredRenderBlockCount;
     terrain_render_block StoredRenderBlocks[RENDER_BLOCK_COUNT];
     uint32 RenderBlockCount;
     terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
-    uint32 BlockPosCount;
-    world_block_pos BlockPositions[BLOCK_POS_COUNT];
+    
     // NOTE: This must be a power of two for now!
     block_hash BlockHash[2048];
     uint32 ZeroBlockCount;

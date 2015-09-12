@@ -3,13 +3,12 @@
 
 */
 
-#include "terepgen_terrain.h"
 
 // NOTE: Block Resolution gives how many density values are skipped
 // This way a bigger area can be stored in the same block, 
 // if at rendering we only use every BlockResolution'th value too.
 internal void 
-GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng, uint32 BlockResolution)
+GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_generator *Rng, uint32 BlockResolution)
 {
     int32 TerrainDimension = DensityBlock->Grid.Dimension;
     for(int32 Plane = 0;
@@ -41,18 +40,20 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, RandomGenerator *Rng, u
                 DensityValue += Rng->RandomFloat(WorldPos * 0.015622f) * 64.0f;
                 
                 DensityValue += Rng->RandomFloat(WorldPos * 0.00392f) * 256.0f;
-                // DensityValue += Rng->RandomFloat(WorldPos * 0.00192f) * 512.0f;
+                DensityValue += Rng->RandomFloat(WorldPos * 0.00192f) * 512.0f;
                 
-                DensityValue += Rng->RandomFloat(WorldPos * 0.00098f) * 1024.0f;
+                // DensityValue += Rng->RandomFloat(WorldPos * 0.00098f) * 1024.0f;
+                
+                // DensityValue += Rng->RandomFloat(WorldPos * 0.00024f) * 4096.0f;
                                                                    
-                GetGridPRC(&DensityBlock->Grid, Plane, Row, Column) = DensityValue;
+                SetGridPRC(&DensityBlock->Grid, Plane, Row, Column, DensityValue);
             }
         }
     }
 }
 
 internal void 
-GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, uint32 BlockResolution,
+GenerateDensityGrid2(terrain_density_block *DensityBlock, value_noise_generator *Rng, uint32 BlockResolution,
                      real32 Persistence = 0.5f)
 {
     ZeroOutGridPoints(&DensityBlock->Grid);
@@ -157,7 +158,8 @@ GenerateDensityGrid2(terrain_density_block *DensityBlock, RandomGenerator *Rng, 
                             ((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane+1, PGRow+1, PGColumn) + 
                             ( ColumnRatio * PerlinGrid.GetPRC(PGPlane+1, PGRow+1, PGColumn+1)) )
                         ));
-                    GetGridPRC(&DensityBlock->Grid, Plane, Row, Column) += InnerValue;
+                    real32 GridVal = GetGridPRC(&DensityBlock->Grid, Plane, Row, Column);
+                    SetGridPRC(&DensityBlock->Grid, Plane, Row, Column, GridVal+InnerValue);
                 }
             }
         }
@@ -217,25 +219,25 @@ Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
 */
 internal void
 CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *DensityBlock,
-                     uint32 CubeSize)
+                     uint32 BlockResolution)
 {
-    Assert(CubeSize > 0);
-    real32 CellDiff = (real32)CubeSize;
+    Assert(BlockResolution > 0);
+    real32 CellDiff = (real32)BlockResolution;
     color GreenColor = color{0.0, 1.0f, 0.0f, 1.0f};
     v3 PosDiff = {2.0f, 2.0f, 2.0f};
     
     RenderBlock->Pos = DensityBlock->Pos;
-    uint32 TerrainDimension = DensityBlock->Grid.Dimension;
+    int32 TerrainDimension = DensityBlock->Grid.Dimension;
     uint32 VertexCount = 0;
-    for(uint32 Plane = 2;
+    for(int32 Plane = 2;
         Plane < TerrainDimension-3;
         Plane += 1)
     {
-        for(uint32 Row = 2;
+        for(int32 Row = 2;
             Row < TerrainDimension-3;
             Row += 1)
         {
-            for(uint32 Column = 2;
+            for(int32 Column = 2;
                 Column < TerrainDimension-3;
                 Column += 1)
             {                
@@ -251,14 +253,14 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
                 Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
                 Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
                 Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf         };
-                Cell.val[0] = GetGridPRC(&DensityBlock->Grid, Plane  , Row+1, Column         );
+                Cell.val[0] = GetGridPRC(&DensityBlock->Grid, Plane  , Row+1, Column  );
                 Cell.val[1] = GetGridPRC(&DensityBlock->Grid, Plane  , Row+1, Column+1);
                 Cell.val[2] = GetGridPRC(&DensityBlock->Grid, Plane  , Row  , Column+1);
-                Cell.val[3] = GetGridPRC(&DensityBlock->Grid, Plane  , Row  , Column         );
-                Cell.val[4] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row+1, Column         );
+                Cell.val[3] = GetGridPRC(&DensityBlock->Grid, Plane  , Row  , Column  );
+                Cell.val[4] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row+1, Column  );
                 Cell.val[5] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row+1, Column+1);
                 Cell.val[6] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column+1);
-                Cell.val[7] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column         );
+                Cell.val[7] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column  );
                 TRIANGLE Triangles[5];
                 uint32 TriangleCount = Polygonise(Cell, 0.05f, Triangles);
                 
@@ -278,6 +280,13 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
                         Get3DGridVertex((Point1-PosDiff) * CellDiff, Normal1, GreenColor);
                     RenderBlock->Vertices[VertexCount++] = 
                         Get3DGridVertex((Point2-PosDiff) * CellDiff, Normal2, GreenColor);
+                        
+                    // RenderBlock->Vertices[VertexCount++] = 
+                        // Get3DGridVertex((Point0-PosDiff), Normal0, GreenColor);
+                    // RenderBlock->Vertices[VertexCount++] = 
+                        // Get3DGridVertex((Point1-PosDiff), Normal1, GreenColor);
+                    // RenderBlock->Vertices[VertexCount++] = 
+                        // Get3DGridVertex((Point2-PosDiff), Normal2, GreenColor);
                 }
             }
         }

@@ -51,12 +51,20 @@ struct static_grid3D
 };
 
         
-internal real32& 
+internal real32 
 GetGridPRC(static_grid3D *Grid, int32 Plane, int32 Row, int32 Column)
 {
     uint32 Dimension = Grid->Dimension;
     Assert(Plane < GRID_DIMENSION && Row < GRID_DIMENSION && Column < GRID_DIMENSION);
     return Grid->Elements[Plane*Dimension*Dimension + Row*Dimension + Column];
+}
+        
+internal void 
+SetGridPRC(static_grid3D *Grid, int32 Plane, int32 Row, int32 Column, real32 Value)
+{
+    uint32 Dimension = Grid->Dimension;
+    Assert(Plane < GRID_DIMENSION && Row < GRID_DIMENSION && Column < GRID_DIMENSION);
+    Grid->Elements[Plane*Dimension*Dimension + Row*Dimension + Column] = Value;
 }
 
 internal real32 

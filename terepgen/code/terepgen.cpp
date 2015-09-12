@@ -75,7 +75,7 @@ GetZeroHash(game_state *GameState, world_block_pos P)
 {
     block_hash *Result = 0;
 
-    uint32 HashValue = 151*P.BlockX + 37*P.BlockY + 3*P.BlockZ;
+    uint32 HashValue = 757*P.BlockX + 89*P.BlockY + 5*P.BlockZ;
     uint32 HashMask = (ArrayCount(GameState->ZeroHash) - 1);
     
     for(uint32 Offset = 0;
@@ -169,6 +169,7 @@ InitBlockHash(game_state *GameState)
 {
     // TODO: Does zeroing out stored block count belong here?
     GameState->StoredRenderBlockCount = 0;
+    GameState->DeletedBlockCount = 0;
     
     for(uint32 HashIndex = 0;
         HashIndex < ArrayCount(GameState->BlockHash);
@@ -198,7 +199,7 @@ UpdateGameState(game_state *GameState)
     if(GameState->Initialized == false)
     {
         GameState->BlockSize = real32(TERRAIN_BLOCK_SIZE);
-        GameState->BlockResolution = 16;
+        GameState->BlockResolution = 128;
         GameState->Rng.SetSeed(GameState->Seed);
         InitBlockHash(GameState);
         InitZeroHash(GameState);
@@ -207,7 +208,7 @@ UpdateGameState(game_state *GameState)
     
     v3 CameraP = GameState->CameraPos;
     world_block_pos WorldCameraP = GetWorldPosFromV3(GameState, CameraP);
-    CalculateBlockPositions(GameState, WorldCameraP, 10);
+    CalculateBlockPositions(GameState, WorldCameraP, 5);
     
     //
     // NOTE: Delete blocks that are too far from the camera
@@ -239,12 +240,13 @@ UpdateGameState(game_state *GameState)
             
             RemovedHash->BlockIndex = HASH_DELETED;
             LastHash->BlockIndex = StoreIndex;
+            GameState->DeletedBlockCount++;
             
             *Block = *Last;
         }
     }
     
-    if(GameState->ZeroBlockCount > (4096*3/4))
+    if(GameState->ZeroBlockCount > (ArrayCount(GameState->ZeroHash)*7/8))
     {
         int32 ZeroSpaceRadius = LoadSpaceRadius + 3;
         block_hash NewZeroHash[4096];
@@ -289,9 +291,8 @@ UpdateGameState(game_state *GameState)
     v3 DiffY = GetV3FromWorldPos(GameState, world_block_pos{0,1,0});
     v3 DiffZ = GetV3FromWorldPos(GameState, world_block_pos{0,0,1});
     
-    uint32 DebugCount = 0;
     terrain_density_block DensityBlock;
-    uint32 MaxBlocksToGenerateInFrame = 2;
+    uint32 MaxBlocksToGenerateInFrame = 3;
     GameState->RenderBlockCount = 0;
     for(size_t PosIndex = 0; 
         (PosIndex < GameState->BlockPosCount);
@@ -313,6 +314,15 @@ UpdateGameState(game_state *GameState)
                     // NOTE: Initialize block
                     
                     DensityBlock.Pos = GetV3FromWorldPos(GameState, BlockP);
+#if 0 //TEREPGEN_DEBUG
+                    char DebugBuffer[256];
+                    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG_GAME] Block Pos X: %d, Y: %d, Z: %d\n",
+                        BlockP.BlockX, BlockP.BlockY, BlockP.BlockZ);
+                    OutputDebugStringA(DebugBuffer);
+                    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG_GAME] World Pos X: %f, Y: %f, Z: %f\n",
+                        DensityBlock.Pos.X, DensityBlock.Pos.Y, DensityBlock.Pos.Z);
+                    OutputDebugStringA(DebugBuffer);
+#endif
                     GenerateDensityGrid(&DensityBlock, &GameState->Rng, GameState->BlockResolution);
                     CreateRenderVertices(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), 
                         &DensityBlock, GameState->BlockResolution);
@@ -334,7 +344,7 @@ UpdateGameState(game_state *GameState)
             
             if((BlockHash->BlockIndex != HASH_UNINITIALIZED) &&
                (BlockHash->BlockIndex != HASH_DELETED))
-            {   DebugCount++;
+            {
                 terrain_render_block *Block = GameState->StoredRenderBlocks + BlockHash->BlockIndex;
                 v3 P = Block->Pos - CameraP;
                 
@@ -356,7 +366,6 @@ UpdateGameState(game_state *GameState)
             }
         }
     }
-    DebugCount = DebugCount;
 }
 
 internal void

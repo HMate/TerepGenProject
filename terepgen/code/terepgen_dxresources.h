@@ -457,7 +457,7 @@ struct camera
     
     real32 Fov = 3.14f * 0.35f;
     real32 NearClipZ = 1.0f;
-    real32 FarClipZ = 10000.0f;
+    real32 FarClipZ = 6000.0f;
     
     XMFLOAT4X4 ViewMx;
     XMFLOAT4X4 ProjMx;
