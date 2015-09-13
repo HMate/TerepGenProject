@@ -62,6 +62,12 @@ operator != (v3 A, v3 B)
     return !(A == B);
 }
 
+inline real32 Length(v3 Vec)
+{
+    real32 Result = Sqrt(Vec.X*Vec.X + Vec.Y*Vec.Y + Vec.Z*Vec.Z);
+    return Result;
+}
+
 inline v3 
 Normalize(v3 Vec)
 {

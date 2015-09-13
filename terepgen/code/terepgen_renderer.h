@@ -23,7 +23,8 @@ struct terrain_renderer
     void Release();
     
     void SetTransformations(v3 Translation);
-    void DrawWireframe(vertex *Vertices, uint32 VertexCount);
+    void SetDrawModeDefault(void);
+    void SetDrawModeWireframe(void);
     void DrawTriangles(vertex *Vertices, uint32 VertexCount);
     void DrawDebugTriangle();
     void DrawAxis(real32 Size = 1.0f);

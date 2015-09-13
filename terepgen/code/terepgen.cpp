@@ -199,7 +199,7 @@ UpdateGameState(game_state *GameState)
     if(GameState->Initialized == false)
     {
         GameState->BlockSize = real32(TERRAIN_BLOCK_SIZE);
-        GameState->BlockResolution = 16;
+        GameState->BlockResolution = 64;
         SetSeed(&GameState->Rng, GameState->Seed);
         InitBlockHash(GameState);
         InitZeroHash(GameState);
@@ -371,6 +371,15 @@ UpdateGameState(game_state *GameState)
 internal void
 RenderGame(terrain_renderer *Renderer, game_state *GameState)
 {
+    if(GameState->RenderMode)
+    {
+        Renderer->SetDrawModeWireframe();
+    }
+    else
+    {
+        Renderer->SetDrawModeDefault();
+    }
+    
     for(size_t RenderBlockIndex = 0; 
         RenderBlockIndex < GameState->RenderBlockCount; 
         RenderBlockIndex++)

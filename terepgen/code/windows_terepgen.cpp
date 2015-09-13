@@ -123,7 +123,7 @@ WindowProc(HWND Window,
                 else if(KeyCode == 'R' && !KeyIsUp)
                 {
                     GlobalInput.RenderMode++;
-                    if(GlobalInput.RenderMode > 2) 
+                    if(GlobalInput.RenderMode > 1) 
                     {
                         GlobalInput.RenderMode = 0;
                     }
@@ -316,6 +316,7 @@ WinMain(HINSTANCE Instance,
                 GameState->CameraPos = Camera.GetPos();
                 GameState->CameraDir = Camera.GetLookDirection();
                 GameState->Seed = GlobalSeed;
+                GameState->RenderMode = GlobalInput.RenderMode;
                 UpdateGameState(GameState);
                 
                 // NOTE: Rendering

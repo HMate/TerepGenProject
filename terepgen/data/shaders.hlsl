@@ -18,8 +18,8 @@ struct VIn
 
 struct VOut
 {
-    float4 position : SV_POSITION;
-    float3 normal : NORMAL;
+    float4 screenPos : SV_POSITION;
+    linear float3 normal : NORMAL;
     float4 color : COLOR;
     float4 worldPos : POSITION;
 };
@@ -29,7 +29,7 @@ VOut VShader(VIn input)
     VOut output;
 
     output.worldPos = mul(input.position, WorldMx);
-    output.position = mul(output.worldPos, ViewProjMx);
+    output.screenPos = mul(output.worldPos, ViewProjMx);
     //output.position = input.position;
     
     // NOTE: normal transformation needs the transpose of the inverse of WorldMX
@@ -37,8 +37,9 @@ VOut VShader(VIn input)
     // just use the worldmx and normalize the vector.
     // WorldMX is orthogonal, if scaling is uniform.
     // SOURCE: http://www.lighthouse3d.com/tutorials/glsl-12-tutorial/the-normal-matrix/
-    //output.normal = normalize(input.normal.xyz);
+    // output.normal = normalize(input.normal.xyz);
     output.normal = normalize(mul(input.normal.xyz, WorldMx));
+    // output.normal = input.normal.xyz;
     output.color = input.color;
 
     return output;

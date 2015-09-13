@@ -86,26 +86,18 @@ void terrain_renderer::SetTransformations(v3 Translation)
                                              0, 0, 0, 1);
 }
 
-void terrain_renderer::DrawWireframe(vertex *Vertices, uint32 VertCount)
-{         
+void terrain_renderer::SetDrawModeDefault(void)
+{
+    DXResource->DeviceContext->RSSetState(RSDefault);
+}
+
+void terrain_renderer::SetDrawModeWireframe(void)
+{
     DXResource->DeviceContext->RSSetState(RSWireFrame);
-    
-    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
-       
-    uint32 stride = sizeof(vertex);
-    uint32 offset = 0;
-    DXResource->LoadVertexBuffer(VertexBuffer, Vertices, sizeof(vertex) * VertCount);    
-        
-    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    DXResource->DeviceContext->Draw(VertCount, 0);
 }
 
 void terrain_renderer::DrawTriangles(vertex *Vertices, uint32 VertCount)
-{           
-    DXResource->DeviceContext->RSSetState(RSDefault);
-    
+{
     DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
     DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
        

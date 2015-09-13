@@ -23,7 +23,7 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_generator 
                 Column < TerrainDimension;
                 ++Column)
             {
-                real32 DensityValue = DensityBlock->Pos.Y + (real32)((Row-2) * (real32)BlockResolution);
+                real32 DensityValue = 0;//DensityBlock->Pos.Y + (real32)((Row-2) * (real32)BlockResolution);
                 
                 real32 WorldX = DensityBlock->Pos.X + ((Plane-2) * (real32)BlockResolution);
                 real32 WorldY = DensityBlock->Pos.Y + ((Row-2) * (real32)BlockResolution);
@@ -52,124 +52,10 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_generator 
     }
 }
 
-internal void 
-GenerateDensityGrid2(terrain_density_block *DensityBlock, value_noise_generator *Rng, uint32 BlockResolution,
-                     real32 Persistence = 0.5f)
-{
-    ZeroOutGridPoints(&DensityBlock->Grid);
-        
-    int32 TerrainDimension = (int32)DensityBlock->Grid.Dimension;
-    uint32 FirstOctave = 0;//Log2(BlockResolution);
-    uint32 OctaveCount = Log2(TerrainDimension);
-    uint32 OctaveStep = 2;
-    
-    for(uint32 Octaves = FirstOctave;
-        Octaves < OctaveCount;
-        Octaves += OctaveStep)
-    {
-        /*
-        float freq = 2^i;
-        float amplitude = persistence^i;
-        */
-        real32 Weight = Pow(Persistence, OctaveCount-Octaves-1);
-        int32 WaveLength = (int32)Pow2(Octaves);
-        int32 EdgePlus = Pow2(BlockResolution/WaveLength);
-        int32 PGDimension = ((TerrainDimension - 5)*BlockResolution/WaveLength) + 1 + 2*EdgePlus;
-        
-        real32 Step = (real32)(PGDimension-1-(2*EdgePlus)) / (TerrainDimension - 5);
-        int32 IntStep = (Step >= 1.0f) ? (int32)Step : 1;
-        
-        dynamic_grid3D PerlinGrid{PGDimension};
-        /* NOTE: Plane is axis X
-                 Row is axis Y
-                 Column is axis Z
-        */
-        for(int32 Plane = 0;
-            Plane < PerlinGrid.Dimension;
-            Plane += IntStep)
-        {
-            for(int32 Row = 0;
-                Row < PerlinGrid.Dimension;
-                Row += IntStep)
-            {
-                for(int32 Column = 0;
-                    Column < PerlinGrid.Dimension;
-                    Column += IntStep)
-                {
-                    int32 WorldX = Plane - EdgePlus + FloorInt32(DensityBlock->Pos.X/WaveLength);
-                    int32 WorldY = Row - EdgePlus + FloorInt32(DensityBlock->Pos.Y/WaveLength);
-                    int32 WorldZ = Column - EdgePlus + FloorInt32(DensityBlock->Pos.Z/WaveLength);
-                    // TODO: Should I multiply these with WaveLength?
-                    real32 RandomVal = RandomFloat(Rng, (real32)WorldX,
-                                                        (real32)WorldY,
-                                                        (real32)WorldZ);
-                    RandomVal = RandomVal * Weight;
-                    real32 Dampening = (WorldY)*((real32)WaveLength/(4.0f * TerrainDimension));
-                    PerlinGrid.GetPRC(Plane, Row, Column) = RandomVal + Dampening;
-                }
-            }
-        }
-        
-        // NOTE: Have to stretch out the little grids to match the size of the terrain
-        // During strech, we get the inner points by interpolating between the Perlin grid values
-        
-        for(int32 Plane = 0;
-            Plane < TerrainDimension;
-            ++Plane)
-        {  
-            real32 PlaneRatio = (real32)(Plane-2)*Step + EdgePlus;
-            int32 PGPlane = FloorInt32(PlaneRatio);
-            PlaneRatio = PlaneRatio - (real32)PGPlane;
-            
-            for(int32 Row = 0;
-                Row < TerrainDimension;
-                ++Row)
-            {
-                real32 RowRatio = (real32)(Row-2)*Step + EdgePlus;
-                int32 PGRow = FloorInt32(RowRatio);
-                RowRatio = RowRatio - (real32)PGRow;
-                
-                for(int32 Column = 0;
-                    Column < TerrainDimension;
-                    ++Column)
-                { 
-                    real32 ColumnRatio = (real32)(Column-2)*Step + EdgePlus;
-                    int32 PGColumn = FloorInt32(ColumnRatio);
-                    ColumnRatio = ColumnRatio - (real32)PGColumn;
-                    
-                    Assert(((PGColumn+1) <= PGDimension) &&
-                           ((PGRow+1) <= PGDimension) &&
-                           ((PGPlane+1) <= PGDimension));
-                    
-                    real32 InnerValue = 
-                        (1.0f - PlaneRatio) *
-                        ((1.0f-RowRatio) * 
-                            ((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane, PGRow, PGColumn) + 
-                            (ColumnRatio) * PerlinGrid.GetPRC(PGPlane, PGRow, PGColumn+1)) +
-                        ( RowRatio * 
-                            ((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane, PGRow+1, PGColumn) + 
-                             ColumnRatio * PerlinGrid.GetPRC(PGPlane, PGRow+1, PGColumn+1) )
-                        )) +
-                        PlaneRatio * 
-                        ((1.0f-RowRatio) * 
-                            ((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane+1, PGRow, PGColumn) + 
-                              ColumnRatio * PerlinGrid.GetPRC(PGPlane+1, PGRow, PGColumn+1)) +
-                        ( RowRatio * 
-                            ((1.0f-ColumnRatio) * PerlinGrid.GetPRC(PGPlane+1, PGRow+1, PGColumn) + 
-                            ( ColumnRatio * PerlinGrid.GetPRC(PGPlane+1, PGRow+1, PGColumn+1)) )
-                        ));
-                    real32 GridVal = GetGridPRC(&DensityBlock->Grid, Plane, Row, Column);
-                    SetGridPRC(&DensityBlock->Grid, Plane, Row, Column, GridVal+InnerValue);
-                }
-            }
-        }
-    }
-}
-
 internal v3
 GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
 {    
-    real32 Diff = 1.0f;
+    real32 Diff = 0.5f;
     real32 DimensionBound = (real32)DensityBlock->Grid.Dimension-1.0f;
     
     real32 DiffXMin = Point.X - Diff;
@@ -187,18 +73,18 @@ GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
     real32 DiffZMax = Point.Z + Diff;
     DiffZMax = ClampReal32(DiffZMax, 0.0f, DimensionBound);
     
-    real32 NormalX = 
-        GetGridPRCWithInterpolate(&DensityBlock->Grid, DiffXMax, Point.Y, Point.Z) -
-        GetGridPRCWithInterpolate(&DensityBlock->Grid, DiffXMin, Point.Y, Point.Z);
-    real32 NormalY = 
-        GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, DiffYMax, Point.Z) -
-        GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, DiffYMin, Point.Z);
-    real32 NormalZ = 
-        GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, Point.Y, DiffZMax) -
-        GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, Point.Y, DiffZMin);
+    real32 XP = GetGridPRCWithInterpolate(&DensityBlock->Grid, DiffXMax, Point.Y, Point.Z);
+    real32 XM = GetGridPRCWithInterpolate(&DensityBlock->Grid, DiffXMin, Point.Y, Point.Z);
+    real32 NormalX = XP - XM;
+    real32 YP = GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, DiffYMax, Point.Z);
+    real32 YM = GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, DiffYMin, Point.Z);
+    real32 NormalY = YP - YM;
+    real32 ZP = GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, Point.Y, DiffZMax);
+    real32 ZM = GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, Point.Y, DiffZMin);
+    real32 NormalZ = ZP - ZM;
         
     v3 Result = v3{NormalX, NormalY, NormalZ};
-    
+    Result = Normalize(Result);
     return Result;
 }
 
@@ -280,13 +166,30 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
                         Get3DGridVertex((Point1-PosDiff) * CellDiff, Normal1, GreenColor);
                     RenderBlock->Vertices[VertexCount++] = 
                         Get3DGridVertex((Point2-PosDiff) * CellDiff, Normal2, GreenColor);
-                        
-                    // RenderBlock->Vertices[VertexCount++] = 
-                        // Get3DGridVertex((Point0-PosDiff), Normal0, GreenColor);
-                    // RenderBlock->Vertices[VertexCount++] = 
-                        // Get3DGridVertex((Point1-PosDiff), Normal1, GreenColor);
-                    // RenderBlock->Vertices[VertexCount++] = 
-                        // Get3DGridVertex((Point2-PosDiff), Normal2, GreenColor);
+#if 0
+                    // NOTE: Draw normals for debug purposes
+                    color BlueColor = color{0.0, 0.0f, 1.0f, 1.0f};
+                    v3 NormalNormal = {0, 1, 0};
+                    v3 NormalPerpend = Cross(Normal0, v3{1, 0, 0});
+                    if(Length(NormalPerpend) < 0.01f)
+                    {
+                        NormalPerpend = Cross(Normal0, v3{0, 0, 1});
+                    }
+                    NormalPerpend = Normalize(NormalPerpend);
+                    v3 Pos = (Point0-PosDiff);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DGridVertex(Pos * CellDiff, NormalNormal, BlueColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DGridVertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DGridVertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DGridVertex(Pos * CellDiff, NormalNormal, BlueColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DGridVertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DGridVertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
+#endif
                 }
             }
         }
