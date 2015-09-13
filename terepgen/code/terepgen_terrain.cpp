@@ -31,21 +31,21 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_generator 
                 
                 v3 WorldPos = {WorldX, WorldY, WorldZ};
              
-                DensityValue += Rng->RandomFloat(WorldPos) * 1.0f;
-                // DensityValue += Rng->RandomFloat(WorldPos * 0.51f) * 2.0f;
-                DensityValue += Rng->RandomFloat(WorldPos * 0.248f) * 4.0f;
-                // DensityValue += Rng->RandomFloat(WorldPos * 0.128f) * 8.0f;
-                DensityValue += Rng->RandomFloat(WorldPos * 0.0621f) * 16.0f;
-                //DensityValue += Rng->RandomFloat(WorldPos * 0.03127f) * 32.0f;
-                DensityValue += Rng->RandomFloat(WorldPos * 0.015622f) * 64.0f;
+                //DensityValue += RandomFloat(Rng, WorldPos) * 1.0f;
+                // DensityValue += RandomFloat(Rng, WorldPos * 0.51f) * 2.0f;
+                DensityValue += RandomFloat(Rng, WorldPos * 0.248f) * 4.0f;
+                // DensityValue += RandomFloat(Rng, WorldPos * 0.128f) * 8.0f;
+                DensityValue += RandomFloat(Rng, WorldPos * 0.0621f) * 16.0f;
+                //DensityValue += RandomFloat(Rng, WorldPos * 0.03127f) * 32.0f;
+                DensityValue += RandomFloat(Rng, WorldPos * 0.015622f) * 64.0f;
                 
-                DensityValue += Rng->RandomFloat(WorldPos * 0.00392f) * 256.0f;
-                DensityValue += Rng->RandomFloat(WorldPos * 0.00192f) * 512.0f;
+                DensityValue += RandomFloat(Rng, WorldPos * 0.00392f) * 256.0f;
+                DensityValue += RandomFloat(Rng, WorldPos * 0.00192f) * 512.0f;
                 
-                // DensityValue += Rng->RandomFloat(WorldPos * 0.00098f) * 1024.0f;
+                DensityValue += RandomFloat(Rng, WorldPos * 0.00098f) * 1024.0f;
                 
-                // DensityValue += Rng->RandomFloat(WorldPos * 0.00024f) * 4096.0f;
-                                                                   
+                // DensityValue += RandomFloat(Rng, WorldPos * 0.00024f) * 4096.0f;
+                
                 SetGridPRC(&DensityBlock->Grid, Plane, Row, Column, DensityValue);
             }
         }
@@ -100,7 +100,7 @@ GenerateDensityGrid2(terrain_density_block *DensityBlock, value_noise_generator 
                     int32 WorldY = Row - EdgePlus + FloorInt32(DensityBlock->Pos.Y/WaveLength);
                     int32 WorldZ = Column - EdgePlus + FloorInt32(DensityBlock->Pos.Z/WaveLength);
                     // TODO: Should I multiply these with WaveLength?
-                    real32 RandomVal = Rng->RandomFloat((real32)WorldX,
+                    real32 RandomVal = RandomFloat(Rng, (real32)WorldX,
                                                         (real32)WorldY,
                                                         (real32)WorldZ);
                     RandomVal = RandomVal * Weight;

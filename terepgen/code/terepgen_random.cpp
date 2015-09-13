@@ -80,160 +80,155 @@ struct value_noise_generator
 {
     uint32 Seed;
     dynamic_grid3D RandomTex;
-    
-    value_noise_generator(uint32 Seed = 1000) : Seed(Seed),RandomTex(RANDOM_TEX_SIZE)
-    {
-        
-    }
-    
-    void SetSeed(uint32 NewSeed)
-    {
-        this->Seed = NewSeed;
-        uint32 TexSize = RandomTex.Dimension * RandomTex.Dimension * RandomTex.Dimension;
-		MtSeed(NewSeed);
-        for(uint32 Index = 0; Index < TexSize; Index++)
-        {
-			real32 Rand = MtStandardDeviate();
-            RandomTex.Elements[Index] = Rand;
-        }
-    }
-        
-    real32 RandomFloat(real32 Plane, real32 Row, real32 Column)
-    {
-        real32 PlaneMod = ModReal32(Plane, (real32)RANDOM_TEX_SIZE);
-        uint32 PlaneWhole = FloorInt32(PlaneMod);
-        uint32 PlaneWhole2 = (PlaneWhole+1) % RANDOM_TEX_SIZE;
-        real32 PlaneRemainder = PlaneMod - (real32)PlaneWhole;
-        
-        real32 RowMod = ModReal32(Row, (real32)RANDOM_TEX_SIZE);
-        uint32 RowWhole = FloorInt32(RowMod);
-        uint32 RowWhole2 = (RowWhole+1) % RANDOM_TEX_SIZE;
-        real32 RowRemainder = RowMod - (real32)RowWhole;
-        
-        real32 ColumnMod = ModReal32(Column, (real32)RANDOM_TEX_SIZE);
-        uint32 ColumnWhole = FloorInt32(ColumnMod);
-        uint32 ColumnWhole2 = (ColumnWhole+1) % RANDOM_TEX_SIZE;
-        real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
-        
-        real32 R000 = RandomTex.GetPRC(PlaneWhole , RowWhole , ColumnWhole );
-        real32 R001 = RandomTex.GetPRC(PlaneWhole , RowWhole , ColumnWhole2);
-        real32 R010 = RandomTex.GetPRC(PlaneWhole , RowWhole2, ColumnWhole );
-        real32 R011 = RandomTex.GetPRC(PlaneWhole , RowWhole2, ColumnWhole2);
-        real32 R100 = RandomTex.GetPRC(PlaneWhole2, RowWhole , ColumnWhole );
-        real32 R101 = RandomTex.GetPRC(PlaneWhole2, RowWhole , ColumnWhole2);
-        real32 R110 = RandomTex.GetPRC(PlaneWhole2, RowWhole2, ColumnWhole );
-        real32 R111 = RandomTex.GetPRC(PlaneWhole2, RowWhole2, ColumnWhole2);
-        
-        real32 I00 = Lerp(R000, R001, ColumnRemainder);
-        real32 I01 = Lerp(R010, R011, ColumnRemainder);
-        real32 I10 = Lerp(R100, R101, ColumnRemainder);
-        real32 I11 = Lerp(R110, R111, ColumnRemainder);
-        
-        real32 I0 = Lerp(I00, I01, RowRemainder);
-        real32 I1 = Lerp(I10, I11, RowRemainder);
-        
-        real32 Result = Lerp(I0, I1, PlaneRemainder);
-        return Result;
-    }
-    
-    real32 RandomFloat(v3 WorldPos)
-    {
-        real32 Result = RandomFloat(WorldPos.X, WorldPos.Y, WorldPos.Z);
-        return Result;
-    }
 };
+        
+void SetSeed(value_noise_generator *Generator, uint32 NewSeed)
+{
+    Generator->Seed = NewSeed;
+    uint32 TexSize = Generator->RandomTex.Dimension * Generator->RandomTex.Dimension * Generator->RandomTex.Dimension;
+    MtSeed(NewSeed);
+    for(uint32 Index = 0; Index < TexSize; Index++)
+    {
+        real32 Rand = MtStandardDeviate();
+        Generator->RandomTex.Elements[Index] = Rand;
+    }
+}
+        
+internal real32 
+RandomFloat(value_noise_generator *Generator, real32 Plane, real32 Row, real32 Column)
+{
+    real32 PlaneMod = ModReal32(Plane, (real32)RANDOM_TEX_SIZE);
+    uint32 PlaneWhole = FloorInt32(PlaneMod);
+    uint32 PlaneWhole2 = (PlaneWhole+1) % RANDOM_TEX_SIZE;
+    real32 PlaneRemainder = PlaneMod - (real32)PlaneWhole;
+    
+    real32 RowMod = ModReal32(Row, (real32)RANDOM_TEX_SIZE);
+    uint32 RowWhole = FloorInt32(RowMod);
+    uint32 RowWhole2 = (RowWhole+1) % RANDOM_TEX_SIZE;
+    real32 RowRemainder = RowMod - (real32)RowWhole;
+    
+    real32 ColumnMod = ModReal32(Column, (real32)RANDOM_TEX_SIZE);
+    uint32 ColumnWhole = FloorInt32(ColumnMod);
+    uint32 ColumnWhole2 = (ColumnWhole+1) % RANDOM_TEX_SIZE;
+    real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
+    
+    real32 R000 = Generator->RandomTex.GetPRC(PlaneWhole , RowWhole , ColumnWhole );
+    real32 R001 = Generator->RandomTex.GetPRC(PlaneWhole , RowWhole , ColumnWhole2);
+    real32 R010 = Generator->RandomTex.GetPRC(PlaneWhole , RowWhole2, ColumnWhole );
+    real32 R011 = Generator->RandomTex.GetPRC(PlaneWhole , RowWhole2, ColumnWhole2);
+    real32 R100 = Generator->RandomTex.GetPRC(PlaneWhole2, RowWhole , ColumnWhole );
+    real32 R101 = Generator->RandomTex.GetPRC(PlaneWhole2, RowWhole , ColumnWhole2);
+    real32 R110 = Generator->RandomTex.GetPRC(PlaneWhole2, RowWhole2, ColumnWhole );
+    real32 R111 = Generator->RandomTex.GetPRC(PlaneWhole2, RowWhole2, ColumnWhole2);
+    
+    real32 I00 = Lerp(R000, R001, ColumnRemainder);
+    real32 I01 = Lerp(R010, R011, ColumnRemainder);
+    real32 I10 = Lerp(R100, R101, ColumnRemainder);
+    real32 I11 = Lerp(R110, R111, ColumnRemainder);
+    
+    real32 I0 = Lerp(I00, I01, RowRemainder);
+    real32 I1 = Lerp(I10, I11, RowRemainder);
+    
+    real32 Result = Lerp(I0, I1, PlaneRemainder);
+    return Result;
+}
+
+internal real32 
+RandomFloat(value_noise_generator *Generator, v3 WorldPos)
+{
+    real32 Result = RandomFloat(Generator, WorldPos.X, WorldPos.Y, WorldPos.Z);
+    return Result;
+}
 
 struct perlin_noise_generator
 {
 	uint32 Seed;
 	v3 GradientTex[RANDOM_TEX_SIZE*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE];
+};
+
+internal void 
+SetSeed(perlin_noise_generator *Generator, uint32 NewSeed)
+{
+    Generator->Seed = NewSeed;
+    uint32 TexSize = ArrayCount(Generator->GradientTex);
+    MtSeed(NewSeed);
 	v3 PseudoGradientTable[12] 
     { 
         { -1, -1, 0},{ -1, 1, 0},{ 1, -1, 0},{ 1, 1, 0},
         { -1, 0, -1},{ -1, 0, 1},{ 1, 0, -1},{ 1, 0, 1},
         { 0, -1, -1},{ 0, -1, 1},{ 0, 1, -1},{ 0, 1, 1}
     };
+    for (uint32 Index = 0; Index < TexSize; Index++)
+    {
+        uint32 Rand = MtRand();
+        Generator->GradientTex[Index] = PseudoGradientTable[Rand % 12];
+    }
+}
 
-	perlin_noise_generator(uint32 Seed = 1000) : Seed(Seed)
-	{
-		SetSeed(Seed);
-	}
+internal real32 
+RandomFloat(perlin_noise_generator *Generator, real32 Plane, real32 Row, real32 Column)
+{
+    real32 PlaneMod = ModReal32(Plane, (real32)RANDOM_TEX_SIZE);
+    uint32 PlaneWhole = FloorInt32(PlaneMod);
+    uint32 PlaneWhole2 = (PlaneWhole + 1) % RANDOM_TEX_SIZE;
+    real32 PlaneRemainder = PlaneMod - (real32)PlaneWhole;
+    Assert(PlaneRemainder <= 1.0f);
+    
+    real32 RowMod = ModReal32(Row, (real32)RANDOM_TEX_SIZE);
+    uint32 RowWhole = FloorInt32(RowMod);
+    uint32 RowWhole2 = (RowWhole + 1) % RANDOM_TEX_SIZE;
+    real32 RowRemainder = RowMod - (real32)RowWhole;
+    Assert(RowRemainder <= 1.0f);
 
-	void SetSeed(uint32 NewSeed)
-	{
-		this->Seed = NewSeed;
-		uint32 TexSize = RANDOM_TEX_SIZE * RANDOM_TEX_SIZE * RANDOM_TEX_SIZE;
-		MtSeed(Seed);
-		for (uint32 Index = 0; Index < TexSize; Index++)
-		{
-			uint32 Rand = MtRand();
-			GradientTex[Index] = PseudoGradientTable[Rand % 12];
-		}
-	}
+    real32 ColumnMod = ModReal32(Column, (real32)RANDOM_TEX_SIZE);
+    uint32 ColumnWhole = FloorInt32(ColumnMod);
+    uint32 ColumnWhole2 = (ColumnWhole + 1) % RANDOM_TEX_SIZE;
+    real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
+    Assert(ColumnRemainder <= 1.0f);
 
-	real32 RandomFloat(real32 Plane, real32 Row, real32 Column)
-	{
-		real32 PlaneMod = ModReal32(Plane, (real32)RANDOM_TEX_SIZE);
-		uint32 PlaneWhole = FloorInt32(PlaneMod);
-		uint32 PlaneWhole2 = (PlaneWhole + 1) % RANDOM_TEX_SIZE;
-		real32 PlaneRemainder = PlaneMod - (real32)PlaneWhole;
-		Assert(PlaneRemainder <= 1.0f);
-        
-		real32 RowMod = ModReal32(Row, (real32)RANDOM_TEX_SIZE);
-		uint32 RowWhole = FloorInt32(RowMod);
-		uint32 RowWhole2 = (RowWhole + 1) % RANDOM_TEX_SIZE;
-		real32 RowRemainder = RowMod - (real32)RowWhole;
-		Assert(RowRemainder <= 1.0f);
+    v3 G000 = Generator->GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole];
+    v3 G001 = Generator->GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole2];
+    v3 G010 = Generator->GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole2*RANDOM_TEX_SIZE + ColumnWhole];
+    v3 G011 = Generator->GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole2*RANDOM_TEX_SIZE + ColumnWhole2];
+    v3 G100 = Generator->GradientTex[PlaneWhole2*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole];
+    v3 G101 = Generator->GradientTex[PlaneWhole2*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole2];
+    v3 G110 = Generator->GradientTex[PlaneWhole2*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole2*RANDOM_TEX_SIZE + ColumnWhole];
+    v3 G111 = Generator->GradientTex[PlaneWhole2*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole2*RANDOM_TEX_SIZE + ColumnWhole2];
 
-		real32 ColumnMod = ModReal32(Column, (real32)RANDOM_TEX_SIZE);
-		uint32 ColumnWhole = FloorInt32(ColumnMod);
-		uint32 ColumnWhole2 = (ColumnWhole + 1) % RANDOM_TEX_SIZE;
-		real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
-		Assert(ColumnRemainder <= 1.0f);
+    v3 D000 = {PlaneRemainder, RowRemainder, ColumnRemainder};
+    v3 D001 = {PlaneRemainder, RowRemainder, ColumnRemainder-1.0f };
+    v3 D010 = {PlaneRemainder, RowRemainder-1.0f, ColumnRemainder };
+    v3 D011 = {PlaneRemainder, RowRemainder-1.0f, ColumnRemainder - 1.0f };
+    v3 D100 = {PlaneRemainder - 1.0f, RowRemainder, ColumnRemainder};
+    v3 D101 = {PlaneRemainder - 1.0f, RowRemainder, ColumnRemainder-1.0f };
+    v3 D110 = {PlaneRemainder - 1.0f, RowRemainder-1.0f, ColumnRemainder };
+    v3 D111 = {PlaneRemainder - 1.0f, RowRemainder-1.0f, ColumnRemainder - 1.0f };
 
-		v3 G000 = GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole];
-		v3 G001 = GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole2];
-		v3 G010 = GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole2*RANDOM_TEX_SIZE + ColumnWhole];
-		v3 G011 = GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole2*RANDOM_TEX_SIZE + ColumnWhole2];
-		v3 G100 = GradientTex[PlaneWhole2*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole];
-		v3 G101 = GradientTex[PlaneWhole2*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole2];
-		v3 G110 = GradientTex[PlaneWhole2*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole2*RANDOM_TEX_SIZE + ColumnWhole];
-		v3 G111 = GradientTex[PlaneWhole2*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole2*RANDOM_TEX_SIZE + ColumnWhole2];
+    real32 R000 = DotProduct(G000, D000);
+    real32 R001 = DotProduct(G001, D001);
+    real32 R010 = DotProduct(G010, D010);
+    real32 R011 = DotProduct(G011, D011);
+    real32 R100 = DotProduct(G100, D100);
+    real32 R101 = DotProduct(G101, D101);
+    real32 R110 = DotProduct(G110, D110);
+    real32 R111 = DotProduct(G111, D111);
 
-		v3 D000 = {PlaneRemainder, RowRemainder, ColumnRemainder};
-		v3 D001 = {PlaneRemainder, RowRemainder, ColumnRemainder-1.0f };
-		v3 D010 = {PlaneRemainder, RowRemainder-1.0f, ColumnRemainder };
-		v3 D011 = {PlaneRemainder, RowRemainder-1.0f, ColumnRemainder - 1.0f };
-		v3 D100 = {PlaneRemainder - 1.0f, RowRemainder, ColumnRemainder};
-		v3 D101 = {PlaneRemainder - 1.0f, RowRemainder, ColumnRemainder-1.0f };
-		v3 D110 = {PlaneRemainder - 1.0f, RowRemainder-1.0f, ColumnRemainder };
-		v3 D111 = {PlaneRemainder - 1.0f, RowRemainder-1.0f, ColumnRemainder - 1.0f };
+    real32 I00 = Lerp(R000, R001, ColumnRemainder);
+    real32 I01 = Lerp(R010, R011, ColumnRemainder);
+    real32 I10 = Lerp(R100, R101, ColumnRemainder);
+    real32 I11 = Lerp(R110, R111, ColumnRemainder);
 
-		real32 R000 = DotProduct(G000, D000);
-		real32 R001 = DotProduct(G001, D001);
-		real32 R010 = DotProduct(G010, D010);
-		real32 R011 = DotProduct(G011, D011);
-		real32 R100 = DotProduct(G100, D100);
-		real32 R101 = DotProduct(G101, D101);
-		real32 R110 = DotProduct(G110, D110);
-		real32 R111 = DotProduct(G111, D111);
+    real32 I0 = Lerp(I00, I01, RowRemainder);
+    real32 I1 = Lerp(I10, I11, RowRemainder);
+    
+    real32 Result = Lerp(I0, I1, PlaneRemainder) / 1.05f;
+    Assert(Result >= -1.0f && Result <= 1.0f);
+    return Result;
+}
 
-		real32 I00 = Lerp(R000, R001, ColumnRemainder);
-		real32 I01 = Lerp(R010, R011, ColumnRemainder);
-		real32 I10 = Lerp(R100, R101, ColumnRemainder);
-		real32 I11 = Lerp(R110, R111, ColumnRemainder);
-
-		real32 I0 = Lerp(I00, I01, RowRemainder);
-		real32 I1 = Lerp(I10, I11, RowRemainder);
-        
-		real32 Result = Lerp(I0, I1, PlaneRemainder);
-		return Result;
-	}
-
-	real32 RandomFloat(v3 WorldPos)
-	{
-		real32 Result = RandomFloat(WorldPos.X, WorldPos.Y, WorldPos.Z);
-		Assert(Result >= -1.0f && Result <= 1.0f);
-		return Result;
-	}
-};
+internal real32 
+RandomFloat(perlin_noise_generator *Generator, v3 WorldPos)
+{
+    real32 Result = RandomFloat(Generator, WorldPos.X, WorldPos.Y, WorldPos.Z);
+    return Result;
+}

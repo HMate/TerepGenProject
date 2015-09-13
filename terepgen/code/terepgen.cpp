@@ -199,8 +199,8 @@ UpdateGameState(game_state *GameState)
     if(GameState->Initialized == false)
     {
         GameState->BlockSize = real32(TERRAIN_BLOCK_SIZE);
-        GameState->BlockResolution = 128;
-        GameState->Rng.SetSeed(GameState->Seed);
+        GameState->BlockResolution = 16;
+        SetSeed(&GameState->Rng, GameState->Seed);
         InitBlockHash(GameState);
         InitZeroHash(GameState);
         GameState->Initialized = true;
