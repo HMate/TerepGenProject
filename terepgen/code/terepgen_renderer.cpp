@@ -75,6 +75,26 @@ HRESULT terrain_renderer::Initialize(dx_resource *DXResources)
 #endif  
 
     HResult = DXResources->Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
+    if(FAILED(HResult)) return HResult;
+    
+    HResult = D3DX11CreateShaderResourceViewFromFile(DXResources->Device, "grass.jpg", 0, 0, &Texture, 0);
+    if(FAILED(HResult)) return HResult;
+    
+    D3D11_SAMPLER_DESC SampDesc;
+	ZeroMemory( &SampDesc, sizeof(SampDesc) );
+	SampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	SampDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+	SampDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SampDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    SampDesc.MinLOD = 0;
+    SampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    
+    HResult = DXResources->Device->CreateSamplerState(&SampDesc, &TexSamplerState);
+    
+    DXResources->DeviceContext->PSSetShaderResources(0, 1, &Texture);
+    DXResources->DeviceContext->PSSetSamplers(0, 1, &TexSamplerState);
+    
     return HResult; 
 }
 
@@ -114,8 +134,8 @@ internal vertex
 Get3DVertex(v3 LocalPos, color Color)
 {
 //    real32 Scale = 1.0f;
-    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 1.0f, 
-                     0.0f, 1.0f, 0.0f, 1.0f,
+    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
+                     0.0f, 1.0f, 0.0f,
                      Color};
     return Result;
 }

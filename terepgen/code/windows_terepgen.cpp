@@ -9,6 +9,7 @@
 #include <d3dcompiler.h>
 #include <dxgi.h>
 #include <d3d11.h>
+#include <C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include\D3DX11tex.h>
 #include <DirectXMath.h>
 
 #include "terepgen.cpp"

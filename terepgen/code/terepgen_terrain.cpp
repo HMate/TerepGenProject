@@ -91,8 +91,8 @@ GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
 internal vertex
 Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
 {
-    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 1.0f, 
-                     Normal.X, Normal.Y, Normal.Z, 1.0f,
+    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
+                     Normal.X, Normal.Y, Normal.Z,
                      Color};
     return Result;
 }

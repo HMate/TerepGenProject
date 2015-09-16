@@ -16,8 +16,8 @@ struct vertex
     // +X points right initially, -X points left
     // +Y is vertical axis and points up 
     // -Z points through screen to user initially, +Z points toward screen 
-    real32 X, Y, Z, W;
-    real32 NX, NY, NZ, NW;
+    real32 X, Y, Z;
+    real32 NX, NY, NZ;
     color Color;
 };
 

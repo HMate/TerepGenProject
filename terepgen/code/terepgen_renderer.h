@@ -12,6 +12,8 @@ struct terrain_renderer
     ID3D11Buffer *VertexBuffer;  
     ID3D11RasterizerState *RSWireFrame = nullptr; 
     ID3D11RasterizerState *RSDefault = nullptr;
+    ID3D11ShaderResourceView* Texture = nullptr;
+    ID3D11SamplerState* TexSamplerState = nullptr;
     uint32 MaxVertexCount;
     bool32 DXReleased;
     

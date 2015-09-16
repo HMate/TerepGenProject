@@ -18,7 +18,10 @@ REM -W4 Turns on warnings -Wall turns on more warnings than -W4
 REM -WX Treat warnings as errors
 set CommonCompilerFlags= -MTd -nologo -Od -Z7 -EHsc -DTEREPGEN_DEBUG=1 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189
 REM -opt:ref Eliminates functions and data that are not referenced
-set CommonLinkerFlags= -incremental:no -opt:ref user32.lib d3d11.lib dxgi.lib d3dcompiler.lib
+REM not used: set LibPath="C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x64"
+REM because some function have been updated since, and wont compile with this
+set CommonLinkerFlags= -incremental:no -opt:ref^
+ user32.lib d3d11.lib dxgi.lib d3dcompiler.lib d3dx11.lib
 
 REM List the cpp files to compile here
 set CompiledFiles= ..\code\windows_terepgen.cpp
