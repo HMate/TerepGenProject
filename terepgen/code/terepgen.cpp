@@ -199,8 +199,10 @@ UpdateGameState(game_state *GameState)
     if(GameState->Initialized == false)
     {
         GameState->BlockSize = real32(TERRAIN_BLOCK_SIZE);
-        GameState->BlockResolution = 64;
-        SetSeed(&GameState->Rng, GameState->Seed);
+        GameState->BlockResolution = 2;
+        SetSeed(&GameState->PerlinArray.Noise[0], GameState->Seed);
+        SetSeed(&GameState->PerlinArray.Noise[1], GameState->Seed+1);
+        SetSeed(&GameState->PerlinArray.Noise[2], GameState->Seed+2);
         InitBlockHash(GameState);
         InitZeroHash(GameState);
         GameState->Initialized = true;
@@ -323,7 +325,7 @@ UpdateGameState(game_state *GameState)
                         DensityBlock.Pos.X, DensityBlock.Pos.Y, DensityBlock.Pos.Z);
                     OutputDebugStringA(DebugBuffer);
 #endif
-                    GenerateDensityGrid(&DensityBlock, &GameState->Rng, GameState->BlockResolution);
+                    GenerateDensityGrid(&DensityBlock, &GameState->PerlinArray, GameState->BlockResolution);
                     CreateRenderVertices(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), 
                         &DensityBlock, GameState->BlockResolution);
                     if(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount].VertexCount != 0)

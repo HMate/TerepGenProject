@@ -8,7 +8,7 @@
 // This way a bigger area can be stored in the same block, 
 // if at rendering we only use every BlockResolution'th value too.
 internal void 
-GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_generator *Rng, uint32 BlockResolution)
+GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNArray, uint32 BlockResolution)
 {
     int32 TerrainDimension = DensityBlock->Grid.Dimension;
     for(int32 Plane = 0;
@@ -23,28 +23,31 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_generator 
                 Column < TerrainDimension;
                 ++Column)
             {
-                real32 DensityValue = 0;//DensityBlock->Pos.Y + (real32)((Row-2) * (real32)BlockResolution);
+                real32 DensityValue = DensityBlock->Pos.Y + (real32)((Row-2) * (real32)BlockResolution);
+                // real32 DensityValue = 0;
                 
                 real32 WorldX = DensityBlock->Pos.X + ((Plane-2) * (real32)BlockResolution);
                 real32 WorldY = DensityBlock->Pos.Y + ((Row-2) * (real32)BlockResolution);
                 real32 WorldZ = DensityBlock->Pos.Z + ((Column-2) * (real32)BlockResolution);
                 
-                v3 WorldPos = {WorldX, WorldY, WorldZ};
-             
-                //DensityValue += RandomFloat(Rng, WorldPos) * 1.0f;
-                // DensityValue += RandomFloat(Rng, WorldPos * 0.51f) * 2.0f;
-                DensityValue += RandomFloat(Rng, WorldPos * 0.248f) * 4.0f;
-                // DensityValue += RandomFloat(Rng, WorldPos * 0.128f) * 8.0f;
-                DensityValue += RandomFloat(Rng, WorldPos * 0.0621f) * 16.0f;
-                //DensityValue += RandomFloat(Rng, WorldPos * 0.03127f) * 32.0f;
-                DensityValue += RandomFloat(Rng, WorldPos * 0.015622f) * 64.0f;
+                v3 WorldPos = v3{WorldX, WorldY, WorldZ} / 32.0f;
+                real32 Scale = 50.0f;
+                             
+                // DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 256.03f) * Scale * 0.0036025f;
+                // DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 128.96f) * Scale * 0.0078125f;
+                DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 64.01f)  * Scale * 0.015625f;
                 
-                DensityValue += RandomFloat(Rng, WorldPos * 0.00392f) * 256.0f;
-                DensityValue += RandomFloat(Rng, WorldPos * 0.00192f) * 512.0f;
+                DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 32.03f) * Scale * 0.03125f;
+                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 16.16f) * Scale * 0.0625f;
+                // DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 7.91f)  * Scale * 0.125f;
                 
-                DensityValue += RandomFloat(Rng, WorldPos * 0.00098f) * 1024.0f;
+                // DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 4.03f) * Scale * 0.25f;
+                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 1.96f) * Scale * 0.5f;
+                // DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 1.01f) * Scale * 1.0f;
+                DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 0.491f) * Scale * 1.0f;
                 
-                // DensityValue += RandomFloat(Rng, WorldPos * 0.00024f) * 4096.0f;
+                DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 0.023f) * Scale * 4.0f;
+                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 0.00646f) * Scale * 16.0f;
                 
                 SetGridPRC(&DensityBlock->Grid, Plane, Row, Column, DensityValue);
             }
@@ -148,7 +151,7 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
                 Cell.val[6] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column+1);
                 Cell.val[7] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column  );
                 TRIANGLE Triangles[5];
-                uint32 TriangleCount = Polygonise(Cell, 0.05f, Triangles);
+                uint32 TriangleCount = Polygonise(Cell, 0.0f, Triangles);
                 
                 for(uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
                 {

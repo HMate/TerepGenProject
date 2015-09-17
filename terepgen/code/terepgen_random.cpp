@@ -146,6 +146,11 @@ struct perlin_noise_generator
 	v3 GradientTex[RANDOM_TEX_SIZE*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE];
 };
 
+struct perlin_noise_array
+{
+    perlin_noise_generator Noise[3];
+};
+
 internal void 
 SetSeed(perlin_noise_generator *Generator, uint32 NewSeed)
 {

@@ -240,7 +240,7 @@ WinMain(HINSTANCE Instance,
             }
             
             camera Camera;
-            Camera.Initialize(&DXResources, ScreenInfo.Width, ScreenInfo.Height);
+            Camera.Initialize(&DXResources, ScreenInfo.Width, ScreenInfo.Height, 20.0f);
             
             Persistence = 0.4f;
             

@@ -77,7 +77,10 @@ HRESULT terrain_renderer::Initialize(dx_resource *DXResources)
     HResult = DXResources->Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
     if(FAILED(HResult)) return HResult;
     
-    HResult = D3DX11CreateShaderResourceViewFromFile(DXResources->Device, "grass.jpg", 0, 0, &Texture, 0);
+    //TODO: Change this, to not using d3dx11, because its deprecated!!
+    HResult = D3DX11CreateShaderResourceViewFromFile(DXResources->Device, "grass.jpg", 0, 0, &GrassTexture, 0);
+    if(FAILED(HResult)) return HResult;
+    HResult = D3DX11CreateShaderResourceViewFromFile(DXResources->Device, "lichen_rock_by_darlingstock.jpg", 0, 0, &RockTexture, 0);
     if(FAILED(HResult)) return HResult;
     
     D3D11_SAMPLER_DESC SampDesc;
@@ -92,7 +95,8 @@ HRESULT terrain_renderer::Initialize(dx_resource *DXResources)
     
     HResult = DXResources->Device->CreateSamplerState(&SampDesc, &TexSamplerState);
     
-    DXResources->DeviceContext->PSSetShaderResources(0, 1, &Texture);
+    DXResources->DeviceContext->PSSetShaderResources(0, 1, &GrassTexture);
+    DXResources->DeviceContext->PSSetShaderResources(1, 1, &RockTexture);
     DXResources->DeviceContext->PSSetSamplers(0, 1, &TexSamplerState);
     
     return HResult; 

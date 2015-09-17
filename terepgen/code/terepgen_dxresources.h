@@ -456,8 +456,8 @@ struct camera
     real32 CameraSpeed = 60.0f;
     
     real32 Fov = 3.14f * 0.35f;
-    real32 NearClipZ = 1.0f;
-    real32 FarClipZ = 6000.0f;
+    real32 NearClipZ = 10.0f;
+    real32 FarClipZ = 100000.0f;
     
     XMFLOAT4X4 ViewMx;
     XMFLOAT4X4 ProjMx;
@@ -482,8 +482,9 @@ struct camera
         return Result;
     }
     
-    void Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 ScreenHeight)
+    void Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 ScreenHeight, real32 CamSpeed)
     {   
+        CameraSpeed = CamSpeed;
         XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
             XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));            
 #if TEREPGEN_DEBUG

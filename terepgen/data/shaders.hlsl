@@ -44,7 +44,8 @@ VOut VShader(VIn input)
     return output;
 }
 
-Texture2D shaderTexture;
+Texture2D grassTexture : register(t0);
+Texture2D rockTexture : register(t1);
 SamplerState SampleType;
 
 float4 PShader(VOut input) : SV_TARGET
@@ -53,11 +54,41 @@ float4 PShader(VOut input) : SV_TARGET
     const float3 sunDir = {0.0f, -1.0f, 0.0f};
     const float4 colorRed = {1.0f, 0.0f, 0.0f, 1.0f};
     const float4 colorBlack = {0.0f, 0.0f, 0.0f, 1.0f};
+    // const float3 tex_scale = {1.0/450.0, 1.0/160.0, 1.0/325.0};
+    const float3 tex_scale = {0.5, 1.0, 0.3};
     
     float cosTheta = dot(sunDir, input.normal);
-    if(cosTheta > 0.0f) return colorBlack;
-    float4 texColor = shaderTexture.Sample(SampleType, input.worldPos.xz/320.0);
-    //return -cosTheta * input.color;
-    return -cosTheta * texColor;
+    if(cosTheta > 0.0f) cosTheta = -cosTheta/3.0;
+    
+    //NOTE: Texture blending based on http://http.developer.nvidia.com/GPUGems3/gpugems3_ch01.html
+    
+    float3 blend_weights = abs(input.normal.xyz);
+    blend_weights = (blend_weights - 0.25) * 7;  
+    blend_weights = max(blend_weights, 0);      // Force weights to sum to 1.0 (very important!)  
+    blend_weights /= (blend_weights.x + blend_weights.y + blend_weights.z ).xxx;   
+    // Now determine a color value and bump vector for each of the 3  
+    // projections, blend them, and store blended results in these two  
+    // vectors:  
+    float4 blended_color;  
+    {  
+        // Compute the UV coords for each of the 3 planar projections.  
+        // tex_scale (default ~ 1.0) determines how big the textures appear.  
+        float2 coord1 = input.worldPos.yz * tex_scale.x;
+        float2 coord2 = input.worldPos.xz * tex_scale.y;
+        float2 coord3 = input.worldPos.xy * tex_scale.z;
+        // Sample color maps for each projection, at those UV coords.  
+        float4 col1 = rockTexture.Sample(SampleType, coord1);  
+        float4 col2;
+        if(input.normal.y > 0.0)
+            col2 = grassTexture.Sample(SampleType, coord2);  
+        else
+            col2 = rockTexture.Sample(SampleType, coord2);
+        float4 col3 = rockTexture.Sample(SampleType, coord3);   
+        // Finally, blend the results of the 3 planar projections.  
+        blended_color = col1.xyzw * blend_weights.xxxx +  
+                        col2.xyzw * blend_weights.yyyy +  
+                        col3.xyzw * blend_weights.zzzz;   
+    }
+    return -cosTheta * blended_color;
     // return float4(input.normal, 1.0f); // return normal as color
 }
