@@ -12,6 +12,103 @@ terrain_renderer::terrain_renderer()
     ObjectConstantBuffer = nullptr;
 }
 
+internal HRESULT 
+LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceView **ShaderResView)
+{
+    HRESULT HResult = E_FAIL;
+    
+    FREE_IMAGE_FORMAT ImgFormat = FreeImage_GetFileType(Filename, 0);
+    // TODO: Should I support any other format than jpg?
+    Assert(ImgFormat == FIF_JPEG);
+    FIBITMAP *LoadedBitmap = FreeImage_Load(ImgFormat, Filename, JPEG_DEFAULT);
+    if(LoadedBitmap)
+    {
+        // NOTE: Get image info
+        uint32 PixelBitSize = FreeImage_GetBPP(LoadedBitmap);
+        uint32 SourcePxByteSize = PixelBitSize/8;
+        uint32 ImgHeight = FreeImage_GetHeight(LoadedBitmap);
+        uint32 ImgWidth = FreeImage_GetWidth(LoadedBitmap);
+        uint32 ImgType = FreeImage_GetImageType(LoadedBitmap);
+        Assert(ImgType == FIT_BITMAP);
+        
+        uint32 DestPxByteSize = 4;
+        uint8 *Img = new uint8[ImgWidth * ImgHeight * DestPxByteSize];
+        /* TODO: Better memory handling
+        VirtualAlloc(0, FileSize32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+        VirtualFree(Memory, 0, MEM_RELEASE);*/
+        
+        uint8 *Dest = Img;
+        for(size_t RowIndex = 0;
+            RowIndex < ImgHeight;
+            RowIndex++)
+        {
+            uint8* Source = FreeImage_GetScanLine(LoadedBitmap, (int32)RowIndex);
+            
+            for(size_t PxIndex = 0;
+                PxIndex < ImgWidth;
+                PxIndex++)
+            {
+                Dest[0] = Source[FI_RGBA_RED];
+                Dest[1] = Source[FI_RGBA_GREEN];
+                Dest[2] = Source[FI_RGBA_BLUE];
+                Dest[3] = 0;
+                
+                Source += SourcePxByteSize;
+                Dest += DestPxByteSize;
+            }
+        }
+    
+        D3D11_TEXTURE2D_DESC TextureDesc;
+        TextureDesc.Height = ImgHeight;
+        TextureDesc.Width = ImgWidth;
+        TextureDesc.MipLevels = 0;
+        TextureDesc.ArraySize = 1;
+        TextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        TextureDesc.SampleDesc.Count = 1;
+        TextureDesc.SampleDesc.Quality = 0;
+        TextureDesc.Usage = D3D11_USAGE_DEFAULT;
+        TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+        TextureDesc.CPUAccessFlags = 0;
+        TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+        
+        ID3D11Texture2D* Tex;
+        HResult = DXResources->Device->CreateTexture2D(&TextureDesc, NULL, &Tex);
+        if(FAILED(HResult)) 
+        {
+            delete[] Img;
+            FreeImage_Unload(LoadedBitmap);
+            return HResult;
+        }
+            
+        //DXResources->LoadResource(Tex, *grassBitmap, GrassSizeInBytes);
+        // NOTE: Should use UpdateSubresource, if the resource isnt loaded every frame
+        uint32 RowPitch = ImgWidth * SourcePxByteSize;
+        DXResources->DeviceContext->UpdateSubresource(Tex, 0, NULL, Img, RowPitch, 0);
+        
+        D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc;
+        SrvDesc.Format = TextureDesc.Format;
+        SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        SrvDesc.Texture2D.MostDetailedMip = 0;
+        SrvDesc.Texture2D.MipLevels = (unsigned int)-1;
+        
+        HResult = DXResources->Device->CreateShaderResourceView(Tex, &SrvDesc, ShaderResView);
+        if(FAILED(HResult))
+        {
+            delete[] Img;
+            FreeImage_Unload(LoadedBitmap);
+            return false;
+        }
+
+        // NOTE: Generate mipmaps for this texture.
+        DXResources->DeviceContext->GenerateMips(*ShaderResView);
+        
+        delete[] Img;
+        FreeImage_Unload(LoadedBitmap);
+    }
+    
+    return HResult;
+}
+
 HRESULT terrain_renderer::Initialize(dx_resource *DXResources)
 {
     DXReleased = false;
@@ -76,11 +173,10 @@ HRESULT terrain_renderer::Initialize(dx_resource *DXResources)
 
     HResult = DXResources->Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
     if(FAILED(HResult)) return HResult;
-    
-    //TODO: Change this, to not using d3dx11, because its deprecated!!
-    HResult = D3DX11CreateShaderResourceViewFromFile(DXResources->Device, "grass.jpg", 0, 0, &GrassTexture, 0);
+        
+    HResult = LoadJPGFromFile(DXResources, "grass.jpg", &GrassTexture);
     if(FAILED(HResult)) return HResult;
-    HResult = D3DX11CreateShaderResourceViewFromFile(DXResources->Device, "lichen_rock_by_darlingstock.jpg", 0, 0, &RockTexture, 0);
+    HResult = LoadJPGFromFile(DXResources, "lichen_rock_by_darlingstock.jpg", &RockTexture);
     if(FAILED(HResult)) return HResult;
     
     D3D11_SAMPLER_DESC SampDesc;
@@ -94,6 +190,10 @@ HRESULT terrain_renderer::Initialize(dx_resource *DXResources)
     SampDesc.MaxLOD = D3D11_FLOAT32_MAX;
     
     HResult = DXResources->Device->CreateSamplerState(&SampDesc, &TexSamplerState);
+    if(FAILED(HResult))
+    {
+        return HResult;
+    }
     
     DXResources->DeviceContext->PSSetShaderResources(0, 1, &GrassTexture);
     DXResources->DeviceContext->PSSetShaderResources(1, 1, &RockTexture);

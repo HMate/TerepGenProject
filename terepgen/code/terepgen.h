@@ -5,7 +5,11 @@
 */
 
 #include "terepgen_types.h"
+#include "terepgen_grid.h"
+#include "terepgen_vector.h"
+#include "terepgen_dxresources.h"
 #include "terepgen_terrain.h"
+
 
 #include "terepgen_random.cpp"
 #include "terepgen_terrain.cpp"
