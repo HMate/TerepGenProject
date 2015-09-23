@@ -34,12 +34,14 @@ struct dx_resource
     ID3D11Device *Device = nullptr;
     ID3D11DeviceContext *DeviceContext = nullptr;
     ID3D11RenderTargetView *BackBuffer = nullptr;
-    ID3D11VertexShader *VertexShader = nullptr;
-    ID3D11PixelShader *PixelShader = nullptr;
     ID3D11InputLayout *InputLayout = nullptr;
     ID3D11DepthStencilView *DepthStencilView = nullptr;
     ID3D11Texture2D *DepthStencilBuffer = nullptr;
     ID3D11DepthStencilState *DepthStencilState = nullptr;
+    
+    ID3D11VertexShader *TerrainVS = nullptr;
+    ID3D11PixelShader *TerrainPS = nullptr;
+    ID3D11PixelShader *LinePS = nullptr;
         
     int32 VideoCardMemory;
     char VideoCardDescription[128];
@@ -48,8 +50,6 @@ struct dx_resource
     void Release();
     
     void LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize);
-    void LoadFrameFirstVertexBuffer(ID3D11Resource *VBuffer, void *Resource, uint32 ResourceSize);
-    void LoadVertexBuffer(ID3D11Resource *VBuffer, void *Resource, uint32 ResourceSize);
     
     HRESULT Resize(uint32 ScreenWidth, uint32 ScreenHeight);
     char* GetDebugMessage(DWORD dwErrorMsgId);
@@ -82,8 +82,8 @@ struct terrain_renderer
     void SetDrawModeDefault(void);
     void SetDrawModeWireframe(void);
     void DrawTriangles(vertex *Vertices, uint32 VertexCount);
+    void DrawLines(vertex *Vertices, uint32 VertCount);
     void DrawDebugTriangle();
-    void DrawAxis(real32 Size = 1.0f);
 };
 
 

@@ -48,7 +48,7 @@ Texture2D grassTexture : register(t0);
 Texture2D rockTexture : register(t1);
 SamplerState SampleType;
 
-float4 PShader(VOut input) : SV_TARGET
+float4 TerrainPShader(VOut input) : SV_TARGET
 {
     /*const float4 sunDir = {-0.333f, -0.333f, -0.333f, 0.0f};*/
     const float3 sunDir = {0.0f, -1.0f, 0.0f};
@@ -91,4 +91,10 @@ float4 PShader(VOut input) : SV_TARGET
     }
     return -cosTheta * blended_color;
     // return float4(input.normal, 1.0f); // return normal as color
+}
+
+
+float4 LinePShader(VOut input) : SV_TARGET
+{
+    return input.color;
 }

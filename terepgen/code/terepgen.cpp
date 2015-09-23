@@ -381,8 +381,23 @@ RenderGame(dx_resource *DXResources, camera *Camera, terrain_renderer *Renderer,
         D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, 1.0f, 0);
     DXResources->DeviceContext->ClearRenderTargetView(DXResources->BackBuffer, BackgroundColor.C);
     
-    Renderer->DrawAxis(256.0f);
-    // TRenderer.DrawDebugTriangle();
+    // NOTE: Render axis
+    Renderer->SetDrawModeDefault();
+    DXResources->DeviceContext->PSSetShader(DXResources->LinePS, 0, 0);
+    real32 AxisSize = 256;
+    const uint32 VertCount = 6;
+    color Red{1.0f, 0.0f, 0.0f, 1.0f},
+          Green{0.0f, 1.0f, 0.0f, 1.0f}, 
+          Blue{0.0f, 0.0f, 1.0f, 1.0f};
+    v3 Normal{0.0f, 1.0f, 0.0f};
+    vertex AxisVertices[VertCount]={Get3DVertex(v3{ 1.0f*AxisSize,  0.0f,  0.0f}, Normal, Red),
+                                    Get3DVertex(v3{-1.0f*AxisSize,  0.0f,  0.0f}, Normal, Red),
+                                    Get3DVertex(v3{ 0.0f,  1.0f*AxisSize,  0.0f}, Normal, Green),
+                                    Get3DVertex(v3{ 0.0f, -1.0f*AxisSize,  0.0f}, Normal, Green),
+                                    Get3DVertex(v3{ 0.0f,  0.0f,  1.0f*AxisSize}, Normal, Blue),
+                                    Get3DVertex(v3{ 0.0f,  0.0f, -1.0f*AxisSize}, Normal, Blue)};
+    Renderer->DrawLines(AxisVertices, VertCount);
+    // Renderer->DrawDebugTriangle();
 
     if(GameState->RenderMode)
     {
@@ -392,6 +407,9 @@ RenderGame(dx_resource *DXResources, camera *Camera, terrain_renderer *Renderer,
     {
         Renderer->SetDrawModeDefault();
     }
+    
+    
+    DXResources->DeviceContext->PSSetShader(DXResources->TerrainPS, 0, 0);
     
     for(size_t RenderBlockIndex = 0; 
         RenderBlockIndex < GameState->RenderBlockCount; 

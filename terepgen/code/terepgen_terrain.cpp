@@ -56,7 +56,7 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
 }
 
 internal vertex
-Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
+Get3DVertex(v3 LocalPos, v3 Normal, color Color)
 {
     vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
                      Normal.X, Normal.Y, Normal.Z,
@@ -164,11 +164,11 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
                     v3 Normal2 = GetPointNormal(DensityBlock, Point2);
                     
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DGridVertex((Point0-PosDiff) * CellDiff, Normal0, GreenColor);
+                        Get3DVertex((Point0-PosDiff) * CellDiff, Normal0, GreenColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DGridVertex((Point1-PosDiff) * CellDiff, Normal1, GreenColor);
+                        Get3DVertex((Point1-PosDiff) * CellDiff, Normal1, GreenColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DGridVertex((Point2-PosDiff) * CellDiff, Normal2, GreenColor);
+                        Get3DVertex((Point2-PosDiff) * CellDiff, Normal2, GreenColor);
 #if 0
                     // NOTE: Draw normals for debug purposes
                     color BlueColor = color{0.0, 0.0f, 1.0f, 1.0f};
@@ -181,17 +181,17 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
                     NormalPerpend = Normalize(NormalPerpend);
                     v3 Pos = (Point0-PosDiff);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DGridVertex(Pos * CellDiff, NormalNormal, BlueColor);
+                        Get3DVertex(Pos * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DGridVertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
+                        Get3DVertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DGridVertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
+                        Get3DVertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DGridVertex(Pos * CellDiff, NormalNormal, BlueColor);
+                        Get3DVertex(Pos * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DGridVertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
+                        Get3DVertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DGridVertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
+                        Get3DVertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
 #endif
                 }
             }

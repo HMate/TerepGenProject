@@ -71,6 +71,7 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     SwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
     SwapChainDesc.OutputWindow = Window;
     SwapChainDesc.SampleDesc.Count = 4;
+    SwapChainDesc.SampleDesc.Quality = 0;
     SwapChainDesc.Windowed = true;
     
     D3D_FEATURE_LEVEL FeatureLevels[4] = {D3D_FEATURE_LEVEL_11_1,
@@ -181,30 +182,44 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
         {
             OutputDebugStringA((char*)BlobError->GetBufferPointer());
             MessageBox(Window, (char*)BlobError->GetBufferPointer(),	
-                "Error in vertex shader", MB_OK | MB_ICONERROR);
+                "Error in VShader", MB_OK | MB_ICONERROR);
             BlobError->Release();
         }
         return HResult;
     }
-    Device->CreateVertexShader(BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), 0, &VertexShader);
+    Device->CreateVertexShader(BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), 0, &TerrainVS);
     
-    HResult = D3DCompileFromFile(L"shaders.hlsl", 0, 0, "PShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
+    HResult = D3DCompileFromFile(L"shaders.hlsl", 0, 0, "TerrainPShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
     if(FAILED(HResult))
     {
         if(BlobError != nullptr)
         {
             OutputDebugStringA((char*)BlobError->GetBufferPointer());
             MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),	
-                "Error in pixel shader", MB_OK | MB_ICONERROR);
+                "Error in TerrainPShader", MB_OK | MB_ICONERROR);
             BlobError->Release();
         }
         return HResult;
     }
-    Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &PixelShader);
+    Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &TerrainPS);
+    
+    HResult = D3DCompileFromFile(L"shaders.hlsl", 0, 0, "LinePShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
+    if(FAILED(HResult))
+    {
+        if(BlobError != nullptr)
+        {
+            OutputDebugStringA((char*)BlobError->GetBufferPointer());
+            MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),	
+                "Error in LinePShader", MB_OK | MB_ICONERROR);
+            BlobError->Release();
+        }
+        return HResult;
+    }
+    Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &LinePS);
     BlobPs->Release();
     
-    DeviceContext->VSSetShader(VertexShader, 0, 0);
-    DeviceContext->PSSetShader(PixelShader, 0, 0);
+    DeviceContext->VSSetShader(TerrainVS, 0, 0);
+    DeviceContext->PSSetShader(TerrainPS, 0, 0);
     
     // NOTE: Create Input Layout
     D3D11_INPUT_ELEMENT_DESC ElementDesc[] = 
@@ -227,6 +242,7 @@ void dx_resource::LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 Re
     // NOTE: This kind of resource mapping is optimized for per frame updating 
     //      for resources with D3D11_USAGE_DYNAMIC
     // SOURCE: https://msdn.microsoft.com/en-us/library/windows/desktop/ff476259%28v=vs.85%29.aspx
+    // TODO: Conscutive calls for vertex buffers should use this: D3D11_MAP_WRITE_NO_OVERWRITE
     HRESULT HResult;
     D3D11_MAPPED_SUBRESOURCE MappedSubresource;
     HResult = DeviceContext->Map(Buffer, NULL,
@@ -239,41 +255,6 @@ void dx_resource::LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 Re
     }
     memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
     DeviceContext->Unmap(Buffer, NULL);
-    
-    // DeviceContext->UpdateSubresource(Buffer, 0, NULL, Resource, 0, ResourceSize);
-} 
-
-void dx_resource::LoadFrameFirstVertexBuffer(ID3D11Resource *VBuffer, void *Resource, uint32 ResourceSize)
-{
-    HRESULT HResult;
-    D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-    HResult = DeviceContext->Map(VBuffer, NULL,
-                    D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
-    if(FAILED(HResult))
-    {
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Load Resource failed: %s\n", GetDebugMessage(HResult));
-        OutputDebugStringA(DebugBuffer);
-    }
-    memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
-    DeviceContext->Unmap(VBuffer, NULL);
-}
-
-void dx_resource::LoadVertexBuffer(ID3D11Resource *VBuffer, void *Resource, uint32 ResourceSize)
-{
-    HRESULT HResult;
-    D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-    // TODO: Conscutive calls should use this: D3D11_MAP_WRITE_NO_OVERWRITE
-    HResult = DeviceContext->Map(VBuffer, NULL,
-                    D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
-    if(FAILED(HResult))
-    {
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Load Resource failed: %s\n", GetDebugMessage(HResult));
-        OutputDebugStringA(DebugBuffer);
-    }
-    memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
-    DeviceContext->Unmap(VBuffer, NULL);
 }
 
 void dx_resource::Release()
@@ -282,15 +263,15 @@ void dx_resource::Release()
     {
         SwapChain->SetFullscreenState(false, NULL);
     }
-    if(VertexShader) 
+    if(TerrainVS) 
     {
-        VertexShader->Release();
-        VertexShader = nullptr;
+        TerrainVS->Release();
+        TerrainVS = nullptr;
     }
-    if(PixelShader) 
+    if(TerrainPS) 
     {
-        PixelShader->Release();
-        PixelShader = nullptr;
+        TerrainPS->Release();
+        TerrainPS = nullptr;
     }
     if(DepthStencilView) 
     {
@@ -597,21 +578,25 @@ void terrain_renderer::DrawTriangles(vertex *Vertices, uint32 VertCount)
        
     uint32 stride = sizeof(vertex);
     uint32 offset = 0;
-    DXResource->LoadVertexBuffer(VertexBuffer, Vertices, sizeof(vertex) * VertCount); 
+    DXResource->LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount); 
     
     DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
     DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     DXResource->DeviceContext->Draw(VertCount, 0);
 }
 
-internal vertex
-Get3DVertex(v3 LocalPos, color Color)
-{
-//    real32 Scale = 1.0f;
-    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
-                     0.0f, 1.0f, 0.0f,
-                     Color};
-    return Result;
+void terrain_renderer::DrawLines(vertex *Vertices, uint32 VertCount)
+{      
+    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+       
+    uint32 stride = sizeof(vertex);
+    uint32 offset = 0;
+    DXResource->LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount);    
+    
+    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    DXResource->DeviceContext->Draw(VertCount, 0);
 }
 
 void terrain_renderer::DrawDebugTriangle()
@@ -620,47 +605,11 @@ void terrain_renderer::DrawDebugTriangle()
     
     const uint32 FalseCount = 3;
     color Color{1.0f, 0.0f, 0.0f, 1.0f};
-    vertex FalseVertices[FalseCount]={Get3DVertex(v3{1.0f , 0.55f, 1.0f}, Color),
-                                      Get3DVertex(v3{-0.8f, -0.7f, 1.0f}, Color),
-                                      Get3DVertex(v3{-1.0f, 0.0f , 1.0f}, Color)};
-                                      
-    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
-       
-    uint32 stride = sizeof(vertex);
-    uint32 offset = 0;
-    DXResource->LoadVertexBuffer(VertexBuffer, FalseVertices, sizeof(vertex) * FalseCount);    
-    
-    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    DXResource->DeviceContext->Draw(FalseCount, 0);
-}
-
-void terrain_renderer::DrawAxis(real32 Size)
-{      
-    DXResource->DeviceContext->RSSetState(RSDefault);
-    
-    const uint32 VertCount = 6;
-    color Red{1.0f, 0.0f, 0.0f, 1.0f},
-          Green{0.0f, 1.0f, 0.0f, 1.0f}, 
-          Blue{0.0f, 0.0f, 1.0f, 1.0f};
-    vertex AxisVertices[VertCount]={Get3DVertex(v3{ 1.0f*Size,  0.0f,  0.0f}, Red),
-                                    Get3DVertex(v3{-1.0f*Size,  0.0f,  0.0f}, Red),
-                                    Get3DVertex(v3{ 0.0f,  1.0f*Size,  0.0f}, Green),
-                                    Get3DVertex(v3{ 0.0f, -1.0f*Size,  0.0f}, Green),
-                                    Get3DVertex(v3{ 0.0f,  0.0f,  1.0f*Size}, Blue),
-                                    Get3DVertex(v3{ 0.0f,  0.0f, -1.0f*Size}, Blue)};
-                                      
-    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
-       
-    uint32 stride = sizeof(vertex);
-    uint32 offset = 0;
-    DXResource->LoadFrameFirstVertexBuffer(VertexBuffer, AxisVertices, sizeof(vertex) * VertCount);    
-    
-    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    DXResource->DeviceContext->Draw(VertCount, 0);
+    v3 Normal{0.0f, 1.0f, 0.0f};
+    vertex FalseVertices[FalseCount]={Get3DVertex(v3{1.0f , 0.55f, 1.0f}, Normal, Color),
+                                      Get3DVertex(v3{-0.8f, -0.7f, 1.0f}, Normal, Color),
+                                      Get3DVertex(v3{-1.0f, 0.0f , 1.0f}, Normal, Color)};
+    Assert(!"Curently not implemented!");
 }
 
 void terrain_renderer::Release()
