@@ -226,8 +226,7 @@ WinMain(HINSTANCE Instance,
             DrawTerrain1 = true;
             GlobalSeed = 1000;
             dx_resource DXResources;
-            HRESULT HResult;
-            HResult = DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height);
+            HRESULT HResult = DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height);
             if(FAILED(HResult))
             {
                 char* ErrMsg = DXResources.GetDebugMessage(HResult);
@@ -249,25 +248,6 @@ WinMain(HINSTANCE Instance,
             game_state *GameState = new game_state;
             GameState->Initialized = false;
             
-            terrain_renderer TRenderer;
-            HResult = TRenderer.Initialize(&DXResources);
-            if(FAILED(HResult))
-            {
-                //MessageBox(NULL, DXGetErrorDescription(HResult), NULL, MB_OK);
-                char* ErrMsg = DXResources.GetDebugMessage(HResult);
-#if TEREPGEN_DEBUG
-                char DebugBuffer[256];
-                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] terrain_renderer init error: %s\n", ErrMsg);
-                OutputDebugStringA(DebugBuffer);
-                MessageBox(NULL, DebugBuffer, NULL, MB_OK);
-#endif
-                
-                TRenderer.Release();
-                Camera.Release();
-                DXResources.Release();
-                return 1;
-            }
-                        
             LARGE_INTEGER FrameStartTime = Win32GetWallClock();
             LARGE_INTEGER WorldTime = FrameStartTime;
             QueryPerformanceFrequency(&GlobalPerfCountFrequency);
@@ -323,7 +303,7 @@ WinMain(HINSTANCE Instance,
                 GameState->RenderMode = GlobalInput.RenderMode;
                 UpdateGameState(GameState);
                 
-                RenderGame(&DXResources, &Camera, &TRenderer, GameState);
+                RenderGame(&DXResources, &Camera, GameState);
                 
                 LARGE_INTEGER FrameEndTime = Win32GetWallClock();
                 real64 SecondsElapsed = Win32GetSecondsElapsed(FrameStartTime, FrameEndTime);

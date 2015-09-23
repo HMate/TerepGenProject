@@ -1,6 +1,66 @@
 
 #include "terepgen_dx_renderer.h"
 
+internal HRESULT 
+LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceView **ShaderResView)
+{
+    HRESULT HResult = E_FAIL;
+    
+    int32 ImgHeight;
+    int32 ImgWidth;
+    int32 SourcePxByteSize;
+    uint32 DestPxByteSize = 4;
+    uint8 *LoadedBitmap = stbi_load(Filename, &ImgWidth, &ImgHeight, &SourcePxByteSize, DestPxByteSize);
+    if(LoadedBitmap)
+    {
+        // NOTE: Get image info
+        D3D11_TEXTURE2D_DESC TextureDesc;
+        TextureDesc.Height = ImgHeight;
+        TextureDesc.Width = ImgWidth;
+        TextureDesc.MipLevels = 0;
+        TextureDesc.ArraySize = 1;
+        TextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        TextureDesc.SampleDesc.Count = 1;
+        TextureDesc.SampleDesc.Quality = 0;
+        TextureDesc.Usage = D3D11_USAGE_DEFAULT;
+        TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+        TextureDesc.CPUAccessFlags = 0;
+        TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+        
+        ID3D11Texture2D* Tex;
+        HResult = DXResources->Device->CreateTexture2D(&TextureDesc, NULL, &Tex);
+        if(FAILED(HResult)) 
+        {
+            stbi_image_free(LoadedBitmap);
+            return HResult;
+        }
+        
+        // NOTE: Should use UpdateSubresource, if the resource isnt loaded every frame
+        uint32 RowPitch = ImgWidth * DestPxByteSize;
+        DXResources->DeviceContext->UpdateSubresource(Tex, 0, NULL, LoadedBitmap, RowPitch, 0);
+        
+        D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc;
+        SrvDesc.Format = TextureDesc.Format;
+        SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        SrvDesc.Texture2D.MostDetailedMip = 0;
+        SrvDesc.Texture2D.MipLevels = (unsigned int)-1;
+        
+        HResult = DXResources->Device->CreateShaderResourceView(Tex, &SrvDesc, ShaderResView);
+        if(FAILED(HResult))
+        {
+            stbi_image_free(LoadedBitmap);
+            return HResult;
+        }
+
+        // NOTE: Generate mipmaps for this texture.
+        DXResources->DeviceContext->GenerateMips(*ShaderResView);
+        
+        stbi_image_free(LoadedBitmap);
+    }
+    
+    return HResult;
+}
+
 HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
 {
     HRESULT HResult;
@@ -231,8 +291,99 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     HResult = Device->CreateInputLayout(ElementDesc, ArrayCount(ElementDesc), 
                 BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), &InputLayout);
     BlobVs->Release();
-    if(FAILED(HResult)) return HResult;
+    if(FAILED(HResult)) 
+    {
+        return HResult;
+    }
+    
     DeviceContext->IASetInputLayout(InputLayout);
+    
+    this->MaxVertexCount = RENDER_BLOCK_VERTEX_COUNT;
+
+    SetTransformations(v3{0,0,0});
+    // ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, 0,
+                                             // 0, 1, 0, 0,
+                                             // 0, 0, 1, 0,
+                                             // 0, 0, 0, 1);
+                                           
+    D3D11_BUFFER_DESC ObjectCBDesc = {};
+    ObjectCBDesc.ByteWidth = sizeof( object_constants );
+    ObjectCBDesc.Usage = D3D11_USAGE_DYNAMIC;
+    ObjectCBDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    ObjectCBDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    ObjectCBDesc.MiscFlags = 0;
+    ObjectCBDesc.StructureByteStride = 0;
+    
+    // D3D11_SUBRESOURCE_DATA ObjCBufferData;
+    // ObjCBufferData.pSysMem = &ObjectConstants;
+    // ObjCBufferData.SysMemPitch = 0;
+    // ObjCBufferData.SysMemSlicePitch = 0;
+    
+    HResult = Device->CreateBuffer(&ObjectCBDesc, NULL, &ObjectConstantBuffer);
+    if(FAILED(HResult)) return HResult;
+
+    // NOTE: Create RasterizerStates
+    D3D11_RASTERIZER_DESC RSDescDefault;
+    ZeroMemory(&RSDescDefault, sizeof(D3D11_RASTERIZER_DESC));
+    RSDescDefault.FillMode = D3D11_FILL_SOLID;
+    RSDescDefault.CullMode = D3D11_CULL_BACK;
+    HResult = Device->CreateRasterizerState(&RSDescDefault, &RSDefault);
+    if(FAILED(HResult)) return HResult;
+    
+    D3D11_RASTERIZER_DESC RSDescWireFrame;
+    ZeroMemory(&RSDescWireFrame, sizeof(D3D11_RASTERIZER_DESC));
+    RSDescWireFrame.FillMode = D3D11_FILL_WIREFRAME;
+    RSDescWireFrame.CullMode = D3D11_CULL_NONE;
+    HResult = Device->CreateRasterizerState(&RSDescWireFrame, &RSWireFrame);
+    if(FAILED(HResult)) return HResult;
+    
+    D3D11_BUFFER_DESC BufferDesc;
+    ZeroMemory(&BufferDesc, sizeof(BufferDesc));
+    BufferDesc.Usage = D3D11_USAGE_DYNAMIC;  
+    // TODO: Instead of MaxVertexCount, i should use the count from CreateRenderVertices here.
+    // Its more precise, but then i cant change the number of vertices.
+    // NOTE: above 120MB vx buffer size dx11 crashes
+    // NOTE: at vertex xize = 48 B, MaxVC = 2621440 is 120MB
+    // TODO: Need to profile if drawing is faster with lower buffer size.
+    // BufferDesc.ByteWidth = sizeof(vertex) * 2621440; // Max buffer size at 48B vertices
+    BufferDesc.ByteWidth = sizeof(vertex) * MaxVertexCount;        
+    BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;   
+    BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    
+    Assert(BufferDesc.ByteWidth <= MEGABYTE(120))
+#if TEREPGEN_DEBUG
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] VertBuff Max Vertex Count: %d\n", MaxVertexCount);
+    OutputDebugStringA(DebugBuffer);
+#endif  
+
+    HResult = Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
+    if(FAILED(HResult)) return HResult;
+        
+    HResult = LoadJPGFromFile(this, "grass.jpg", &GrassTexture);
+    if(FAILED(HResult)) return HResult;
+    HResult = LoadJPGFromFile(this, "lichen_rock_by_darlingstock.jpg", &RockTexture);
+    if(FAILED(HResult)) return HResult;
+    
+    D3D11_SAMPLER_DESC SampDesc;
+	ZeroMemory( &SampDesc, sizeof(SampDesc) );
+	SampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	SampDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+	SampDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SampDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    SampDesc.MinLOD = 0;
+    SampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    
+    HResult = Device->CreateSamplerState(&SampDesc, &TexSamplerState);
+    if(FAILED(HResult))
+    {
+        return HResult;
+    }
+    
+    DeviceContext->PSSetShaderResources(0, 1, &GrassTexture);
+    DeviceContext->PSSetShaderResources(1, 1, &RockTexture);
+    DeviceContext->PSSetSamplers(0, 1, &TexSamplerState);
     
     return HResult;
 }
@@ -263,6 +414,26 @@ void dx_resource::Release()
     {
         SwapChain->SetFullscreenState(false, NULL);
     }
+    if(RSDefault)
+    { 
+        RSDefault->Release();
+        RSDefault = nullptr;
+    }
+    if(RSWireFrame)
+    { 
+        RSWireFrame->Release();
+        RSWireFrame = nullptr;
+    }
+    if(ObjectConstantBuffer)
+    { 
+        ObjectConstantBuffer->Release();
+        ObjectConstantBuffer = nullptr;
+    }
+    if(VertexBuffer)
+    { 
+        VertexBuffer->Release();
+        VertexBuffer = nullptr;
+    }
     if(TerrainVS) 
     {
         TerrainVS->Release();
@@ -272,6 +443,11 @@ void dx_resource::Release()
     {
         TerrainPS->Release();
         TerrainPS = nullptr;
+    }
+    if(LinePS) 
+    {
+        LinePS->Release();
+        LinePS = nullptr;
     }
     if(DepthStencilView) 
     {
@@ -389,219 +565,55 @@ char* dx_resource::GetDebugMessage(DWORD dwErrorMsgId)
     return pBuffer;
 }
 
-// ****
-// **** RENDERER
-// ****
-
-terrain_renderer::terrain_renderer()
+void dx_resource::SetTransformations(v3 Translation)
 {
-    DXReleased = false;
-    VertexBuffer = nullptr;
-    ObjectConstantBuffer = nullptr;
+    ObjectConstants.WorldMatrix = DirectX::XMFLOAT4X4(1, 0, 0, Translation.X,
+                                                      0, 1, 0, Translation.Y,
+                                                      0, 0, 1, Translation.Z,
+                                                      0, 0, 0, 1);
 }
 
-internal HRESULT 
-LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceView **ShaderResView)
+void dx_resource::SetDrawModeDefault(void)
 {
-    HRESULT HResult = E_FAIL;
-    
-    int32 ImgHeight;
-    int32 ImgWidth;
-    int32 SourcePxByteSize;
-    uint32 DestPxByteSize = 4;
-    uint8 *LoadedBitmap = stbi_load(Filename, &ImgWidth, &ImgHeight, &SourcePxByteSize, DestPxByteSize);
-    if(LoadedBitmap)
-    {
-        // NOTE: Get image info
-        D3D11_TEXTURE2D_DESC TextureDesc;
-        TextureDesc.Height = ImgHeight;
-        TextureDesc.Width = ImgWidth;
-        TextureDesc.MipLevels = 0;
-        TextureDesc.ArraySize = 1;
-        TextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        TextureDesc.SampleDesc.Count = 1;
-        TextureDesc.SampleDesc.Quality = 0;
-        TextureDesc.Usage = D3D11_USAGE_DEFAULT;
-        TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-        TextureDesc.CPUAccessFlags = 0;
-        TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-        
-        ID3D11Texture2D* Tex;
-        HResult = DXResources->Device->CreateTexture2D(&TextureDesc, NULL, &Tex);
-        if(FAILED(HResult)) 
-        {
-            stbi_image_free(LoadedBitmap);
-            return HResult;
-        }
-        
-        // NOTE: Should use UpdateSubresource, if the resource isnt loaded every frame
-        uint32 RowPitch = ImgWidth * DestPxByteSize;
-        DXResources->DeviceContext->UpdateSubresource(Tex, 0, NULL, LoadedBitmap, RowPitch, 0);
-        
-        D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc;
-        SrvDesc.Format = TextureDesc.Format;
-        SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-        SrvDesc.Texture2D.MostDetailedMip = 0;
-        SrvDesc.Texture2D.MipLevels = (unsigned int)-1;
-        
-        HResult = DXResources->Device->CreateShaderResourceView(Tex, &SrvDesc, ShaderResView);
-        if(FAILED(HResult))
-        {
-            stbi_image_free(LoadedBitmap);
-            return HResult;
-        }
-
-        // NOTE: Generate mipmaps for this texture.
-        DXResources->DeviceContext->GenerateMips(*ShaderResView);
-        
-        stbi_image_free(LoadedBitmap);
-    }
-    
-    return HResult;
+    DeviceContext->RSSetState(RSDefault);
 }
 
-HRESULT terrain_renderer::Initialize(dx_resource *DXResources)
+void dx_resource::SetDrawModeWireframe(void)
 {
-    DXReleased = false;
-    this->DXResource = DXResources;
-    this->MaxVertexCount = RENDER_BLOCK_VERTEX_COUNT;
-    ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, 0,
-                                             0, 1, 0, 0,
-                                             0, 0, 1, 0,
-                                             0, 0, 0, 1);
-                                           
-    D3D11_BUFFER_DESC ObjectCBDesc = {};
-    ObjectCBDesc.ByteWidth = sizeof( object_constants );
-    ObjectCBDesc.Usage = D3D11_USAGE_DYNAMIC;
-    ObjectCBDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    ObjectCBDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    ObjectCBDesc.MiscFlags = 0;
-    ObjectCBDesc.StructureByteStride = 0;
-    
-    // D3D11_SUBRESOURCE_DATA ObjCBufferData;
-    // ObjCBufferData.pSysMem = &ObjectConstants;
-    // ObjCBufferData.SysMemPitch = 0;
-    // ObjCBufferData.SysMemSlicePitch = 0;
-    
-    HRESULT HResult;
-    HResult = DXResources->Device->CreateBuffer(&ObjectCBDesc, NULL, &ObjectConstantBuffer);
-    if(FAILED(HResult)) return HResult;
-
-    // NOTE: Create RasterizerStates
-    D3D11_RASTERIZER_DESC RSDescDefault;
-    ZeroMemory(&RSDescDefault, sizeof(D3D11_RASTERIZER_DESC));
-    RSDescDefault.FillMode = D3D11_FILL_SOLID;
-    RSDescDefault.CullMode = D3D11_CULL_BACK;
-    HResult = DXResources->Device->CreateRasterizerState(&RSDescDefault, &RSDefault);
-    if(FAILED(HResult)) return HResult;
-    
-    D3D11_RASTERIZER_DESC RSDescWireFrame;
-    ZeroMemory(&RSDescWireFrame, sizeof(D3D11_RASTERIZER_DESC));
-    RSDescWireFrame.FillMode = D3D11_FILL_WIREFRAME;
-    RSDescWireFrame.CullMode = D3D11_CULL_NONE;
-    HResult = DXResources->Device->CreateRasterizerState(&RSDescWireFrame, &RSWireFrame);
-    if(FAILED(HResult)) return HResult;
-    
-    D3D11_BUFFER_DESC BufferDesc;
-    ZeroMemory(&BufferDesc, sizeof(BufferDesc));
-    BufferDesc.Usage = D3D11_USAGE_DYNAMIC;  
-    // TODO: Instead of MaxVertexCount, i should use the count from CreateRenderVertices here.
-    // Its more precise, but then i cant change the number of vertices.
-    // NOTE: above 120MB vx buffer size dx11 crashes
-    // NOTE: at vertex xize = 48 B, MaxVC = 2621440 is 120MB
-    // TODO: Need to profile if drawing is faster with lower buffer size.
-    // BufferDesc.ByteWidth = sizeof(vertex) * 2621440; // Max buffer size at 48B vertices
-    BufferDesc.ByteWidth = sizeof(vertex) * MaxVertexCount;        
-    BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;   
-    BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    
-    Assert(BufferDesc.ByteWidth <= MEGABYTE(120))
-#if TEREPGEN_DEBUG
-    char DebugBuffer[256];
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] VertBuff Max Vertex Count: %d\n", MaxVertexCount);
-    OutputDebugStringA(DebugBuffer);
-#endif  
-
-    HResult = DXResources->Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
-    if(FAILED(HResult)) return HResult;
-        
-    HResult = LoadJPGFromFile(DXResources, "grass.jpg", &GrassTexture);
-    if(FAILED(HResult)) return HResult;
-    HResult = LoadJPGFromFile(DXResources, "lichen_rock_by_darlingstock.jpg", &RockTexture);
-    if(FAILED(HResult)) return HResult;
-    
-    D3D11_SAMPLER_DESC SampDesc;
-	ZeroMemory( &SampDesc, sizeof(SampDesc) );
-	SampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	SampDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
-	SampDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
-    SampDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
-    SampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    SampDesc.MinLOD = 0;
-    SampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    
-    HResult = DXResources->Device->CreateSamplerState(&SampDesc, &TexSamplerState);
-    if(FAILED(HResult))
-    {
-        return HResult;
-    }
-    
-    DXResources->DeviceContext->PSSetShaderResources(0, 1, &GrassTexture);
-    DXResources->DeviceContext->PSSetShaderResources(1, 1, &RockTexture);
-    DXResources->DeviceContext->PSSetSamplers(0, 1, &TexSamplerState);
-    
-    return HResult; 
+    DeviceContext->RSSetState(RSWireFrame);
 }
 
-void terrain_renderer::SetTransformations(v3 Translation)
+void dx_resource::DrawTriangles(vertex *Vertices, uint32 VertCount)
 {
-    ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, Translation.X,
-                                             0, 1, 0, Translation.Y,
-                                             0, 0, 1, Translation.Z,
-                                             0, 0, 0, 1);
-}
-
-void terrain_renderer::SetDrawModeDefault(void)
-{
-    DXResource->DeviceContext->RSSetState(RSDefault);
-}
-
-void terrain_renderer::SetDrawModeWireframe(void)
-{
-    DXResource->DeviceContext->RSSetState(RSWireFrame);
-}
-
-void terrain_renderer::DrawTriangles(vertex *Vertices, uint32 VertCount)
-{
-    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+    LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
        
     uint32 stride = sizeof(vertex);
     uint32 offset = 0;
-    DXResource->LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount); 
+    LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount); 
     
-    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    DXResource->DeviceContext->Draw(VertCount, 0);
+    DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    DeviceContext->Draw(VertCount, 0);
 }
 
-void terrain_renderer::DrawLines(vertex *Vertices, uint32 VertCount)
+void dx_resource::DrawLines(vertex *Vertices, uint32 VertCount)
 {      
-    DXResource->LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DXResource->DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+    LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
        
     uint32 stride = sizeof(vertex);
     uint32 offset = 0;
-    DXResource->LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount);    
+    LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount);    
     
-    DXResource->DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DXResource->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    DXResource->DeviceContext->Draw(VertCount, 0);
+    DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    DeviceContext->Draw(VertCount, 0);
 }
 
-void terrain_renderer::DrawDebugTriangle()
+void dx_resource::DrawDebugTriangle()
 {       
-    DXResource->DeviceContext->RSSetState(RSDefault);
+    DeviceContext->RSSetState(RSDefault);
     
     const uint32 FalseCount = 3;
     color Color{1.0f, 0.0f, 0.0f, 1.0f};
@@ -612,26 +624,10 @@ void terrain_renderer::DrawDebugTriangle()
     Assert(!"Curently not implemented!");
 }
 
-void terrain_renderer::Release()
-{
-    if(RSDefault) RSDefault->Release();
-    if(RSWireFrame) RSWireFrame->Release();
-    if(ObjectConstantBuffer) ObjectConstantBuffer->Release();
-    if(VertexBuffer) VertexBuffer->Release();
-    DXReleased = true;
-}
-   
-terrain_renderer::~terrain_renderer()
-{
-    if(!DXReleased) Release();
-}
-
 
 // ****
 // **** CAMERA
 // ****
-
-using namespace DirectX;
 
 v3 camera::GetPos()
 {
@@ -641,6 +637,7 @@ v3 camera::GetPos()
 
 v3 camera::GetLookDirection()
 {
+    using namespace DirectX;
     v3 Result = {};
     XMVECTOR TargetDirection =  XMLoadFloat3(&TargetPos) - XMLoadFloat3(&Position);
     Result.X = XMVectorGetX(TargetDirection);
@@ -651,6 +648,7 @@ v3 camera::GetLookDirection()
 
 void camera::Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 ScreenHeight, real32 CamSpeed)
 {   
+    using namespace DirectX;
     CameraSpeed = CamSpeed;
     XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
         XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));            
@@ -699,6 +697,7 @@ void camera::Release()
 
 void camera::Update(input *Input, real64 TimeDelta)
 {
+    using namespace DirectX;
     XMFLOAT3 dCameraPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
     XMVECTOR TargetDirection =  XMLoadFloat3(&TargetPos) - XMLoadFloat3(&Position);
     if(Input->SpeedUp) 
@@ -760,19 +759,18 @@ void camera::Update(input *Input, real64 TimeDelta)
     auto dMouseY = Input->MouseY - Input->OldMouseY;
     if(MouseLeftIsDown && (dMouseX != 0 || dMouseY != 0))
     {
+#if TEREPGEN_DEBUG
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Mouse dX: %d, dY: %d Time: %f\n", dMouseX, dMouseY, (real32)TimeDelta);
+        OutputDebugStringA(DebugBuffer);
+#endif   
         XMVECTOR NewTargetDir = TargetDirection;
-        NewTargetDir = NewTargetDir + 
-            XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection) * (real32)dMouseX + 
-            XMLoadFloat3(&UpDirection) * (real32)dMouseY;
-        // NOTE: Divide by 30 is just to slow down the rotation/frame
-        real32 Angle = XMScalarACos( XMVectorGetX(
-            XMVector3Dot(NewTargetDir, TargetDirection) /
-            (XMVector3Length(NewTargetDir) * XMVector3Length(TargetDirection)))) / 30.0f;
-                
-        XMVECTOR Axis = XMVector3Cross(NewTargetDir, TargetDirection);
+        
+        NewTargetDir = XMVector3Transform(TargetDirection, XMMatrixRotationNormal(
+                XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection), -(real32)dMouseY/100.0f));
         
         XMStoreFloat3(&TargetPos,
-            XMVector3Transform(TargetDirection, XMMatrixRotationAxis(Axis, -Angle)) +
+            XMVector3Transform(NewTargetDir, XMMatrixRotationNormal(XMLoadFloat3(&UpDirection), (real32)dMouseX/100.0f)) +
                 XMLoadFloat3(&Position));
     }
               
@@ -789,6 +787,7 @@ void camera::Update(input *Input, real64 TimeDelta)
     
 void camera::Resize(uint32 ScreenWidth, uint32 ScreenHeight)
 {
+    using namespace DirectX;
     if(ScreenWidth && ScreenHeight)
     {
 #if TEREPGEN_DEBUG

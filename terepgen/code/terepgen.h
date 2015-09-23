@@ -61,7 +61,7 @@ struct game_state
 };
 
 internal void UpdateGameState(game_state);
-internal void RenderGame(dx_resource *DXResources, camera *Camera, terrain_renderer *TRenderer, game_state *GameState);
+internal void RenderGame(dx_resource *DXResources, camera *Camera, game_state *GameState);
 
 #define TEREPGEN_H
 #endif

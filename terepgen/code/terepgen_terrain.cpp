@@ -199,7 +199,7 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
     }
     RenderBlock->VertexCount = VertexCount;
     
-#if TEREPGEN_DEBUG
+#if 0 //TEREPGEN_DEBUG
     char DebugBuffer[256];
     sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Current Vertex Count: %d\n", VertexCount);
     OutputDebugStringA(DebugBuffer);

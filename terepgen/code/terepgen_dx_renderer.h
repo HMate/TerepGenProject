@@ -30,79 +30,65 @@ struct object_constants
 
 struct dx_resource
 {
+    object_constants ObjectConstants;
+    
     IDXGISwapChain *SwapChain = nullptr;
     ID3D11Device *Device = nullptr;
     ID3D11DeviceContext *DeviceContext = nullptr;
+    
     ID3D11RenderTargetView *BackBuffer = nullptr;
-    ID3D11InputLayout *InputLayout = nullptr;
     ID3D11DepthStencilView *DepthStencilView = nullptr;
     ID3D11Texture2D *DepthStencilBuffer = nullptr;
     ID3D11DepthStencilState *DepthStencilState = nullptr;
     
+    ID3D11Buffer *ObjectConstantBuffer = nullptr;
+    ID3D11Buffer *VertexBuffer = nullptr;  
+    ID3D11RasterizerState *RSWireFrame = nullptr; 
+    ID3D11RasterizerState *RSDefault = nullptr;
+    
+    ID3D11InputLayout *InputLayout = nullptr;
+    
     ID3D11VertexShader *TerrainVS = nullptr;
     ID3D11PixelShader *TerrainPS = nullptr;
     ID3D11PixelShader *LinePS = nullptr;
+    
+    ID3D11ShaderResourceView* GrassTexture = nullptr;
+    ID3D11ShaderResourceView* RockTexture = nullptr;
+    ID3D11SamplerState* TexSamplerState = nullptr;
         
     int32 VideoCardMemory;
     char VideoCardDescription[128];
+    uint32 MaxVertexCount;
     
     HRESULT Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight);
     void Release();
     
     void LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize);
-    
-    HRESULT Resize(uint32 ScreenWidth, uint32 ScreenHeight);
-    char* GetDebugMessage(DWORD dwErrorMsgId);
-};
-
-struct terrain_renderer
-{
-    dx_resource *DXResource;
-    object_constants ObjectConstants;
-    ID3D11Buffer *ObjectConstantBuffer;
-    ID3D11Buffer *VertexBuffer;  
-    ID3D11RasterizerState *RSWireFrame = nullptr; 
-    ID3D11RasterizerState *RSDefault = nullptr;
-    
-    ID3D11ShaderResourceView* GrassTexture = nullptr;
-    ID3D11ShaderResourceView* RockTexture = nullptr;
-    ID3D11SamplerState* TexSamplerState = nullptr;
-    
-    uint32 MaxVertexCount;
-    bool32 DXReleased;
-    
-    terrain_renderer();
-    terrain_renderer(const terrain_renderer&) = delete;
-    
-    HRESULT Initialize(dx_resource *DXResources);
-    ~terrain_renderer();
-    void Release();
-    
     void SetTransformations(v3 Translation);
     void SetDrawModeDefault(void);
     void SetDrawModeWireframe(void);
     void DrawTriangles(vertex *Vertices, uint32 VertexCount);
     void DrawLines(vertex *Vertices, uint32 VertCount);
     void DrawDebugTriangle();
+    
+    HRESULT Resize(uint32 ScreenWidth, uint32 ScreenHeight);
+    char* GetDebugMessage(DWORD dwErrorMsgId);
 };
-
-
-using namespace DirectX;
 
 struct camera
 {
-    XMFLOAT3 Position = XMFLOAT3(0, 0, 0);
-    XMFLOAT3 TargetPos = XMFLOAT3(0, 0, 1);
-    XMFLOAT3 UpDirection = XMFLOAT3(0, 1, 0);
+    DirectX::XMFLOAT3 Position = DirectX::XMFLOAT3(0, 0, 0);
+    DirectX::XMFLOAT3 TargetPos = DirectX::XMFLOAT3(0, 0, 1);
+    DirectX::XMFLOAT3 UpDirection = DirectX::XMFLOAT3(0, 1, 0);
     real32 CameraSpeed = 60.0f;
     
     real32 Fov = 3.14f * 0.35f;
     real32 NearClipZ = 10.0f;
     real32 FarClipZ = 100000.0f;
     
-    XMFLOAT4X4 ViewMx;
-    XMFLOAT4X4 ProjMx;
-    XMFLOAT4X4 ViewProjMx;
+    DirectX::XMFLOAT4X4 ViewMx;
+    DirectX::XMFLOAT4X4 ProjMx;
+    DirectX::XMFLOAT4X4 ViewProjMx;
     
     ID3D11Buffer *SceneConstantBuffer;
     scene_constants SceneConstants;
