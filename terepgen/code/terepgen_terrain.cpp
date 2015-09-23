@@ -55,6 +55,15 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
     }
 }
 
+internal vertex
+Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
+{
+    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
+                     Normal.X, Normal.Y, Normal.Z,
+                     Color};
+    return Result;
+}
+
 internal v3
 GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
 {    
@@ -88,15 +97,6 @@ GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
         
     v3 Result = v3{NormalX, NormalY, NormalZ};
     Result = Normalize(Result);
-    return Result;
-}
-
-internal vertex
-Get3DGridVertex(v3 LocalPos, v3 Normal, color Color)
-{
-    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
-                     Normal.X, Normal.Y, Normal.Z,
-                     Color};
     return Result;
 }
 

@@ -7,13 +7,13 @@
 #include "terepgen_types.h"
 #include "terepgen_grid.h"
 #include "terepgen_vector.h"
-#include "terepgen_dxresources.h"
+#include "terepgen_dx_renderer.h"
 #include "terepgen_terrain.h"
 
 
 #include "terepgen_random.cpp"
 #include "terepgen_terrain.cpp"
-#include "terepgen_renderer.cpp"
+#include "terepgen_dx_renderer.cpp"
 
 
 struct world_block_pos
@@ -61,7 +61,7 @@ struct game_state
 };
 
 internal void UpdateGameState(game_state);
-internal void RenderGame(terrain_renderer *TRenderer, game_state *GameState);
+internal void RenderGame(dx_resource *DXResources, camera *Camera, terrain_renderer *TRenderer, game_state *GameState);
 
 #define TEREPGEN_H
 #endif

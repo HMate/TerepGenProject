@@ -16,7 +16,6 @@
 
 #include "terepgen.cpp"
 // TODO: Should the render code be a separately compiled cpp?
-//#include "terepgen_dxresources.h"
 
 global_variable bool32 GlobalRunning = true;
 global_variable input GlobalInput;
@@ -324,22 +323,7 @@ WinMain(HINSTANCE Instance,
                 GameState->RenderMode = GlobalInput.RenderMode;
                 UpdateGameState(GameState);
                 
-                // NOTE: Rendering
-                DXResources.LoadResource(Camera.SceneConstantBuffer,
-                              &Camera.SceneConstants, sizeof(Camera.SceneConstants));
-                
-                color BackgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
-                DXResources.DeviceContext->ClearDepthStencilView(DXResources.DepthStencilView, 
-                    D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, 1.0f, 0);
-                DXResources.DeviceContext->ClearRenderTargetView(DXResources.BackBuffer, BackgroundColor.C);
-                
-                TRenderer.DrawAxis(256.0f);
-                // TRenderer.DrawDebugTriangle();
-                
-                RenderGame(&TRenderer, GameState);
-                
-                DXResources.SwapChain->Present(0, 0);
-                
+                RenderGame(&DXResources, &Camera, &TRenderer, GameState);
                 
                 LARGE_INTEGER FrameEndTime = Win32GetWallClock();
                 real64 SecondsElapsed = Win32GetSecondsElapsed(FrameStartTime, FrameEndTime);

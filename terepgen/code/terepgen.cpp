@@ -371,8 +371,19 @@ UpdateGameState(game_state *GameState)
 }
 
 internal void
-RenderGame(terrain_renderer *Renderer, game_state *GameState)
+RenderGame(dx_resource *DXResources, camera *Camera, terrain_renderer *Renderer, game_state *GameState)
 {
+    DXResources->LoadResource(Camera->SceneConstantBuffer,
+                  &Camera->SceneConstants, sizeof(Camera->SceneConstants));
+    
+    color BackgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
+    DXResources->DeviceContext->ClearDepthStencilView(DXResources->DepthStencilView, 
+        D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, 1.0f, 0);
+    DXResources->DeviceContext->ClearRenderTargetView(DXResources->BackBuffer, BackgroundColor.C);
+    
+    Renderer->DrawAxis(256.0f);
+    // TRenderer.DrawDebugTriangle();
+
     if(GameState->RenderMode)
     {
         Renderer->SetDrawModeWireframe();
@@ -392,4 +403,6 @@ RenderGame(terrain_renderer *Renderer, game_state *GameState)
             GameState->RenderBlocks[RenderBlockIndex]->VertexCount);
         Renderer->SetTransformations(v3{});
     }
+    
+    DXResources->SwapChain->Present(0, 0);
 }
