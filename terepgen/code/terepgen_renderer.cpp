@@ -17,47 +17,14 @@ LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceVi
 {
     HRESULT HResult = E_FAIL;
     
-    FREE_IMAGE_FORMAT ImgFormat = FreeImage_GetFileType(Filename, 0);
-    // TODO: Should I support any other format than jpg?
-    Assert(ImgFormat == FIF_JPEG);
-    FIBITMAP *LoadedBitmap = FreeImage_Load(ImgFormat, Filename, JPEG_DEFAULT);
+    int32 ImgHeight;
+    int32 ImgWidth;
+    int32 SourcePxByteSize;
+    uint32 DestPxByteSize = 4;
+    uint8 *LoadedBitmap = stbi_load(Filename, &ImgWidth, &ImgHeight, &SourcePxByteSize, DestPxByteSize);
     if(LoadedBitmap)
     {
         // NOTE: Get image info
-        uint32 PixelBitSize = FreeImage_GetBPP(LoadedBitmap);
-        uint32 SourcePxByteSize = PixelBitSize/8;
-        uint32 ImgHeight = FreeImage_GetHeight(LoadedBitmap);
-        uint32 ImgWidth = FreeImage_GetWidth(LoadedBitmap);
-        uint32 ImgType = FreeImage_GetImageType(LoadedBitmap);
-        Assert(ImgType == FIT_BITMAP);
-        
-        uint32 DestPxByteSize = 4;
-        uint8 *Img = new uint8[ImgWidth * ImgHeight * DestPxByteSize];
-        /* TODO: Better memory handling
-        VirtualAlloc(0, FileSize32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-        VirtualFree(Memory, 0, MEM_RELEASE);*/
-        
-        uint8 *Dest = Img;
-        for(size_t RowIndex = 0;
-            RowIndex < ImgHeight;
-            RowIndex++)
-        {
-            uint8* Source = FreeImage_GetScanLine(LoadedBitmap, (int32)RowIndex);
-            
-            for(size_t PxIndex = 0;
-                PxIndex < ImgWidth;
-                PxIndex++)
-            {
-                Dest[0] = Source[FI_RGBA_RED];
-                Dest[1] = Source[FI_RGBA_GREEN];
-                Dest[2] = Source[FI_RGBA_BLUE];
-                Dest[3] = 0;
-                
-                Source += SourcePxByteSize;
-                Dest += DestPxByteSize;
-            }
-        }
-    
         D3D11_TEXTURE2D_DESC TextureDesc;
         TextureDesc.Height = ImgHeight;
         TextureDesc.Width = ImgWidth;
@@ -75,15 +42,13 @@ LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceVi
         HResult = DXResources->Device->CreateTexture2D(&TextureDesc, NULL, &Tex);
         if(FAILED(HResult)) 
         {
-            delete[] Img;
-            FreeImage_Unload(LoadedBitmap);
+            stbi_image_free(LoadedBitmap);
             return HResult;
         }
-            
-        //DXResources->LoadResource(Tex, *grassBitmap, GrassSizeInBytes);
+        
         // NOTE: Should use UpdateSubresource, if the resource isnt loaded every frame
-        uint32 RowPitch = ImgWidth * SourcePxByteSize;
-        DXResources->DeviceContext->UpdateSubresource(Tex, 0, NULL, Img, RowPitch, 0);
+        uint32 RowPitch = ImgWidth * DestPxByteSize;
+        DXResources->DeviceContext->UpdateSubresource(Tex, 0, NULL, LoadedBitmap, RowPitch, 0);
         
         D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc;
         SrvDesc.Format = TextureDesc.Format;
@@ -94,16 +59,14 @@ LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceVi
         HResult = DXResources->Device->CreateShaderResourceView(Tex, &SrvDesc, ShaderResView);
         if(FAILED(HResult))
         {
-            delete[] Img;
-            FreeImage_Unload(LoadedBitmap);
-            return false;
+            stbi_image_free(LoadedBitmap);
+            return HResult;
         }
 
         // NOTE: Generate mipmaps for this texture.
         DXResources->DeviceContext->GenerateMips(*ShaderResView);
         
-        delete[] Img;
-        FreeImage_Unload(LoadedBitmap);
+        stbi_image_free(LoadedBitmap);
     }
     
     return HResult;

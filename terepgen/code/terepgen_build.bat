@@ -19,8 +19,8 @@ REM -WX Treat warnings as errors
 set CommonCompilerFlags= -MTd -nologo -Od -Z7 -EHsc -DTEREPGEN_DEBUG=1 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189
 REM -opt:ref Eliminates functions and data that are not referenced
 set CommonLinkerFlags= -incremental:no -opt:ref^
- user32.lib d3d11.lib dxgi.lib d3dcompiler.lib ..\code\external\FreeImage\FreeImage.lib
-
+ user32.lib d3d11.lib dxgi.lib d3dcompiler.lib 
+ 
 REM List the cpp files to compile here
 set CompiledFiles= ..\code\windows_terepgen.cpp
 

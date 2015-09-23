@@ -84,6 +84,3 @@ $RECYCLE.BIN/
 # ==== Project Specific Files========
 misc/
 build/
-
-!/terepgen/code/external/FreeImage/FreeImage.lib
-!/terepgen/code/external/FreeImage/FreeImage.dll

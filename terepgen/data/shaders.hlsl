@@ -55,7 +55,7 @@ float4 PShader(VOut input) : SV_TARGET
     const float4 colorRed = {1.0f, 0.0f, 0.0f, 1.0f};
     const float4 colorBlack = {0.0f, 0.0f, 0.0f, 1.0f};
     // const float3 tex_scale = {1.0/450.0, 1.0/160.0, 1.0/325.0};
-    const float3 tex_scale = {0.5, 1.0, 0.3};
+    const float3 tex_scale = {0.1, 0.1, 0.1};
     
     float cosTheta = dot(sunDir, input.normal);
     if(cosTheta > 0.0f) cosTheta = -cosTheta/3.0;

@@ -6,7 +6,8 @@
 #include <windows.h>
 #include <stdio.h>
 
-#include "external\FreeImage\FreeImage.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "external\stb\stb_image.h"
 
 #include <d3dcompiler.h>
 #include <dxgi.h>
@@ -14,6 +15,7 @@
 #include <DirectXMath.h>
 
 #include "terepgen.cpp"
+// TODO: Should the render code be a separately compiled cpp?
 //#include "terepgen_dxresources.h"
 
 global_variable bool32 GlobalRunning = true;
@@ -239,8 +241,6 @@ WinMain(HINSTANCE Instance,
                 DXResources.Release();
                 return 1;
             }
-            // NOTE: Init FreeImage for image loading
-            FreeImage_Initialise(true);
             
             camera Camera;
             Camera.Initialize(&DXResources, ScreenInfo.Width, ScreenInfo.Height, 20.0f);
@@ -263,15 +263,12 @@ WinMain(HINSTANCE Instance,
                 MessageBox(NULL, DebugBuffer, NULL, MB_OK);
 #endif
                 
-                FreeImage_DeInitialise();
                 TRenderer.Release();
                 Camera.Release();
                 DXResources.Release();
                 return 1;
             }
-            
-            FreeImage_DeInitialise();
-            
+                        
             LARGE_INTEGER FrameStartTime = Win32GetWallClock();
             LARGE_INTEGER WorldTime = FrameStartTime;
             QueryPerformanceFrequency(&GlobalPerfCountFrequency);
