@@ -381,8 +381,25 @@ RenderGame(dx_resource *DXResources, camera *Camera, game_state *GameState)
         D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, 1.0f, 0);
     DXResources->DeviceContext->ClearRenderTargetView(DXResources->BackBuffer, BackgroundColor.C);
     
+    // NOTE: Background rendering
+    DXResources->SetDrawModeDefault();
+    DXResources->DeviceContext->IASetInputLayout(DXResources->BackgroundInputLayout);
+    DXResources->DeviceContext->VSSetShader(DXResources->BackgroundVS, 0, 0);
+    DXResources->DeviceContext->PSSetShader(DXResources->BackgroundPS, 0, 0);
+    
+    v3 BGVertices[6] = {{-1.0, -1.0, 0.99f},
+                        {-1.0,  1.0, 0.99f},
+                        { 1.0, -1.0, 0.99f},
+                        { 1.0, -1.0, 0.99f},
+                        {-1.0,  1.0, 0.99f},
+                        { 1.0,  1.0, 0.99f}};
+    DXResources->SetTransformations(v3{});
+    DXResources->DrawBackground(BGVertices, 6);
+    
     // NOTE: Render axis
     DXResources->SetDrawModeDefault();
+    DXResources->DeviceContext->IASetInputLayout(DXResources->TerrainInputLayout);
+    DXResources->DeviceContext->VSSetShader(DXResources->TerrainVS, 0, 0);
     DXResources->DeviceContext->PSSetShader(DXResources->LinePS, 0, 0);
     real32 AxisSize = 256;
     const uint32 VertCount = 6;
@@ -408,6 +425,8 @@ RenderGame(dx_resource *DXResources, camera *Camera, game_state *GameState)
         DXResources->SetDrawModeDefault();
     }
     
+    DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    DXResources->DeviceContext->VSSetShader(DXResources->TerrainVS, 0, 0);
     DXResources->DeviceContext->PSSetShader(DXResources->TerrainPS, 0, 0);
     
     for(size_t RenderBlockIndex = 0; 

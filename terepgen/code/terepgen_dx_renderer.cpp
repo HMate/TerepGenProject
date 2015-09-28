@@ -231,7 +231,7 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     Device->CreateDepthStencilState(&dsDesc, &DepthStencilState);
     DeviceContext->OMSetDepthStencilState(DepthStencilState, 1);
             
-    // NOTE: Compile Shaders
+    // NOTE: Compile Terrain Shaders
     ID3D10Blob *BlobVs, *BlobPs;
     ID3D10Blob *BlobError = nullptr;
     
@@ -276,10 +276,6 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
         return HResult;
     }
     Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &LinePS);
-    BlobPs->Release();
-    
-    DeviceContext->VSSetShader(TerrainVS, 0, 0);
-    DeviceContext->PSSetShader(TerrainPS, 0, 0);
     
     // NOTE: Create Input Layout
     D3D11_INPUT_ELEMENT_DESC ElementDesc[] = 
@@ -289,14 +285,57 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
         {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
     HResult = Device->CreateInputLayout(ElementDesc, ArrayCount(ElementDesc), 
-                BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), &InputLayout);
+                BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), &TerrainInputLayout);
     BlobVs->Release();
+    BlobPs->Release();
     if(FAILED(HResult)) 
     {
         return HResult;
     }
     
-    DeviceContext->IASetInputLayout(InputLayout);
+    // NOTE: Background shaders
+    HResult = D3DCompileFromFile(L"shader_background.hlsl", 0, 0, "BackgroundVShader", "vs_4_0", 0, 0, &BlobVs, &BlobError);
+    if(FAILED(HResult))
+    {
+        if(BlobError != nullptr)
+        {
+            OutputDebugStringA((char*)BlobError->GetBufferPointer());
+            MessageBox(Window, (char*)BlobError->GetBufferPointer(),	
+                "Error in VShader", MB_OK | MB_ICONERROR);
+            BlobError->Release();
+        }
+        return HResult;
+    }
+    Device->CreateVertexShader(BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), 0, &BackgroundVS);
+    
+    HResult = D3DCompileFromFile(L"shader_background.hlsl", 0, 0, "BackgroundPShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
+    if(FAILED(HResult))
+    {
+        if(BlobError != nullptr)
+        {
+            OutputDebugStringA((char*)BlobError->GetBufferPointer());
+            MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),	
+                "Error in TerrainPShader", MB_OK | MB_ICONERROR);
+            BlobError->Release();
+        }
+        return HResult;
+    }
+    Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &BackgroundPS);
+    
+    // NOTE: Create Background Input Layout
+                
+    D3D11_INPUT_ELEMENT_DESC BGElementDesc[] = 
+    {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+    HResult = Device->CreateInputLayout(BGElementDesc, ArrayCount(BGElementDesc), 
+                BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), &BackgroundInputLayout);
+    BlobVs->Release();
+    BlobPs->Release();
+    if(FAILED(HResult)) 
+    {
+        return HResult;
+    }
     
     this->MaxVertexCount = RENDER_BLOCK_VERTEX_COUNT;
 
@@ -364,6 +403,12 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     if(FAILED(HResult)) return HResult;
     HResult = LoadJPGFromFile(this, "lichen_rock_by_darlingstock.jpg", &RockTexture);
     if(FAILED(HResult)) return HResult;
+    HResult = LoadJPGFromFile(this, "sky-texture.jpg", &SkyTexture);
+    if(FAILED(HResult)) return HResult;
+    
+    DeviceContext->PSSetShaderResources(0, 1, &GrassTexture);
+    DeviceContext->PSSetShaderResources(1, 1, &RockTexture);
+    DeviceContext->PSSetShaderResources(2, 1, &SkyTexture);
     
     D3D11_SAMPLER_DESC SampDesc;
 	ZeroMemory( &SampDesc, sizeof(SampDesc) );
@@ -380,9 +425,6 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     {
         return HResult;
     }
-    
-    DeviceContext->PSSetShaderResources(0, 1, &GrassTexture);
-    DeviceContext->PSSetShaderResources(1, 1, &RockTexture);
     DeviceContext->PSSetSamplers(0, 1, &TexSamplerState);
     
     return HResult;
@@ -448,6 +490,16 @@ void dx_resource::Release()
     {
         LinePS->Release();
         LinePS = nullptr;
+    }
+    if(BackgroundVS) 
+    {
+        BackgroundVS->Release();
+        BackgroundVS = nullptr;
+    }
+    if(BackgroundPS) 
+    {
+        BackgroundPS->Release();
+        BackgroundPS = nullptr;
     }
     if(DepthStencilView) 
     {
@@ -583,6 +635,20 @@ void dx_resource::SetDrawModeWireframe(void)
     DeviceContext->RSSetState(RSWireFrame);
 }
 
+void dx_resource::DrawBackground(v3 *Vertices, uint32 VertCount)
+{
+    LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+       
+    uint32 stride = sizeof(v3);
+    uint32 offset = 0;
+    LoadResource(VertexBuffer, Vertices, sizeof(v3) * VertCount); 
+    
+    DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+    DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    DeviceContext->Draw(VertCount, 0);
+}
+
 void dx_resource::DrawTriangles(vertex *Vertices, uint32 VertCount)
 {
     LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
@@ -593,7 +659,6 @@ void dx_resource::DrawTriangles(vertex *Vertices, uint32 VertCount)
     LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount); 
     
     DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     DeviceContext->Draw(VertCount, 0);
 }
 
@@ -759,7 +824,7 @@ void camera::Update(input *Input, real64 TimeDelta)
     auto dMouseY = Input->MouseY - Input->OldMouseY;
     if(MouseLeftIsDown && (dMouseX != 0 || dMouseY != 0))
     {
-#if TEREPGEN_DEBUG
+#if 0
         char DebugBuffer[256];
         sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Mouse dX: %d, dY: %d Time: %f\n", dMouseX, dMouseY, (real32)TimeDelta);
         OutputDebugStringA(DebugBuffer);

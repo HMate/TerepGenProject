@@ -46,14 +46,18 @@ struct dx_resource
     ID3D11RasterizerState *RSWireFrame = nullptr; 
     ID3D11RasterizerState *RSDefault = nullptr;
     
-    ID3D11InputLayout *InputLayout = nullptr;
+    ID3D11InputLayout *TerrainInputLayout = nullptr;
+    ID3D11InputLayout *BackgroundInputLayout = nullptr;
     
     ID3D11VertexShader *TerrainVS = nullptr;
     ID3D11PixelShader *TerrainPS = nullptr;
     ID3D11PixelShader *LinePS = nullptr;
+    ID3D11VertexShader *BackgroundVS = nullptr;
+    ID3D11PixelShader *BackgroundPS = nullptr;
     
     ID3D11ShaderResourceView* GrassTexture = nullptr;
     ID3D11ShaderResourceView* RockTexture = nullptr;
+    ID3D11ShaderResourceView* SkyTexture = nullptr;
     ID3D11SamplerState* TexSamplerState = nullptr;
         
     int32 VideoCardMemory;
@@ -67,6 +71,7 @@ struct dx_resource
     void SetTransformations(v3 Translation);
     void SetDrawModeDefault(void);
     void SetDrawModeWireframe(void);
+    void DrawBackground(v3 *Vertices, uint32 VertCount);
     void DrawTriangles(vertex *Vertices, uint32 VertexCount);
     void DrawLines(vertex *Vertices, uint32 VertCount);
     void DrawDebugTriangle();
