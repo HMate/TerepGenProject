@@ -61,6 +61,80 @@ LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceVi
     return HResult;
 }
 
+internal HRESULT 
+LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResView)
+{
+    int32 ImgHeight = 768;
+    int32 ImgWidth = 1024;
+    
+    perlin_noise_generator Perlin;
+    SetSeed(&Perlin, 1000);
+    
+    uint32 *Image = new uint32[ImgHeight*ImgWidth];
+    uint8* Ptr = (uint8*)Image;
+    for(int32 Y = 0;
+        Y < ImgHeight;
+        Y++)
+    {
+        for(int32 X = 0;
+            X < ImgWidth;
+            X++)
+        {
+            real32 Rand = RandomFloat(&Perlin, (real32)Y*5.0f/ImgHeight, (real32)X*5.0f/ImgWidth);
+            Rand = ((Rand + 1.5f) * 128);
+            uint8 BChannel = (uint8) ((Rand > 255.0f) ? 255.0f : Rand);
+            *(Ptr++) = 255;
+            *(Ptr++) = 255;
+            *(Ptr++) = BChannel;
+            *(Ptr++) = 0;
+        }
+    }
+
+    // NOTE: Get image info
+    D3D11_TEXTURE2D_DESC TextureDesc;
+    TextureDesc.Height = ImgHeight;
+    TextureDesc.Width = ImgWidth;
+    TextureDesc.MipLevels = 0;
+    TextureDesc.ArraySize = 1;
+    TextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    TextureDesc.SampleDesc.Count = 1;
+    TextureDesc.SampleDesc.Quality = 0;
+    TextureDesc.Usage = D3D11_USAGE_DEFAULT;
+    TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+    TextureDesc.CPUAccessFlags = 0;
+    TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+    
+    ID3D11Texture2D* Tex;
+    HRESULT HResult = DXResources->Device->CreateTexture2D(&TextureDesc, NULL, &Tex);
+    if(FAILED(HResult)) 
+    {
+        delete[] Image;
+        return HResult;
+    }
+    
+    // NOTE: Should use UpdateSubresource, if the resource isnt loaded every frame
+    uint32 RowPitch = ImgWidth * 4;
+    DXResources->DeviceContext->UpdateSubresource(Tex, 0, NULL, Image, RowPitch, 0);
+    
+    D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc;
+    SrvDesc.Format = TextureDesc.Format;
+    SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    SrvDesc.Texture2D.MostDetailedMip = 0;
+    SrvDesc.Texture2D.MipLevels = (unsigned int)-1;
+    
+    HResult = DXResources->Device->CreateShaderResourceView(Tex, &SrvDesc, ShaderResView);
+    delete[] Image;
+    if(FAILED(HResult))
+    {
+        return HResult;
+    }
+
+    // NOTE: Generate mipmaps for this texture.
+    DXResources->DeviceContext->GenerateMips(*ShaderResView);
+    
+    return HResult;
+}
+
 HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
 {
     HRESULT HResult;
@@ -403,7 +477,9 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     if(FAILED(HResult)) return HResult;
     HResult = LoadJPGFromFile(this, "lichen_rock_by_darlingstock.jpg", &RockTexture);
     if(FAILED(HResult)) return HResult;
-    HResult = LoadJPGFromFile(this, "sky-texture.jpg", &SkyTexture);
+    // HResult = LoadJPGFromFile(this, "sky-texture.jpg", &SkyTexture);
+    // if(FAILED(HResult)) return HResult;
+    HResult = LoadBackground(this, &SkyTexture);
     if(FAILED(HResult)) return HResult;
     
     DeviceContext->PSSetShaderResources(0, 1, &GrassTexture);

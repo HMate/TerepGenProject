@@ -26,6 +26,7 @@ MtSeed(unsigned long s)
 	}
 }
 
+// NOTE: Gives back a random long integer in [0-max_long]
 internal unsigned long 
 MtRand(void)
 {
@@ -58,6 +59,7 @@ MtRand(void)
 	return y;
 }
 
+// NOTE: Gives back a random real number in [(-1.0) - (1.0)]
 internal real32 
 MtStandardDeviate(void)
 {
@@ -65,6 +67,8 @@ MtStandardDeviate(void)
     Assert(Result < 1.0f && Result > -1.0f);
     return Result;
 }
+
+// Value noise
 
 inline real32
 Lerp(real32 A, real32 B, real32 X)
@@ -140,9 +144,12 @@ RandomFloat(value_noise_generator *Generator, v3 WorldPos)
     return Result;
 }
 
+// Perlin noise
+
 struct perlin_noise_generator
 {
 	uint32 Seed;
+	v2 GradientTexV2[RANDOM_TEX_SIZE*RANDOM_TEX_SIZE];
 	v3 GradientTex[RANDOM_TEX_SIZE*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE];
 };
 
@@ -168,6 +175,60 @@ SetSeed(perlin_noise_generator *Generator, uint32 NewSeed)
         uint32 Rand = MtRand();
         Generator->GradientTex[Index] = PseudoGradientTable[Rand % 12];
     }
+    
+    TexSize = ArrayCount(Generator->GradientTexV2);
+    for(uint32 Index = 0; Index < TexSize; Index++)
+    {
+        real32 X = MtStandardDeviate();
+        real32 Y = Sqrt(1.0f - X*X);
+        uint32 YSign = (uint32)(MtRand() & 1);
+        if(YSign)
+        {
+            Y = -Y;
+        }
+		v2 Gradient = { X, Y };
+        real32 Len = Length(Gradient);
+		Assert(Len >= 0.9999f && Len <= 1.0001);
+        Generator->GradientTexV2[Index] = v2{X, Y}; 
+    }
+}
+
+internal real32 
+RandomFloat(perlin_noise_generator *Generator, real32 Row, real32 Column)
+{
+    real32 RowMod = ModReal32(Row, (real32)RANDOM_TEX_SIZE);
+    uint32 RowWhole = FloorInt32(RowMod);
+    uint32 RowWhole2 = (RowWhole + 1) % RANDOM_TEX_SIZE;
+    real32 RowRemainder = RowMod - (real32)RowWhole;
+    Assert(RowRemainder <= 1.0f);
+
+    real32 ColumnMod = ModReal32(Column, (real32)RANDOM_TEX_SIZE);
+    uint32 ColumnWhole = FloorInt32(ColumnMod);
+    uint32 ColumnWhole2 = (ColumnWhole + 1) % RANDOM_TEX_SIZE;
+    real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
+    Assert(ColumnRemainder <= 1.0f);
+    
+    v3 G00 = Generator->GradientTex[RowWhole*RANDOM_TEX_SIZE + ColumnWhole];
+    v3 G01 = Generator->GradientTex[RowWhole*RANDOM_TEX_SIZE + ColumnWhole2];
+    v3 G10 = Generator->GradientTex[RowWhole2*RANDOM_TEX_SIZE + ColumnWhole];
+    v3 G11 = Generator->GradientTex[RowWhole2*RANDOM_TEX_SIZE + ColumnWhole2];
+    
+    v3 D00 = {RowRemainder, ColumnRemainder};
+    v3 D01 = {RowRemainder, ColumnRemainder-1.0f };
+    v3 D10 = {RowRemainder-1.0f, ColumnRemainder };
+    v3 D11 = {RowRemainder-1.0f, ColumnRemainder - 1.0f };
+    
+    real32 R00 = DotProduct(G00, D00);
+    real32 R01 = DotProduct(G01, D01);
+    real32 R10 = DotProduct(G10, D10);
+    real32 R11 = DotProduct(G11, D11);
+    
+    real32 I0 = Lerp(R00, R01, ColumnRemainder);
+    real32 I1 = Lerp(R10, R11, ColumnRemainder);
+    
+    real32 Result = Lerp(I0, I1, RowRemainder) / 1.05f;
+    Assert(Result >= -1.0f && Result <= 1.0f);
+    return Result;
 }
 
 internal real32 
