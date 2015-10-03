@@ -80,12 +80,27 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
             X < ImgWidth;
             X++)
         {
-            real32 Rand = RandomFloat(&Perlin, (real32)Y*5.0f/ImgHeight, (real32)X*5.0f/ImgWidth);
-            Rand = ((Rand + 1.5f) * 128);
-            uint8 BChannel = (uint8) ((Rand > 255.0f) ? 255.0f : Rand);
-            *(Ptr++) = 255;
-            *(Ptr++) = 255;
-            *(Ptr++) = BChannel;
+            // real32 Rand = RandomFloat(&Perlin, (real32)Y*5.0f/ImgHeight, (real32)X*5.0f/ImgWidth);
+            // Rand = ((Rand + 1.5f) * 128);
+            // uint8 BChannel = (uint8) ((Rand > 255.0f) ? 255.0f : Rand);
+            
+            real32 Cloud = RandomFloat(&Perlin, (real32)Y*3.0f/ImgHeight, (real32)X*3.0f/ImgWidth);
+            Cloud += RandomFloat(&Perlin, (real32)Y*11.0f/ImgHeight, (real32)X*11.0f/ImgWidth) * 0.5f;
+            Cloud += RandomFloat(&Perlin, (real32)Y*25.0f/ImgHeight, (real32)X*25.0f/ImgWidth) * 0.25f;
+            Cloud += RandomFloat(&Perlin, (real32)Y*50.0f/ImgHeight, (real32)X*50.0f/ImgWidth)  * 0.125f;
+            Cloud = (Cloud + 2.0f) / 4.0f;
+            Cloud = ((Cloud > 0.2f) ? Cloud : Cloud*Cloud);
+            
+            real32 BVal = ((Sqrt((real32)(Y*Y+180010))/ImgHeight) * 255.0f);
+            uint8 BChannel =  ((BVal > 255.0f) ? 255 : (uint8)BVal);
+            
+            uint8 Red = (uint8)(32 * (1.0f-Cloud) + (Cloud * 255));
+            uint8 Green = (uint8)((255-BChannel) * (1.0f-Cloud) + (Cloud * 255));
+            uint8 Blue = (uint8)(BChannel * (1.0f-Cloud) + (Cloud * 255));
+            
+            *(Ptr++) = Red;
+            *(Ptr++) = Green;
+            *(Ptr++) = Blue;
             *(Ptr++) = 0;
         }
     }

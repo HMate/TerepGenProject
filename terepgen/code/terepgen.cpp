@@ -371,8 +371,9 @@ UpdateGameState(game_state *GameState)
 }
 
 internal void
-RenderGame(dx_resource *DXResources, camera *Camera, game_state *GameState)
+RenderGame(game_state *GameState, camera *Camera)
 {
+    dx_resource *DXResources = GameState->DXResources;
     DXResources->LoadResource(Camera->SceneConstantBuffer,
                   &Camera->SceneConstants, sizeof(Camera->SceneConstants));
     

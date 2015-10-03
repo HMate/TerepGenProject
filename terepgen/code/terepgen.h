@@ -37,6 +37,7 @@ struct block_hash
 struct game_state 
 {
     bool32 Initialized;
+    dx_resource *DXResources;
     uint32 Seed;
     v3 CameraPos;
     v3 CameraDir;
@@ -61,7 +62,7 @@ struct game_state
 };
 
 internal void UpdateGameState(game_state);
-internal void RenderGame(dx_resource *DXResources, camera *Camera, game_state *GameState);
+internal void RenderGame(game_state *GameState, camera *Camera);
 
 #define TEREPGEN_H
 #endif

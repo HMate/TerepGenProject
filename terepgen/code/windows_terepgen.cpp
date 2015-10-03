@@ -247,6 +247,7 @@ WinMain(HINSTANCE Instance,
             
             game_state *GameState = new game_state;
             GameState->Initialized = false;
+            GameState->DXResources = &DXResources;
             
             LARGE_INTEGER FrameStartTime = Win32GetWallClock();
             LARGE_INTEGER WorldTime = FrameStartTime;
@@ -303,7 +304,7 @@ WinMain(HINSTANCE Instance,
                 GameState->RenderMode = GlobalInput.RenderMode;
                 UpdateGameState(GameState);
                 
-                RenderGame(&DXResources, &Camera, GameState);
+                RenderGame(GameState, &Camera);
                 
                 LARGE_INTEGER FrameEndTime = Win32GetWallClock();
                 real64 SecondsElapsed = Win32GetSecondsElapsed(FrameStartTime, FrameEndTime);
