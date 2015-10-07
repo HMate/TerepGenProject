@@ -40,14 +40,14 @@ typedef double real64;
 #define MEGABYTE(Size) ((Size)*1024*1024)
 #define GIGABYTE(Size) ((Size)*1024*1024*1024)
 
-union color
-{
-    struct
-    {
-        float R, G, B, A;
-    };
-    real32 C[4];
-};
+// union v4
+// {
+    // struct
+    // {
+        // float R, G, B, A;
+    // };
+    // real32 C[4];
+// };
 
 struct screen_info
 {

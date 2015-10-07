@@ -64,44 +64,84 @@ LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceVi
 internal HRESULT 
 LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResView)
 {
-    int32 ImgHeight = 768;
-    int32 ImgWidth = 1024;
+    int32 ImgHeight = 512;
+    int32 ImgWidth = 512;
     
     perlin_noise_generator Perlin;
     SetSeed(&Perlin, 1000);
     
-    uint32 *Image = new uint32[ImgHeight*ImgWidth];
+    uint32 *Image = new uint32[ImgHeight*ImgWidth*6];
     uint8* Ptr = (uint8*)Image;
-    for(int32 Y = 0;
-        Y < ImgHeight;
-        Y++)
-    {
-        for(int32 X = 0;
-            X < ImgWidth;
-            X++)
-        {
+    // for(int32 Y = 0;
+        // Y < ImgHeight;
+        // Y++)
+    // {
+        // for(int32 X = 0;
+            // X < ImgWidth;
+            // X++)
+        // {
             // real32 Rand = RandomFloat(&Perlin, (real32)Y*5.0f/ImgHeight, (real32)X*5.0f/ImgWidth);
             // Rand = ((Rand + 1.5f) * 128);
             // uint8 BChannel = (uint8) ((Rand > 255.0f) ? 255.0f : Rand);
             
-            real32 Cloud = RandomFloat(&Perlin, (real32)Y*3.0f/ImgHeight, (real32)X*3.0f/ImgWidth);
-            Cloud += RandomFloat(&Perlin, (real32)Y*11.0f/ImgHeight, (real32)X*11.0f/ImgWidth) * 0.5f;
-            Cloud += RandomFloat(&Perlin, (real32)Y*25.0f/ImgHeight, (real32)X*25.0f/ImgWidth) * 0.25f;
-            Cloud += RandomFloat(&Perlin, (real32)Y*50.0f/ImgHeight, (real32)X*50.0f/ImgWidth)  * 0.125f;
-            Cloud = (Cloud + 2.0f) / 4.0f;
-            Cloud = ((Cloud > 0.2f) ? Cloud : Cloud*Cloud);
+            // real32 Cloud = RandomFloat(&Perlin, (real32)Y*3.0f/ImgHeight, (real32)X*3.0f/ImgWidth);
+            // Cloud += RandomFloat(&Perlin, (real32)Y*11.0f/ImgHeight, (real32)X*11.0f/ImgWidth) * 0.5f;
+            // Cloud += RandomFloat(&Perlin, (real32)Y*25.0f/ImgHeight, (real32)X*25.0f/ImgWidth) * 0.25f;
+            // Cloud += RandomFloat(&Perlin, (real32)Y*50.0f/ImgHeight, (real32)X*50.0f/ImgWidth)  * 0.125f;
+            // Cloud = (Cloud + 2.0f) / 4.0f;
+            // Cloud = ((Cloud > 0.8f) ? Cloud : Cloud*Cloud);
             
-            real32 BVal = ((Sqrt((real32)(Y*Y+180010))/ImgHeight) * 255.0f);
-            uint8 BChannel =  ((BVal > 255.0f) ? 255 : (uint8)BVal);
+            // real32 BVal = ((Sqrt((real32)(Y*Y+180010))/ImgHeight) * 255.0f);
+            // uint8 BChannel =  ((BVal > 255.0f) ? 255 : (uint8)BVal);
             
-            uint8 Red = (uint8)(32 * (1.0f-Cloud) + (Cloud * 255));
-            uint8 Green = (uint8)((255-BChannel) * (1.0f-Cloud) + (Cloud * 255));
-            uint8 Blue = (uint8)(BChannel * (1.0f-Cloud) + (Cloud * 255));
+            // uint8 Red = (uint8)(32*(1.0f-Cloud) + (Cloud*255));
+            // uint8 Green = (uint8)((255-BChannel)*(1.0f-Cloud) + (Cloud*255));
+            // uint8 Blue = (uint8)(BChannel*(1.0f-Cloud) + (Cloud*255));
+            // uint8 Red = (uint8)255;
+            // uint8 Green = (uint8)0;
+            // uint8 Blue = (uint8)0;
             
-            *(Ptr++) = Red;
-            *(Ptr++) = Green;
-            *(Ptr++) = Blue;
-            *(Ptr++) = 0;
+            // *(Ptr++) = Red;
+            // *(Ptr++) = Green;
+            // *(Ptr++) = Blue;
+            // *(Ptr++) = 0;
+        // }
+    // }
+    for(int32 Slice = 0; Slice < 6; ++Slice)
+    {
+        uint32 Color = 0;
+        switch(Slice)
+        {
+            case 0: Color = 0xFFFF0000; 
+                break;
+            case 1: Color = 0x00FF0000; 
+                break;
+            case 2: Color = 0x0000FF00; 
+                break;
+            case 3: Color = 0xFFFFFF00; 
+                break;
+            case 4: Color = 0x00000000; 
+                break;
+            case 5: Color = 0xFF000000; 
+                break;
+        }
+        for(int32 Y = 0;
+            Y < ImgHeight;
+            Y++)
+        {
+            for(int32 X = 0;
+                X < ImgWidth;
+                X++)
+            {
+                uint8 Red = (uint8)(Color>>24);
+                uint8 Green = (uint8)(Color>>16);
+                uint8 Blue = (uint8)(Color>>8);
+                
+                *(Ptr++) = Red;
+                *(Ptr++) = Green;
+                *(Ptr++) = Blue;
+                *(Ptr++) = 0;
+            }
         }
     }
 
@@ -109,15 +149,15 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     D3D11_TEXTURE2D_DESC TextureDesc;
     TextureDesc.Height = ImgHeight;
     TextureDesc.Width = ImgWidth;
-    TextureDesc.MipLevels = 0;
-    TextureDesc.ArraySize = 1;
+    TextureDesc.MipLevels = 1;
+    TextureDesc.ArraySize = 6;
     TextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     TextureDesc.SampleDesc.Count = 1;
     TextureDesc.SampleDesc.Quality = 0;
     TextureDesc.Usage = D3D11_USAGE_DEFAULT;
     TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
     TextureDesc.CPUAccessFlags = 0;
-    TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+    TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
     
     ID3D11Texture2D* Tex;
     HRESULT HResult = DXResources->Device->CreateTexture2D(&TextureDesc, NULL, &Tex);
@@ -133,9 +173,10 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     
     D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc;
     SrvDesc.Format = TextureDesc.Format;
-    SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    // SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+    SrvDesc.Texture2D.MipLevels = TextureDesc.MipLevels;
     SrvDesc.Texture2D.MostDetailedMip = 0;
-    SrvDesc.Texture2D.MipLevels = (unsigned int)-1;
     
     HResult = DXResources->Device->CreateShaderResourceView(Tex, &SrvDesc, ShaderResView);
     delete[] Image;
@@ -425,14 +466,13 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     {
         return HResult;
     }
-    
-    this->MaxVertexCount = RENDER_BLOCK_VERTEX_COUNT;
 
     SetTransformations(v3{0,0,0});
-    // ObjectConstants.WorldMatrix = XMFLOAT4X4(1, 0, 0, 0,
-                                             // 0, 1, 0, 0,
-                                             // 0, 0, 1, 0,
-                                             // 0, 0, 0, 1);
+    ObjectConstants.WorldMatrix = DirectX::XMFLOAT4X4(1, 0, 0, 0,
+                                                      0, 1, 0, 0,
+                                                      0, 0, 1, 0,
+                                                      0, 0, 0, 1);
+    ObjectConstants.CameraDir = DirectX::XMFLOAT4(1,0, 0, 1);
                                            
     D3D11_BUFFER_DESC ObjectCBDesc = {};
     ObjectCBDesc.ByteWidth = sizeof( object_constants );
@@ -442,12 +482,12 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     ObjectCBDesc.MiscFlags = 0;
     ObjectCBDesc.StructureByteStride = 0;
     
-    // D3D11_SUBRESOURCE_DATA ObjCBufferData;
-    // ObjCBufferData.pSysMem = &ObjectConstants;
-    // ObjCBufferData.SysMemPitch = 0;
-    // ObjCBufferData.SysMemSlicePitch = 0;
+    D3D11_SUBRESOURCE_DATA ObjCBufferData;
+    ObjCBufferData.pSysMem = &ObjectConstants;
+    ObjCBufferData.SysMemPitch = 0;
+    ObjCBufferData.SysMemSlicePitch = 0;
     
-    HResult = Device->CreateBuffer(&ObjectCBDesc, NULL, &ObjectConstantBuffer);
+    HResult = Device->CreateBuffer(&ObjectCBDesc, &ObjCBufferData, &ObjectConstantBuffer);
     if(FAILED(HResult)) return HResult;
 
     // NOTE: Create RasterizerStates
@@ -464,6 +504,8 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     RSDescWireFrame.CullMode = D3D11_CULL_NONE;
     HResult = Device->CreateRasterizerState(&RSDescWireFrame, &RSWireFrame);
     if(FAILED(HResult)) return HResult;
+    
+    this->MaxVertexCount = RENDER_BLOCK_VERTEX_COUNT;
     
     D3D11_BUFFER_DESC BufferDesc;
     ZeroMemory(&BufferDesc, sizeof(BufferDesc));
@@ -730,6 +772,7 @@ void dx_resource::DrawBackground(v3 *Vertices, uint32 VertCount)
 {
     LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
     DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+    DeviceContext->PSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
        
     uint32 stride = sizeof(v3);
     uint32 offset = 0;
@@ -772,7 +815,7 @@ void dx_resource::DrawDebugTriangle()
     DeviceContext->RSSetState(RSDefault);
     
     const uint32 FalseCount = 3;
-    color Color{1.0f, 0.0f, 0.0f, 1.0f};
+    v4 Color{1.0f, 0.0f, 0.0f, 1.0f};
     v3 Normal{0.0f, 1.0f, 0.0f};
     vertex FalseVertices[FalseCount]={Get3DVertex(v3{1.0f , 0.55f, 1.0f}, Normal, Color),
                                       Get3DVertex(v3{-0.8f, -0.7f, 1.0f}, Normal, Color),

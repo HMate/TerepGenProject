@@ -12,7 +12,7 @@ struct vertex
     // -Z points through screen to user initially, +Z points toward screen 
     real32 X, Y, Z;
     real32 NX, NY, NZ;
-    color Color;
+    v4 Color;
 };
 
 struct scene_constants
@@ -24,6 +24,7 @@ struct scene_constants
 struct object_constants
 {
 	DirectX::XMFLOAT4X4 WorldMatrix;
+	DirectX::XMFLOAT4 CameraDir;
 };
 
 #define ERRMSGBUFFERSIZE 256

@@ -56,7 +56,7 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
 }
 
 internal vertex
-Get3DVertex(v3 LocalPos, v3 Normal, color Color)
+Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
 {
     vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
                      Normal.X, Normal.Y, Normal.Z,
@@ -112,7 +112,7 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
 {
     Assert(BlockResolution > 0);
     real32 CellDiff = (real32)BlockResolution;
-    color GreenColor = color{0.0, 1.0f, 0.0f, 1.0f};
+    v4 GreenColor = v4{0.0, 1.0f, 0.0f, 1.0f};
     v3 PosDiff = {2.0f, 2.0f, 2.0f};
     
     RenderBlock->Pos = DensityBlock->Pos;
@@ -171,7 +171,7 @@ CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *D
                         Get3DVertex((Point2-PosDiff) * CellDiff, Normal2, GreenColor);
 #if 0
                     // NOTE: Draw normals for debug purposes
-                    color BlueColor = color{0.0, 0.0f, 1.0f, 1.0f};
+                    v4 BlueColor = v4{0.0, 0.0f, 1.0f, 1.0f};
                     v3 NormalNormal = {0, 1, 0};
                     v3 NormalPerpend = Cross(Normal0, v3{1, 0, 0});
                     if(Length(NormalPerpend) < 0.01f)

@@ -205,6 +205,9 @@ UpdateGameState(game_state *GameState)
         SetSeed(&GameState->PerlinArray.Noise[2], GameState->Seed+2);
         InitBlockHash(GameState);
         InitZeroHash(GameState);
+        
+        
+        
         GameState->Initialized = true;
     }
     
@@ -377,7 +380,7 @@ RenderGame(game_state *GameState, camera *Camera)
     DXResources->LoadResource(Camera->SceneConstantBuffer,
                   &Camera->SceneConstants, sizeof(Camera->SceneConstants));
     
-    color BackgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
+    v4 BackgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
     DXResources->DeviceContext->ClearDepthStencilView(DXResources->DepthStencilView, 
         D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, 1.0f, 0);
     DXResources->DeviceContext->ClearRenderTargetView(DXResources->BackBuffer, BackgroundColor.C);
@@ -395,6 +398,9 @@ RenderGame(game_state *GameState, camera *Camera)
                         {-1.0,  1.0, 0.99f},
                         { 1.0,  1.0, 0.99f}};
     DXResources->SetTransformations(v3{});
+    v3 CamDir = Camera->GetLookDirection();
+    DXResources->ObjectConstants.CameraDir = DirectX::XMFLOAT4(CamDir.X, CamDir.Y, CamDir.Z, 1.0f);
+    // DXResources->ObjectConstants.CameraDir = DirectX::XMFLOAT4(1, 0, 0, 1.0f);
     DXResources->DrawBackground(BGVertices, 6);
     
     // NOTE: Render axis
@@ -404,9 +410,9 @@ RenderGame(game_state *GameState, camera *Camera)
     DXResources->DeviceContext->PSSetShader(DXResources->LinePS, 0, 0);
     real32 AxisSize = 256;
     const uint32 VertCount = 6;
-    color Red{1.0f, 0.0f, 0.0f, 1.0f},
-          Green{0.0f, 1.0f, 0.0f, 1.0f}, 
-          Blue{0.0f, 0.0f, 1.0f, 1.0f};
+    v4 Red{1.0f, 0.0f, 0.0f, 1.0f},
+       Green{0.0f, 1.0f, 0.0f, 1.0f}, 
+       Blue{0.0f, 0.0f, 1.0f, 1.0f};
     v3 Normal{0.0f, 1.0f, 0.0f};
     vertex AxisVertices[VertCount]={Get3DVertex(v3{ 1.0f*AxisSize,  0.0f,  0.0f}, Normal, Red),
                                     Get3DVertex(v3{-1.0f*AxisSize,  0.0f,  0.0f}, Normal, Red),
