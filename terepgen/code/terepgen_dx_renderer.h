@@ -60,6 +60,7 @@ struct dx_resource
     ID3D11ShaderResourceView* RockTexture = nullptr;
     ID3D11ShaderResourceView* SkyTexture = nullptr;
     ID3D11SamplerState* TexSamplerState = nullptr;
+    ID3D11SamplerState* CubeTexSamplerState = nullptr;
         
     int32 VideoCardMemory;
     char VideoCardDescription[128];

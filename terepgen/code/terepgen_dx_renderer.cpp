@@ -70,6 +70,7 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     perlin_noise_generator Perlin;
     SetSeed(&Perlin, 1000);
     
+    D3D11_SUBRESOURCE_DATA pData[6];
     uint32 *Image = new uint32[ImgHeight*ImgWidth*6];
     uint8* Ptr = (uint8*)Image;
     // for(int32 Y = 0;
@@ -107,10 +108,12 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
             // *(Ptr++) = 0;
         // }
     // }
-    for(int32 Slice = 0; Slice < 6; ++Slice)
+    for(int32 Side = 0;
+        Side < 6;
+        ++Side)
     {
         uint32 Color = 0;
-        switch(Slice)
+        switch(Side)
         {
             case 0: Color = 0xFFFF0000; 
                 break;
@@ -120,7 +123,7 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
                 break;
             case 3: Color = 0xFFFFFF00; 
                 break;
-            case 4: Color = 0x00000000; 
+            case 4: Color = 0xFF00FF00; 
                 break;
             case 5: Color = 0xFF000000; 
                 break;
@@ -133,6 +136,7 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
                 X < ImgWidth;
                 X++)
             {
+                Assert(Color != 0);
                 uint8 Red = (uint8)(Color>>24);
                 uint8 Green = (uint8)(Color>>16);
                 uint8 Blue = (uint8)(Color>>8);
@@ -143,6 +147,9 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
                 *(Ptr++) = 0;
             }
         }
+        pData[Side].pSysMem = &Image[Side*ImgHeight*ImgWidth];
+        pData[Side].SysMemPitch = 4*ImgWidth;
+        pData[Side].SysMemSlicePitch = 0;
     }
 
     // NOTE: Get image info
@@ -160,7 +167,7 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
     
     ID3D11Texture2D* Tex;
-    HRESULT HResult = DXResources->Device->CreateTexture2D(&TextureDesc, NULL, &Tex);
+    HRESULT HResult = DXResources->Device->CreateTexture2D(&TextureDesc, &pData[0], &Tex);
     if(FAILED(HResult)) 
     {
         delete[] Image;
@@ -168,15 +175,16 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     }
     
     // NOTE: Should use UpdateSubresource, if the resource isnt loaded every frame
-    uint32 RowPitch = ImgWidth * 4;
-    DXResources->DeviceContext->UpdateSubresource(Tex, 0, NULL, Image, RowPitch, 0);
+    // uint32 RowPitch = ImgWidth * 4;
+    // uint32 DepthPitch = RowPitch * ImgHeight;
+    // DXResources->DeviceContext->UpdateSubresource(Tex, 0, NULL, Image, RowPitch, DepthPitch);
     
     D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc;
     SrvDesc.Format = TextureDesc.Format;
     // SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-    SrvDesc.Texture2D.MipLevels = TextureDesc.MipLevels;
-    SrvDesc.Texture2D.MostDetailedMip = 0;
+    SrvDesc.TextureCube.MipLevels = TextureDesc.MipLevels;
+    SrvDesc.TextureCube.MostDetailedMip = 0;
     
     HResult = DXResources->Device->CreateShaderResourceView(Tex, &SrvDesc, ShaderResView);
     delete[] Image;
@@ -554,6 +562,23 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     SampDesc.MaxLOD = D3D11_FLOAT32_MAX;
     
     HResult = Device->CreateSamplerState(&SampDesc, &TexSamplerState);
+    if(FAILED(HResult))
+    {
+        return HResult;
+    }
+    DeviceContext->PSSetSamplers(0, 1, &TexSamplerState);
+    
+    D3D11_SAMPLER_DESC CubeSampDesc;
+	ZeroMemory( &CubeSampDesc, sizeof(CubeSampDesc) );
+	CubeSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	CubeSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	CubeSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    CubeSampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    CubeSampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    CubeSampDesc.MinLOD = 0;
+    CubeSampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    
+    HResult = Device->CreateSamplerState(&CubeSampDesc, &CubeTexSamplerState);
     if(FAILED(HResult))
     {
         return HResult;

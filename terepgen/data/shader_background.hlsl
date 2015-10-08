@@ -28,15 +28,16 @@ SkyVOut BackgroundVShader(SkyVIn input)
 {
     SkyVOut output;
     output.screenPos = float4(input.position, 1);
-    output.worldPos = mul(float4(input.position, 1.0), ViewProjMx);
+    float4x4 TVM = transpose(ViewMx);
+    output.worldPos = mul(float4(input.position, 1.0), TVM);
     
     return output;
 }
 
 float4 BackgroundPShader(SkyVOut input) : SV_TARGET
 {
-    // float3 texPos = (input.worldPos + float3(1.0, -1.0, 1.0)) / float3(2.0, 2.0, 2.0); 
-    float3 texPos = cameraDir;
+    // float3 texPos = (input.screenPos.xyz + float3(1.0, -1.0, 1.0)) / float3(2.0, 2.0, 2.0); 
+    float3 texPos = normalize(cameraDir + input.worldPos);
     float4 tex = skyTexture.Sample(SampleType, texPos);
     return tex;
 }

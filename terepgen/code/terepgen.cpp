@@ -390,6 +390,7 @@ RenderGame(game_state *GameState, camera *Camera)
     DXResources->DeviceContext->IASetInputLayout(DXResources->BackgroundInputLayout);
     DXResources->DeviceContext->VSSetShader(DXResources->BackgroundVS, 0, 0);
     DXResources->DeviceContext->PSSetShader(DXResources->BackgroundPS, 0, 0);
+    DXResources->DeviceContext->PSSetSamplers(0, 1, &DXResources->CubeTexSamplerState);
     
     v3 BGVertices[6] = {{-1.0, -1.0, 0.99f},
                         {-1.0,  1.0, 0.99f},
@@ -399,7 +400,7 @@ RenderGame(game_state *GameState, camera *Camera)
                         { 1.0,  1.0, 0.99f}};
     DXResources->SetTransformations(v3{});
     v3 CamDir = Camera->GetLookDirection();
-    DXResources->ObjectConstants.CameraDir = DirectX::XMFLOAT4(CamDir.X, CamDir.Y, CamDir.Z, 1.0f);
+    DXResources->ObjectConstants.CameraDir = DirectX::XMFLOAT4(CamDir.X, CamDir.Y, CamDir.Z, 0.0f);
     // DXResources->ObjectConstants.CameraDir = DirectX::XMFLOAT4(1, 0, 0, 1.0f);
     DXResources->DrawBackground(BGVertices, 6);
     
@@ -408,6 +409,8 @@ RenderGame(game_state *GameState, camera *Camera)
     DXResources->DeviceContext->IASetInputLayout(DXResources->TerrainInputLayout);
     DXResources->DeviceContext->VSSetShader(DXResources->TerrainVS, 0, 0);
     DXResources->DeviceContext->PSSetShader(DXResources->LinePS, 0, 0);
+    DXResources->DeviceContext->PSSetSamplers(0, 1, &DXResources->TexSamplerState);
+    
     real32 AxisSize = 256;
     const uint32 VertCount = 6;
     v4 Red{1.0f, 0.0f, 0.0f, 1.0f},
