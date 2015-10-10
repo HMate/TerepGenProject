@@ -113,21 +113,50 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
         ++Side)
     {
         uint32 Color = 0;
+        v3 StartPos{0};
+        v3 ColumnDiff{0};
+        v3 RowDiff{0};
+        real32 PixelWidth = 2.0f/512.0f;
         switch(Side)
         {
-            case 0: Color = 0xFFFF0000; 
+            case 0: 
+                Color = 0xFFFF0000; //+X
+                StartPos = v3{1.0f, 1.0f, 1.0f};
+                ColumnDiff = v3{0.0f, 0.0f, -PixelWidth};
+                RowDiff = v3{0.0f, -PixelWidth, 0.0f};
                 break;
-            case 1: Color = 0x00FF0000; 
+            case 1: 
+                Color = 0x00FF0000; //-X
+                StartPos = v3{-1.0f, 1.0f, -1.0f};
+                ColumnDiff = v3{0.0f, 0.0f, PixelWidth};
+                RowDiff = v3{0.0f, -PixelWidth, 0.0f};
                 break;
-            case 2: Color = 0x0000FF00; 
+            case 2: 
+                Color = 0x0000FF00; //+Y
+                StartPos = v3{-1.0f, 1.0f, -1.0f};
+                ColumnDiff = v3{PixelWidth, 0.0f, 0.0f};
+                RowDiff = v3{0.0f, 0.0f, PixelWidth};
                 break;
-            case 3: Color = 0xFFFFFF00; 
+            case 3: 
+                Color = 0xFFFFFF00; //-Y
+                StartPos = v3{-1.0f, -1.0f, 1.0f};
+                ColumnDiff = v3{PixelWidth, 0.0f, 0.0f};
+                RowDiff = v3{0.0f, 0.0f, -PixelWidth};
                 break;
-            case 4: Color = 0xFF00FF00; 
+            case 4: 
+                Color = 0xFF00FF00; //+Z
+                StartPos = v3{-1.0f, 1.0f, 1.0f};
+                ColumnDiff = v3{PixelWidth, 0.0f, 0.0f};
+                RowDiff = v3{0.0f, -PixelWidth, 0.0f};
                 break;
-            case 5: Color = 0xFF000000; 
+            case 5: 
+                Color = 0xFF000000; //-Z
+                StartPos = v3{1.0f, 1.0f, -1.0f};
+                ColumnDiff = v3{-PixelWidth, 0.0f, 0.0f};
+                RowDiff = v3{0.0f, -PixelWidth, 0.0f};
                 break;
         }
+        v3 PixelPos = StartPos;
         for(int32 Y = 0;
             Y < ImgHeight;
             Y++)
@@ -137,15 +166,27 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
                 X++)
             {
                 Assert(Color != 0);
-                uint8 Red = (uint8)(Color>>24);
-                uint8 Green = (uint8)(Color>>16);
-                uint8 Blue = (uint8)(Color>>8);
+                
+                v3 SkyPos = Normalize(PixelPos);
+                real32 Cloud = RandomFloat(&Perlin, 10.0f*SkyPos);
+                
+                uint8 Red = (uint8)(Cloud*255);
+                uint8 Green = (uint8)(Cloud*255);
+                uint8 Blue = (uint8)(Cloud*255);
+                
+                // uint8 Red = (uint8)(Color>>24);
+                // uint8 Green = (uint8)(Color>>16);
+                // uint8 Blue = (uint8)(Color>>8);
                 
                 *(Ptr++) = Red;
                 *(Ptr++) = Green;
                 *(Ptr++) = Blue;
                 *(Ptr++) = 0;
+                
+                PixelPos = PixelPos + ColumnDiff;
             }
+            PixelPos = PixelPos + ((real32)(-ImgWidth)*ColumnDiff);
+            PixelPos = PixelPos + RowDiff;
         }
         pData[Side].pSysMem = &Image[Side*ImgHeight*ImgWidth];
         pData[Side].SysMemPitch = 4*ImgWidth;
@@ -991,7 +1032,8 @@ void camera::Update(input *Input, real64 TimeDelta)
         XMVECTOR NewTargetDir = TargetDirection;
         
         NewTargetDir = XMVector3Transform(TargetDirection, XMMatrixRotationNormal(
-                XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection), -(real32)dMouseY/100.0f));
+                XMVector3Normalize(XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection)),
+                -(real32)dMouseY/100.0f));
         
         XMStoreFloat3(&TargetPos,
             XMVector3Transform(NewTargetDir, XMMatrixRotationNormal(XMLoadFloat3(&UpDirection), (real32)dMouseX/100.0f)) +
