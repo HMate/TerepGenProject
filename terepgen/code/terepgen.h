@@ -31,8 +31,9 @@ struct block_hash
 
 // NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
 #define POS_GRID_SIZE(n) (((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1
-#define BLOCK_POS_COUNT (uint32)POS_GRID_SIZE(10)
-#define RENDER_BLOCK_COUNT 1500
+#define RENDERED_BLOCK_RADIUS 30
+#define BLOCK_POS_COUNT (uint32)POS_GRID_SIZE(RENDERED_BLOCK_RADIUS)
+#define RENDER_BLOCK_COUNT 6500
 
 struct game_state 
 {

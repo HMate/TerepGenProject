@@ -199,7 +199,7 @@ UpdateGameState(game_state *GameState)
     if(GameState->Initialized == false)
     {
         GameState->BlockSize = real32(TERRAIN_BLOCK_SIZE);
-        GameState->BlockResolution = 2;
+        GameState->BlockResolution = 4;
         SetSeed(&GameState->PerlinArray.Noise[0], GameState->Seed);
         SetSeed(&GameState->PerlinArray.Noise[1], GameState->Seed+1);
         SetSeed(&GameState->PerlinArray.Noise[2], GameState->Seed+2);
@@ -213,14 +213,14 @@ UpdateGameState(game_state *GameState)
     
     v3 CameraP = GameState->CameraPos;
     world_block_pos WorldCameraP = GetWorldPosFromV3(GameState, CameraP);
-    CalculateBlockPositions(GameState, WorldCameraP, 5);
+    CalculateBlockPositions(GameState, WorldCameraP, RENDERED_BLOCK_RADIUS);
     
     //
     // NOTE: Delete blocks that are too far from the camera
     //
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
     
-    int32 LoadSpaceRadius = 13;
+    int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
     for(uint32 StoreIndex = 0; 
         StoreIndex < GameState->StoredRenderBlockCount; 
         ++StoreIndex)

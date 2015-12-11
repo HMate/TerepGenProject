@@ -73,41 +73,6 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     D3D11_SUBRESOURCE_DATA pData[6];
     uint32 *Image = new uint32[ImgHeight*ImgWidth*6];
     uint8* Ptr = (uint8*)Image;
-    // for(int32 Y = 0;
-        // Y < ImgHeight;
-        // Y++)
-    // {
-        // for(int32 X = 0;
-            // X < ImgWidth;
-            // X++)
-        // {
-            // real32 Rand = RandomFloat(&Perlin, (real32)Y*5.0f/ImgHeight, (real32)X*5.0f/ImgWidth);
-            // Rand = ((Rand + 1.5f) * 128);
-            // uint8 BChannel = (uint8) ((Rand > 255.0f) ? 255.0f : Rand);
-            
-            // real32 Cloud = RandomFloat(&Perlin, (real32)Y*3.0f/ImgHeight, (real32)X*3.0f/ImgWidth);
-            // Cloud += RandomFloat(&Perlin, (real32)Y*11.0f/ImgHeight, (real32)X*11.0f/ImgWidth) * 0.5f;
-            // Cloud += RandomFloat(&Perlin, (real32)Y*25.0f/ImgHeight, (real32)X*25.0f/ImgWidth) * 0.25f;
-            // Cloud += RandomFloat(&Perlin, (real32)Y*50.0f/ImgHeight, (real32)X*50.0f/ImgWidth)  * 0.125f;
-            // Cloud = (Cloud + 2.0f) / 4.0f;
-            // Cloud = ((Cloud > 0.8f) ? Cloud : Cloud*Cloud);
-            
-            // real32 BVal = ((Sqrt((real32)(Y*Y+180010))/ImgHeight) * 255.0f);
-            // uint8 BChannel =  ((BVal > 255.0f) ? 255 : (uint8)BVal);
-            
-            // uint8 Red = (uint8)(32*(1.0f-Cloud) + (Cloud*255));
-            // uint8 Green = (uint8)((255-BChannel)*(1.0f-Cloud) + (Cloud*255));
-            // uint8 Blue = (uint8)(BChannel*(1.0f-Cloud) + (Cloud*255));
-            // uint8 Red = (uint8)255;
-            // uint8 Green = (uint8)0;
-            // uint8 Blue = (uint8)0;
-            
-            // *(Ptr++) = Red;
-            // *(Ptr++) = Green;
-            // *(Ptr++) = Blue;
-            // *(Ptr++) = 0;
-        // }
-    // }
     for(int32 Side = 0;
         Side < 6;
         ++Side)
@@ -168,15 +133,16 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
                 Assert(Color != 0);
                 
                 v3 SkyPos = Normalize(PixelPos);
-                real32 Cloud = RandomFloat(&Perlin, 10.0f*SkyPos);
+                real32 Cloud = RandomFloat(&Perlin, 2.0f*SkyPos)*8.0f;
+                Cloud += RandomFloat(&Perlin, 8.0f*SkyPos)*4.0f;
+                Cloud += RandomFloat(&Perlin, 20.0f*SkyPos)*2.0f;
+                Cloud += RandomFloat(&Perlin, 40.0f*SkyPos)*1.0f;
+                Cloud = (Cloud / 30.0f) + 0.5f;
+                Cloud *= Abs(ClampReal32(SkyPos.Y+0.4f, 0.0f, 1.0f));
                 
                 uint8 Red = (uint8)(Cloud*255);
                 uint8 Green = (uint8)(Cloud*255);
-                uint8 Blue = (uint8)(Cloud*255);
-                
-                // uint8 Red = (uint8)(Color>>24);
-                // uint8 Green = (uint8)(Color>>16);
-                // uint8 Blue = (uint8)(Color>>8);
+                uint8 Blue = (uint8)(225);
                 
                 *(Ptr++) = Red;
                 *(Ptr++) = Green;

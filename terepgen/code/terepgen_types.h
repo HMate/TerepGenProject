@@ -81,6 +81,13 @@ Abs(int32 Val)
     return Result;
 }
 
+inline real32
+Abs(real32 Val)
+{
+    real32 Result = fabs(Val);
+    return Result;
+}
+
 inline uint32 
 FloorUint32(real32 Val)
 {
