@@ -86,6 +86,7 @@ GetZeroHash(game_state *GameState, world_block_pos P)
         Assert(HashIndex < ArrayCount(GameState->ZeroHash));
         block_hash *Hash = GameState->ZeroHash + HashIndex;
         
+        // NOTE: return hash, if its uninited, or it has the position we are looking for
         if(Hash->BlockIndex == HASH_UNINITIALIZED || 
            ((P.BlockX == Hash->Key.BlockX) && 
             (P.BlockY == Hash->Key.BlockY) && 
@@ -251,10 +252,12 @@ UpdateGameState(game_state *GameState)
         }
     }
     
+    int32 ZeroGridTotalSize = POS_GRID_SIZE(ZERO_BLOCK_RADIUS);
+    Assert(ZeroGridTotalSize < ZERO_HASH_SIZE);
     if(GameState->ZeroBlockCount > (ArrayCount(GameState->ZeroHash)*7/8))
     {
-        int32 ZeroSpaceRadius = LoadSpaceRadius + 3;
-        block_hash NewZeroHash[4096];
+        int32 ZeroSpaceRadius = ZERO_BLOCK_RADIUS;
+        block_hash NewZeroHash[ZERO_HASH_SIZE];
         uint32 NewZeroHashEntryCount = GameState->ZeroBlockCount;
         for(uint32 ZeroIndex = 0; 
             ZeroIndex < ArrayCount(GameState->ZeroHash); 

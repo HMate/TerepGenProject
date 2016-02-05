@@ -30,10 +30,14 @@ struct block_hash
 };
 
 // NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
-#define POS_GRID_SIZE(n) (((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1
-#define RENDERED_BLOCK_RADIUS 30
-#define BLOCK_POS_COUNT (uint32)POS_GRID_SIZE(RENDERED_BLOCK_RADIUS)
+#define POS_GRID_SIZE(n) ((uint32)(((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1)
+#define RENDERED_BLOCK_RADIUS 20
+#define ZERO_BLOCK_RADIUS 23
+#define BLOCK_POS_COUNT POS_GRID_SIZE(RENDERED_BLOCK_RADIUS)
 #define RENDER_BLOCK_COUNT 6500
+
+#define BLOCK_HASH_SIZE 4096
+#define ZERO_HASH_SIZE 32768
 
 struct game_state 
 {
@@ -57,9 +61,9 @@ struct game_state
     terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
     
     // NOTE: This must be a power of two for now!
-    block_hash BlockHash[2048];
+    block_hash BlockHash[BLOCK_HASH_SIZE];
     uint32 ZeroBlockCount;
-    block_hash ZeroHash[4096];
+    block_hash ZeroHash[ZERO_HASH_SIZE];
 };
 
 internal void UpdateGameState(game_state);
