@@ -164,10 +164,48 @@ WindowProc(HWND Window,
     return Result;
 }
 
-// win32_clock
-// {
-    // TODO
-// };
+// NOTE: Requires GlobalPerfCountFrequency to be initialized
+struct win32_clock
+{
+    LARGE_INTEGER Start;
+    
+    win32_clock()
+    {
+        ResetCounter();
+    }
+    
+    void ResetCounter()
+    {
+        QueryPerformanceCounter(&Start);
+    }
+    
+    real64 GetSecondsElapsed()
+    {
+        LARGE_INTEGER End;
+        QueryPerformanceCounter(&End);
+        real64 Result = ((real64)(End.QuadPart - Start.QuadPart) /
+                        (real64)GlobalPerfCountFrequency.QuadPart);
+        return Result;
+    }
+    
+    void PrintMiliSeconds(char *PrintText)
+    {
+        real64 SecondsElapsed = GetSecondsElapsed();
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f ms\n",
+            PrintText, SecondsElapsed * 1000.0);
+        OutputDebugStringA(DebugBuffer);
+    }
+    
+    void PrintSeconds(char *PrintText)
+    {
+        real64 SecondsElapsed = GetSecondsElapsed();
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f s\n",
+            PrintText, SecondsElapsed);
+        OutputDebugStringA(DebugBuffer);
+    }
+};
 
 inline LARGE_INTEGER
 Win32GetWallClock(void)
@@ -199,12 +237,12 @@ WinMain(HINSTANCE Instance,
     WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
     WindowClass.lpszClassName = "TerepGenWindowClass";
     
-	int32 MaxScreenWidth  = GetSystemMetrics(SM_CXSCREEN);
-	int32 MaxScreenHeight = GetSystemMetrics(SM_CYSCREEN);
+    int32 MaxScreenWidth  = GetSystemMetrics(SM_CXSCREEN);
+    int32 MaxScreenHeight = GetSystemMetrics(SM_CYSCREEN);
     
     screen_info ScreenInfo;
     ScreenInfo.Width = MaxScreenWidth*3/4;//1280;
-	ScreenInfo.Height = MaxScreenHeight*3/4;//800;
+    ScreenInfo.Height = MaxScreenHeight*3/4;//800;
     
     if(RegisterClassA(&WindowClass))
     {
@@ -249,9 +287,11 @@ WinMain(HINSTANCE Instance,
             GameState->Initialized = false;
             GameState->DXResources = &DXResources;
             
+            QueryPerformanceFrequency(&GlobalPerfCountFrequency);
+            win32_clock FrameClock;
+            win32_clock WorldClock;
             LARGE_INTEGER FrameStartTime = Win32GetWallClock();
             LARGE_INTEGER WorldTime = FrameStartTime;
-            QueryPerformanceFrequency(&GlobalPerfCountFrequency);
             
             while(GlobalRunning)
             {
@@ -293,9 +333,8 @@ WinMain(HINSTANCE Instance,
                     GlobalInput.MouseY = -MouseP.y;
                 }
                 
-                LARGE_INTEGER NewTime = Win32GetWallClock();
-                real64 TimePassed = Win32GetSecondsElapsed(WorldTime, NewTime);
-                WorldTime.QuadPart = NewTime.QuadPart;
+                real64 TimePassed = WorldClock.GetSecondsElapsed();
+                WorldClock.ResetCounter();
                 
                 Camera.Update(&GlobalInput, TimePassed);
                 GameState->CameraPos = Camera.GetPos();
@@ -306,15 +345,8 @@ WinMain(HINSTANCE Instance,
                 
                 RenderGame(GameState, &Camera);
                 
-                LARGE_INTEGER FrameEndTime = Win32GetWallClock();
-                real64 SecondsElapsed = Win32GetSecondsElapsed(FrameStartTime, FrameEndTime);
-                FrameStartTime.QuadPart = FrameEndTime.QuadPart;
-#if 0 //TEREPGEN_DEBUG
-                char DebugBuffer[256];
-                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] ms: %f, FPS: %f\n",
-                    SecondsElapsed * 1000.0, 1.0/SecondsElapsed);
-                OutputDebugStringA(DebugBuffer);
-#endif
+                FrameClock.PrintMiliSeconds("Frame time:");
+                FrameClock.ResetCounter();
             }
             
             delete GameState;

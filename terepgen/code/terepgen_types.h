@@ -36,18 +36,9 @@ typedef double real64;
 #define Assert(Test) 
 #endif
 
-#define KILOBYTE(Size) ((Size)*1024)
-#define MEGABYTE(Size) ((Size)*1024*1024)
-#define GIGABYTE(Size) ((Size)*1024*1024*1024)
-
-// union v4
-// {
-    // struct
-    // {
-        // float R, G, B, A;
-    // };
-    // real32 C[4];
-// };
+#define KILOBYTE(Size) (1024LL*(Size))
+#define MEGABYTE(Size) (1024LL*1024LL*(Size))
+#define GIGABYTE(Size) (1024LL*1024LL*1024LL*(Size))
 
 struct screen_info
 {

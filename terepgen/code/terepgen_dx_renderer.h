@@ -23,8 +23,8 @@ struct scene_constants
 
 struct object_constants
 {
-	DirectX::XMFLOAT4X4 WorldMatrix;
-	DirectX::XMFLOAT4 CameraDir;
+    DirectX::XMFLOAT4X4 WorldMatrix;
+    DirectX::XMFLOAT4 CameraDir;
 };
 
 #define ERRMSGBUFFERSIZE 256

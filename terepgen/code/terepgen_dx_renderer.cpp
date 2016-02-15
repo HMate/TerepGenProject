@@ -535,7 +535,7 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;   
     BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     
-    Assert(BufferDesc.ByteWidth <= MEGABYTE(120))
+    Assert(BufferDesc.ByteWidth <= MEGABYTE(120));
 #if TEREPGEN_DEBUG
     char DebugBuffer[256];
     sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] VertBuff Max Vertex Count: %d\n", MaxVertexCount);

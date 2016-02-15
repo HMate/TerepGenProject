@@ -1,12 +1,12 @@
 
 cbuffer SceneBuffer : register(b0)
 {
-	float4x4 ViewProjMx;
-	float4x4 ViewMx;
+    float4x4 ViewProjMx;
+    float4x4 ViewMx;
 };
 cbuffer ObjectBuffer : register(b1)
 {
-	float4x4 WorldMx;
+    float4x4 WorldMx;
     float4 cameraDir;
 };
 
