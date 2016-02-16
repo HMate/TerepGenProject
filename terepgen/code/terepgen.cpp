@@ -132,6 +132,7 @@ CalculateBlockPositions(game_state *GameState, world_block_pos CentralBlockPos, 
                     GameState->BlockPositions[GameState->BlockPosCount].BlockX = CentralBlockPos.BlockX + XIndex;
                     GameState->BlockPositions[GameState->BlockPosCount].BlockY = CentralBlockPos.BlockY + YIndex;
                     GameState->BlockPositions[GameState->BlockPosCount].BlockZ = CentralBlockPos.BlockZ + ZIndex;
+                    GameState->BlockPositions[GameState->BlockPosCount].Resolution = 4;
                     GameState->BlockPosCount++;
                     
                     ZIndex += ZSign * (ZDiff++);
@@ -154,11 +155,11 @@ GetWorldPosFromV3(game_state *GameState, v3 Pos, int32 Resolution)
 {
     world_block_pos Result = {};
     
-    v3 CentralBlockPos = Pos / (GameState->BlockSize*GameState->BlockResolution);
+    v3 CentralBlockPos = Pos / (GameState->BlockSize*Resolution);
     Result.BlockX = FloorInt32(CentralBlockPos.X); 
     Result.BlockY = FloorInt32(CentralBlockPos.Y);
     Result.BlockZ = FloorInt32(CentralBlockPos.Z);
-    Result.Resolution = 1;
+    Result.Resolution = Resolution;
      
     return Result;
 }
@@ -219,6 +220,64 @@ PrintDebug(world_block_pos BlockP, terrain_density_block DensityBlock)
 #endif
 }
 
+internal world_block_pos
+ConvertToResolution(world_block_pos P, int32 NewRes)
+{
+    world_block_pos Result;
+    Result.Resolution = NewRes;
+    
+    real32 Ratio = (real32)P.Resolution / NewRes;
+    Result.BlockX = (int32)(P.BlockX * Ratio);
+    Result.BlockY = (int32)(P.BlockY * Ratio);
+    Result.BlockZ = (int32)(P.BlockZ * Ratio);
+    
+    return Result;
+}
+
+internal void
+GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos *BlockP)
+{
+    LowerBlockPositions[0].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[0].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[0].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[0].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[1].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[1].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[1].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[1].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[2].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[2].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[2].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[2].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[3].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[3].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[3].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[3].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[4].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[4].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[4].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[4].BlockZ = BlockP->BlockZ * 2 + 1;
+    
+    LowerBlockPositions[5].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[5].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[5].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[5].BlockZ = BlockP->BlockZ * 2 + 1;
+    
+    LowerBlockPositions[6].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[6].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[6].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[6].BlockZ = BlockP->BlockZ * 2 + 1;
+    
+    LowerBlockPositions[7].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[7].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[7].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[7].BlockZ = BlockP->BlockZ * 2 + 1;
+}
+
 internal void
 UpdateGameState(game_state *GameState)
 {
@@ -236,13 +295,14 @@ UpdateGameState(game_state *GameState)
     }
     
     v3 CameraP = GameState->CameraPos;
-    world_block_pos WorldCameraP = GetWorldPosFromV3(GameState, CameraP, 1);
+    world_block_pos WorldCameraP = GetWorldPosFromV3(GameState, CameraP, 4);
     CalculateBlockPositions(GameState, WorldCameraP, RENDERED_BLOCK_RADIUS);
     
     //
     // NOTE: Delete blocks that are too far from the camera
     //
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
+    // TODO: Delete from other resolutions too!
     int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
     for(uint32 StoreIndex = 0; 
         StoreIndex < GameState->PoligonisedBlock4Count; 
@@ -322,8 +382,7 @@ UpdateGameState(game_state *GameState)
         (PosIndex < GameState->BlockPosCount) && (MaxBlocksToGenerateInFrame > 0) ;
         ++PosIndex)
     {
-        world_block_pos BlockP = GameState->BlockPositions[PosIndex];
-        BlockP.Resolution = 4;
+        world_block_pos BlockP = ConvertToResolution(GameState->BlockPositions[PosIndex], 4);
         block_hash *ZeroHash = GetZeroHash(GameState, BlockP);
         if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
         {
@@ -366,8 +425,7 @@ UpdateGameState(game_state *GameState)
         (PosIndex < GameState->BlockPosCount) && (MaxBlocksToGenerateInFrame > 0) ;
         ++PosIndex)
     {
-        world_block_pos BlockP = GameState->BlockPositions[PosIndex];
-        BlockP.Resolution = 2;
+        world_block_pos BlockP = ConvertToResolution(GameState->BlockPositions[PosIndex], 2);
         block_hash *ZeroHash = GetZeroHash(GameState, BlockP);
         if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
         {
@@ -402,24 +460,78 @@ UpdateGameState(game_state *GameState)
         }
     }
     
-    v3 CamDir = GameState->CameraDir;
-    v3 Diff4X = GetV3FromWorldPos(GameState, world_block_pos{1,0,0,4});
-    v3 Diff4Y = GetV3FromWorldPos(GameState, world_block_pos{0,1,0,4});
-    v3 Diff4Z = GetV3FromWorldPos(GameState, world_block_pos{0,0,1,4});
+    const v3 CamDir = GameState->CameraDir;
+    const v3 Diff4X = GetV3FromWorldPos(GameState, world_block_pos{1,0,0,4});
+    const v3 Diff4Y = GetV3FromWorldPos(GameState, world_block_pos{0,1,0,4});
+    const v3 Diff4Z = GetV3FromWorldPos(GameState, world_block_pos{0,0,1,4});
+    const v3 Diff2X = GetV3FromWorldPos(GameState, world_block_pos{1,0,0,2});
+    const v3 Diff2Y = GetV3FromWorldPos(GameState, world_block_pos{0,1,0,2});
+    const v3 Diff2Z = GetV3FromWorldPos(GameState, world_block_pos{0,0,1,2});
     
     GameState->RenderBlockCount = 0;
     for(size_t PosIndex = 0; 
         (PosIndex < GameState->BlockPosCount);
         ++PosIndex)
     {
-        world_block_pos BlockP = GameState->BlockPositions[PosIndex];
-        BlockP.Resolution = 4;
+        world_block_pos BlockP = ConvertToResolution(GameState->BlockPositions[PosIndex], 4);
         block_hash *ZeroHash = GetZeroHash(GameState, BlockP);
         if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
         {
             block_hash *BlockHash = GetBlockHash(GameState, BlockP);
-            if((BlockHash->BlockIndex != HASH_UNINITIALIZED) &&
-               (BlockHash->BlockIndex != HASH_DELETED))
+            
+            // NOTE: Check if lower resolution blocks are available
+            bool32 LowersBlocksLoaded = true;
+            world_block_pos LowerBlockPositions[8];
+            GetLowerResBlockPositions(LowerBlockPositions, &BlockP);
+            
+            for(int32 LowerPosIndex=0;
+                LowerPosIndex < 8;
+                ++LowerPosIndex)
+            {
+                block_hash *LowZeroHash = GetZeroHash(GameState, LowerBlockPositions[LowerPosIndex]);
+                block_hash *LowBlockHash = GetBlockHash(GameState, LowerBlockPositions[LowerPosIndex]);
+                if((LowZeroHash->BlockIndex != HASH_ZERO_BLOCK) &&
+                    ((LowBlockHash->BlockIndex == HASH_UNINITIALIZED) ||
+                     (LowBlockHash->BlockIndex == HASH_DELETED)))
+                {
+                    LowersBlocksLoaded = false;
+                }
+            }
+            
+            if(LowersBlocksLoaded)
+            {
+                for(int32 LowerPosIndex=0;
+                    LowerPosIndex < 8;
+                    ++LowerPosIndex)
+                {
+                    block_hash *LowBlockHash = GetBlockHash(GameState, LowerBlockPositions[LowerPosIndex]);
+                    if((LowBlockHash->BlockIndex != HASH_UNINITIALIZED) &&
+                        (LowBlockHash->BlockIndex != HASH_DELETED))
+                    {
+                        terrain_render_block *Block = GameState->PoligonisedBlocks2 + LowBlockHash->BlockIndex;
+                        v3 P = Block->Pos - CameraP;
+                        
+                        v3 P0 = P;
+                        v3 P1 = P + Diff2X;
+                        v3 P2 = P + Diff2Y;
+                        v3 P3 = P + Diff2Z;
+                        v3 P4 = P + Diff2X + Diff2Y;
+                        v3 P5 = P + Diff2Y + Diff2Z;
+                        v3 P6 = P + Diff2X + Diff2Z;
+                        v3 P7 = P + Diff2X + Diff2Y + Diff2Z;
+                        if((DotProduct(P0, CamDir) > 0.0f) || (DotProduct(P1, CamDir) > 0.0f) ||
+                           (DotProduct(P2, CamDir) > 0.0f) || (DotProduct(P3, CamDir) > 0.0f) ||
+                           (DotProduct(P4, CamDir) > 0.0f) || (DotProduct(P5, CamDir) > 0.0f) ||
+                           (DotProduct(P6, CamDir) > 0.0f) || (DotProduct(P7, CamDir) > 0.0f))
+                        {
+                            GameState->RenderBlocks[GameState->RenderBlockCount++] = Block;
+                            Assert(GameState->RenderBlockCount < ArrayCount(GameState->RenderBlocks));
+                        }
+                    }
+                }
+            }
+            else if((BlockHash->BlockIndex != HASH_UNINITIALIZED) &&
+                    (BlockHash->BlockIndex != HASH_DELETED))
             {
                 terrain_render_block *Block = GameState->PoligonisedBlocks4 + BlockHash->BlockIndex;
                 v3 P = Block->Pos - CameraP;
@@ -443,10 +555,7 @@ UpdateGameState(game_state *GameState)
             }
         }
     }
-    v3 Diff2X = GetV3FromWorldPos(GameState, world_block_pos{1,0,0,2});
-    v3 Diff2Y = GetV3FromWorldPos(GameState, world_block_pos{0,1,0,2});
-    v3 Diff2Z = GetV3FromWorldPos(GameState, world_block_pos{0,0,1,2});
-    
+    /*
     for(size_t PosIndex = 0; 
         (PosIndex < GameState->BlockPosCount);
         ++PosIndex)
@@ -481,7 +590,7 @@ UpdateGameState(game_state *GameState)
                 }   
             }
         }
-    }
+    }*/
 }
 
 internal void
