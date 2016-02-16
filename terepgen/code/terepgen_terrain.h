@@ -8,6 +8,7 @@
 
 struct terrain_density_block
 {
+    // TODO: Put block resolution here?
     v3 Pos;
     static_grid3D Grid;
 };
@@ -17,6 +18,7 @@ struct terrain_density_block
 
 struct terrain_render_block
 {
+    // TODO: Put block resolution here?
     v3 Pos;
     uint32 VertexCount;
     vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];

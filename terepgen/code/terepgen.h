@@ -18,6 +18,8 @@ struct world_block_pos
     int32 BlockX;
     int32 BlockY;
     int32 BlockZ;
+    
+    int32 Resolution;
 };
 
 struct block_hash
@@ -31,7 +33,7 @@ struct block_hash
 #define RENDERED_BLOCK_RADIUS 10
 #define ZERO_BLOCK_RADIUS 23
 #define BLOCK_POS_COUNT POS_GRID_SIZE(RENDERED_BLOCK_RADIUS)
-#define RENDER_BLOCK_COUNT 6500
+#define RENDER_BLOCK_COUNT 1500
 
 #define BLOCK_HASH_SIZE 4096
 #define ZERO_HASH_SIZE 32768
@@ -52,8 +54,12 @@ struct game_state
     world_block_pos BlockPositions[BLOCK_POS_COUNT];
     
     uint32 DeletedBlockCount;
-    uint32 StoredRenderBlockCount;
-    terrain_render_block StoredRenderBlocks[RENDER_BLOCK_COUNT];
+    uint32 PoligonisedBlock1Count;
+    uint32 PoligonisedBlock2Count;
+    uint32 PoligonisedBlock4Count;
+    terrain_render_block PoligonisedBlocks1[RENDER_BLOCK_COUNT];
+    terrain_render_block PoligonisedBlocks2[RENDER_BLOCK_COUNT];
+    terrain_render_block PoligonisedBlocks4[RENDER_BLOCK_COUNT];
     uint32 RenderBlockCount;
     terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
     
