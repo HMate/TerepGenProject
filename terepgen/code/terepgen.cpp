@@ -330,15 +330,15 @@ UpdateGameState(game_state *GameState)
                         DensityBlock.Pos.X, DensityBlock.Pos.Y, DensityBlock.Pos.Z);
                     OutputDebugStringA(DebugBuffer);
 #endif
-                    win32_clock Clock;
+                    //win32_clock Clock;
                     GenerateDensityGrid(&DensityBlock, &GameState->PerlinArray, GameState->BlockResolution);
-                    Clock.PrintMiliSeconds("Density time:");
-                    Clock.Reset();
+                    //Clock.PrintMiliSeconds("Density time:");
+                    //Clock.Reset();
                     PoligoniseBlock(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), 
                         &DensityBlock, GameState->BlockResolution);
                     if(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount].VertexCount != 0)
                     {
-                        Clock.PrintMiliSeconds("Poligonise time:");
+                        //Clock.PrintMiliSeconds("Poligonise time:");
                         BlockHash = GetBlockHashForWrite(GameState, BlockP);
                         BlockHash->Key = BlockP;
                         BlockHash->BlockIndex = GameState->StoredRenderBlockCount++;

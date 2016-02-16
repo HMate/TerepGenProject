@@ -11,8 +11,8 @@ call "..\misc\load_msvc.bat"
 
 set debugBuild= 1
 
-if defined debugBuild (
-echo terepgen Debug build
+if %debugBuild% == 1 (
+echo Debug build
 REM -MTd Multithreaded version of run-time library build and links to LIBCMT.lib in debug mode
 REM -Od Disables optimization and build faster
 REM -Z7 Produces an .obj with symbolic debugging information for debuggers
@@ -27,7 +27,7 @@ set CommonLinkerFlags= -incremental:no -opt:ref^
  user32.lib d3d11.lib dxgi.lib d3dcompiler.lib 
  
 ) else (
-echo terepgen Release build
+echo Release build
 set CommonCompilerFlags= -MT -nologo -O2 -EHsc -DTEREPGEN_DEBUG=0 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189
 set CommonLinkerFlags= -incremental:no -opt:ref^
  user32.lib d3d11.lib dxgi.lib d3dcompiler.lib 
