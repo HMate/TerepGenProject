@@ -7,13 +7,10 @@
 #include "terepgen_types.h"
 #include "terepgen_grid.h"
 #include "terepgen_vector.h"
+#include "terepgen_random.h"
 #include "terepgen_dx_renderer.h"
 #include "terepgen_terrain.h"
 
-
-#include "terepgen_random.cpp"
-#include "terepgen_terrain.cpp"
-#include "terepgen_dx_renderer.cpp"
 
 
 struct world_block_pos

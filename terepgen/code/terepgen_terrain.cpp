@@ -35,7 +35,9 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
                              
                 // DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 256.03f) * Scale * 0.0036025f;
                 // DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 128.96f) * Scale * 0.0078125f;
+                //win32_clock Clock;
                 DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 64.01f)  * Scale * 0.015625f;
+                //Clock.PrintMiliSeconds("Perlin gen time:");
                 
                 DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 32.03f) * Scale * 0.03125f;
                 DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 16.16f) * Scale * 0.0625f;
@@ -107,7 +109,7 @@ GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
         +2 at each side to calculate proper normals
 */
 internal void
-CreateRenderVertices(terrain_render_block *RenderBlock, terrain_density_block *DensityBlock,
+PoligoniseBlock(terrain_render_block *RenderBlock, terrain_density_block *DensityBlock,
                      uint32 BlockResolution)
 {
     Assert(BlockResolution > 0);

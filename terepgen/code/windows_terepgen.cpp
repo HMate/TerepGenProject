@@ -14,8 +14,7 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 
-#include "terepgen.cpp"
-// TODO: Should the render code be a separately compiled cpp?
+#include "terepgen.h"
 
 global_variable bool32 GlobalRunning = true;
 global_variable input GlobalInput;
@@ -25,6 +24,68 @@ global_variable bool32 DrawTerrain2;
 global_variable uint32 GlobalSeed;  
 global_variable real32 Persistence;
 global_variable LARGE_INTEGER GlobalPerfCountFrequency;   
+
+// NOTE: Requires GlobalPerfCountFrequency to be initialized
+struct win32_clock
+{
+    LARGE_INTEGER Start;
+    
+    win32_clock()
+    {
+        Reset();
+    }
+    
+    void Reset()
+    {
+        QueryPerformanceCounter(&Start);
+    }
+    
+    real64 GetSecondsElapsed()
+    {
+        LARGE_INTEGER End;
+        QueryPerformanceCounter(&End);
+        real64 Result = ((real64)(End.QuadPart - Start.QuadPart) /
+                        (real64)GlobalPerfCountFrequency.QuadPart);
+        return Result;
+    }
+    
+    void PrintMiliSeconds(char *PrintText)
+    {
+        real64 SecondsElapsed = GetSecondsElapsed();
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f ms\n",
+            PrintText, SecondsElapsed * 1000.0);
+        OutputDebugStringA(DebugBuffer);
+    }
+    
+    void PrintSeconds(char *PrintText)
+    {
+        real64 SecondsElapsed = GetSecondsElapsed();
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f s\n",
+            PrintText, SecondsElapsed);
+        OutputDebugStringA(DebugBuffer);
+    }
+};
+
+inline LARGE_INTEGER
+Win32GetWallClock(void)
+{
+    LARGE_INTEGER Result;
+    QueryPerformanceCounter(&Result);
+    return Result;
+}    
+
+inline real64
+Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
+{
+    real64 Result = ((real64)(End.QuadPart - Start.QuadPart) /
+                    (real64)GlobalPerfCountFrequency.QuadPart);
+    return Result;
+}
+
+#include "terepgen.cpp"
+// TODO: Should the render code be a separately compiled cpp?
 
 internal screen_info 
 GetWindowDimension(HWND Window)
@@ -164,65 +225,6 @@ WindowProc(HWND Window,
     return Result;
 }
 
-// NOTE: Requires GlobalPerfCountFrequency to be initialized
-struct win32_clock
-{
-    LARGE_INTEGER Start;
-    
-    win32_clock()
-    {
-        ResetCounter();
-    }
-    
-    void ResetCounter()
-    {
-        QueryPerformanceCounter(&Start);
-    }
-    
-    real64 GetSecondsElapsed()
-    {
-        LARGE_INTEGER End;
-        QueryPerformanceCounter(&End);
-        real64 Result = ((real64)(End.QuadPart - Start.QuadPart) /
-                        (real64)GlobalPerfCountFrequency.QuadPart);
-        return Result;
-    }
-    
-    void PrintMiliSeconds(char *PrintText)
-    {
-        real64 SecondsElapsed = GetSecondsElapsed();
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f ms\n",
-            PrintText, SecondsElapsed * 1000.0);
-        OutputDebugStringA(DebugBuffer);
-    }
-    
-    void PrintSeconds(char *PrintText)
-    {
-        real64 SecondsElapsed = GetSecondsElapsed();
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f s\n",
-            PrintText, SecondsElapsed);
-        OutputDebugStringA(DebugBuffer);
-    }
-};
-
-inline LARGE_INTEGER
-Win32GetWallClock(void)
-{
-    LARGE_INTEGER Result;
-    QueryPerformanceCounter(&Result);
-    return Result;
-}    
-
-inline real64
-Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
-{
-    real64 Result = ((real64)(End.QuadPart - Start.QuadPart) /
-                    (real64)GlobalPerfCountFrequency.QuadPart);
-    return Result;
-}
-
 int CALLBACK 
 WinMain(HINSTANCE Instance,
         HINSTANCE PrevInstance,
@@ -334,7 +336,7 @@ WinMain(HINSTANCE Instance,
                 }
                 
                 real64 TimePassed = WorldClock.GetSecondsElapsed();
-                WorldClock.ResetCounter();
+                WorldClock.Reset();
                 
                 Camera.Update(&GlobalInput, TimePassed);
                 GameState->CameraPos = Camera.GetPos();
@@ -346,7 +348,7 @@ WinMain(HINSTANCE Instance,
                 RenderGame(GameState, &Camera);
                 
                 FrameClock.PrintMiliSeconds("Frame time:");
-                FrameClock.ResetCounter();
+                FrameClock.Reset();
             }
             
             delete GameState;

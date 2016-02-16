@@ -16,47 +16,47 @@ static int MTNext;
 internal void 
 MtSeed(unsigned long s)
 {
-	int i;
-
-	MTx[0] = s & 0xffffffffUL;
-
-	for (i = 1; i < MT_N; i++) {
-		MTx[i] = (1812433253UL * (MTx[i - 1] ^ (MTx[i - 1] >> 30)) + i);
-		MTx[i] &= 0xffffffffUL;
-	}
+    int i;
+    
+    MTx[0] = s & 0xffffffffUL;
+    
+    for (i = 1; i < MT_N; i++) {
+        MTx[i] = (1812433253UL * (MTx[i - 1] ^ (MTx[i - 1] >> 30)) + i);
+        MTx[i] &= 0xffffffffUL;
+    }
 }
 
 // NOTE: Gives back a random long integer in [0-max_long]
 internal unsigned long 
 MtRand(void)
 {
-	unsigned long y, a;
-	int i;
+    unsigned long y, a;
+    int i;
 
-	/* Refill MTx if exhausted */
-	if (MTNext == MT_N) {
-		MTNext = 0;
+    /* Refill MTx if exhausted */
+    if (MTNext == MT_N) {
+        MTNext = 0;
 
-		for (i = 0; i < MT_N - 1; i++) {
-			y = (MTx[i] & MT_U) | MTx[i + 1] & MT_L;
-			a = (y & 0x1UL) ? MT_A : 0x0UL;
-			MTx[i] = MTx[(i + MT_M) % MT_N] ^ (y >> 1) ^ a;
-		}
+        for (i = 0; i < MT_N - 1; i++) {
+            y = (MTx[i] & MT_U) | MTx[i + 1] & MT_L;
+            a = (y & 0x1UL) ? MT_A : 0x0UL;
+            MTx[i] = MTx[(i + MT_M) % MT_N] ^ (y >> 1) ^ a;
+        }
 
-		y = (MTx[MT_N - 1] & MT_U) | MTx[0] & MT_L;
-		a = (y & 0x1UL) ? MT_A : 0x0UL;
-		MTx[MT_N - 1] = MTx[MT_M - 1] ^ (y >> 1) ^ a;
-	}
+        y = (MTx[MT_N - 1] & MT_U) | MTx[0] & MT_L;
+        a = (y & 0x1UL) ? MT_A : 0x0UL;
+        MTx[MT_N - 1] = MTx[MT_M - 1] ^ (y >> 1) ^ a;
+    }
 
-	y = MTx[MTNext++];
-
-	/* Improve distribution */
-	y ^= (y >> 11);
-	y ^= (y << 7) & 0x9d2c5680UL;
-	y ^= (y << 15) & 0xefc60000UL;
-	y ^= (y >> 18);
-
-	return y;
+    y = MTx[MTNext++];
+    
+    /* Improve distribution */
+    y ^= (y >> 11);
+    y ^= (y << 7) & 0x9d2c5680UL;
+    y ^= (y << 15) & 0xefc60000UL;
+    y ^= (y >> 18);
+    
+    return y;
 }
 
 // NOTE: Gives back a random real number in [(-1.0) - (1.0)]
@@ -73,18 +73,11 @@ MtStandardDeviate(void)
 inline real32
 Lerp(real32 A, real32 B, real32 X)
 {
-	real32 T = X*X*X*(10.0f + (X*((X*6.0f) - 15.0f) ) );
-	real32 Result = A + (T*(B - A));
-	return Result;
+    real32 T = X*X*X*(10.0f + (X*((X*6.0f) - 15.0f) ) );
+    real32 Result = A + (T*(B - A));
+    return Result;
 }
 
-#define RANDOM_TEX_SIZE 33
-
-struct value_noise_generator
-{
-    uint32 Seed;
-    dynamic_grid3D RandomTex;
-};
         
 void SetSeed(value_noise_generator *Generator, uint32 NewSeed)
 {
@@ -146,25 +139,13 @@ RandomFloat(value_noise_generator *Generator, v3 WorldPos)
 
 // Perlin noise
 
-struct perlin_noise_generator
-{
-	uint32 Seed;
-	v2 GradientTexV2[RANDOM_TEX_SIZE*RANDOM_TEX_SIZE];
-	v3 GradientTex[RANDOM_TEX_SIZE*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE];
-};
-
-struct perlin_noise_array
-{
-    perlin_noise_generator Noise[3];
-};
-
 internal void 
 SetSeed(perlin_noise_generator *Generator, uint32 NewSeed)
 {
     Generator->Seed = NewSeed;
     uint32 TexSize = ArrayCount(Generator->GradientTex);
     MtSeed(NewSeed);
-	v3 PseudoGradientTable[12] 
+    v3 PseudoGradientTable[12] 
     { 
         { -1, -1, 0},{ -1, 1, 0},{ 1, -1, 0},{ 1, 1, 0},
         { -1, 0, -1},{ -1, 0, 1},{ 1, 0, -1},{ 1, 0, 1},
@@ -186,9 +167,9 @@ SetSeed(perlin_noise_generator *Generator, uint32 NewSeed)
         {
             Y = -Y;
         }
-		v2 Gradient = { X, Y };
+        v2 Gradient = { X, Y };
         real32 Len = Length(Gradient);
-		Assert(Len >= 0.9999f && Len <= 1.0001);
+        Assert(Len >= 0.9999f && Len <= 1.0001);
         Generator->GradientTexV2[Index] = v2{X, Y}; 
     }
 }

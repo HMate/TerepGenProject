@@ -3,7 +3,9 @@
 
 */
 
-#include "terepgen.h"
+#include "terepgen_random.cpp"
+#include "terepgen_terrain.cpp"
+#include "terepgen_dx_renderer.cpp"
 
 #define HASH_UNINITIALIZED -1
 #define HASH_ZERO_BLOCK -2
@@ -207,8 +209,6 @@ UpdateGameState(game_state *GameState)
         InitBlockHash(GameState);
         InitZeroHash(GameState);
         
-        
-        
         GameState->Initialized = true;
     }
     
@@ -220,7 +220,6 @@ UpdateGameState(game_state *GameState)
     // NOTE: Delete blocks that are too far from the camera
     //
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
-    
     int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
     for(uint32 StoreIndex = 0; 
         StoreIndex < GameState->StoredRenderBlockCount; 
@@ -331,11 +330,15 @@ UpdateGameState(game_state *GameState)
                         DensityBlock.Pos.X, DensityBlock.Pos.Y, DensityBlock.Pos.Z);
                     OutputDebugStringA(DebugBuffer);
 #endif
+                    win32_clock Clock;
                     GenerateDensityGrid(&DensityBlock, &GameState->PerlinArray, GameState->BlockResolution);
-                    CreateRenderVertices(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), 
+                    Clock.PrintMiliSeconds("Density time:");
+                    Clock.Reset();
+                    PoligoniseBlock(&(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount]), 
                         &DensityBlock, GameState->BlockResolution);
                     if(GameState->StoredRenderBlocks[GameState->StoredRenderBlockCount].VertexCount != 0)
                     {
+                        Clock.PrintMiliSeconds("Poligonise time:");
                         BlockHash = GetBlockHashForWrite(GameState, BlockP);
                         BlockHash->Key = BlockP;
                         BlockHash->BlockIndex = GameState->StoredRenderBlockCount++;
@@ -379,6 +382,7 @@ UpdateGameState(game_state *GameState)
 internal void
 RenderGame(game_state *GameState, camera *Camera)
 {
+    win32_clock RenderClock;
     dx_resource *DXResources = GameState->DXResources;
     DXResources->LoadResource(Camera->SceneConstantBuffer,
                   &Camera->SceneConstants, sizeof(Camera->SceneConstants));
@@ -454,4 +458,5 @@ RenderGame(game_state *GameState, camera *Camera)
     }
     
     DXResources->SwapChain->Present(0, 0);
+    RenderClock.PrintMiliSeconds("Render time:");
 }
