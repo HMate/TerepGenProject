@@ -109,11 +109,11 @@ GetZeroHash(game_state *GameState, world_block_pos P)
     return Result;
 }
     
-    
+// TODO: Should be based on resolution!
 internal void 
-CalculateBlockPositions(game_state *GameState, world_block_pos CentralBlockPos, int32 Radius)
+CalculateBlockPositions(block_pos_array *PosArray, world_block_pos CentralBlockPos, int32 Radius)
 {    
-    GameState->BlockPosCount = 0;
+    PosArray->Count = 0;
     for(int32 Dist = 0;
         Dist <= Radius;
         Dist++)
@@ -129,11 +129,11 @@ CalculateBlockPositions(game_state *GameState, world_block_pos CentralBlockPos, 
                 int32 ZDiff = (ZIndex) ? 2*ZIndex : 1;
                 while(Abs(ZIndex) <= Dist-Abs(XIndex)-Abs(YIndex))
                 {
-                    GameState->BlockPositions[GameState->BlockPosCount].BlockX = CentralBlockPos.BlockX + XIndex;
-                    GameState->BlockPositions[GameState->BlockPosCount].BlockY = CentralBlockPos.BlockY + YIndex;
-                    GameState->BlockPositions[GameState->BlockPosCount].BlockZ = CentralBlockPos.BlockZ + ZIndex;
-                    GameState->BlockPositions[GameState->BlockPosCount].Resolution = 4;
-                    GameState->BlockPosCount++;
+                    PosArray->Pos[PosArray->Count].BlockX = CentralBlockPos.BlockX + XIndex;
+                    PosArray->Pos[PosArray->Count].BlockY = CentralBlockPos.BlockY + YIndex;
+                    PosArray->Pos[PosArray->Count].BlockZ = CentralBlockPos.BlockZ + ZIndex;
+                    PosArray->Pos[PosArray->Count].Resolution = CentralBlockPos.Resolution;
+                    PosArray->Count++;
                     
                     ZIndex += ZSign * (ZDiff++);
                     ZSign *= -1;
@@ -147,7 +147,7 @@ CalculateBlockPositions(game_state *GameState, world_block_pos CentralBlockPos, 
         }
     }
     
-    Assert(GameState->BlockPosCount <= ArrayCount(GameState->BlockPositions));
+    Assert(PosArray->Count <= ArrayCount(PosArray->Pos));
 }
 
 inline world_block_pos
@@ -237,6 +237,8 @@ ConvertToResolution(world_block_pos P, int32 NewRes)
 internal void
 GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos *BlockP)
 {
+    // TODO: Be more concise
+    // TODO: Give Resolution in param
     LowerBlockPositions[0].Resolution = BlockP->Resolution/2;
     LowerBlockPositions[0].BlockX = BlockP->BlockX * 2;
     LowerBlockPositions[0].BlockY = BlockP->BlockY * 2;
@@ -279,6 +281,36 @@ GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos 
 }
 
 internal void
+AddToRenderBlocks(game_state *GameState, terrain_render_block *PoligonisedBlocks, int32 BlockIndex, int32 Resolution)
+{
+    const v3 CameraP = GameState->CameraPos;
+    const v3 CamDir = GameState->CameraDir;
+    const v3 DiffX = GetV3FromWorldPos(GameState, world_block_pos{1,0,0,Resolution});
+    const v3 DiffY = GetV3FromWorldPos(GameState, world_block_pos{0,1,0,Resolution});
+    const v3 DiffZ = GetV3FromWorldPos(GameState, world_block_pos{0,0,1,Resolution});
+    
+    terrain_render_block *Block = PoligonisedBlocks + BlockIndex;
+    v3 P = Block->Pos - CameraP;
+    
+    v3 P0 = P;
+    v3 P1 = P + DiffX;
+    v3 P2 = P + DiffY;
+    v3 P3 = P + DiffZ;
+    v3 P4 = P + DiffX + DiffY;
+    v3 P5 = P + DiffY + DiffZ;
+    v3 P6 = P + DiffX + DiffZ;
+    v3 P7 = P + DiffX + DiffY + DiffZ;
+    if((DotProduct(P0, CamDir) > 0.0f) || (DotProduct(P1, CamDir) > 0.0f) ||
+       (DotProduct(P2, CamDir) > 0.0f) || (DotProduct(P3, CamDir) > 0.0f) ||
+       (DotProduct(P4, CamDir) > 0.0f) || (DotProduct(P5, CamDir) > 0.0f) ||
+       (DotProduct(P6, CamDir) > 0.0f) || (DotProduct(P7, CamDir) > 0.0f))
+    {
+        GameState->RenderBlocks[GameState->RenderBlockCount++] = Block;
+        Assert(GameState->RenderBlockCount < ArrayCount(GameState->RenderBlocks));
+    }  
+}
+
+internal void
 UpdateGameState(game_state *GameState)
 {
     if(GameState->Initialized == false)
@@ -296,7 +328,8 @@ UpdateGameState(game_state *GameState)
     
     v3 CameraP = GameState->CameraPos;
     world_block_pos WorldCameraP = GetWorldPosFromV3(GameState, CameraP, 4);
-    CalculateBlockPositions(GameState, WorldCameraP, RENDERED_BLOCK_RADIUS);
+    block_pos_array BlockPositions;
+    CalculateBlockPositions(&BlockPositions, WorldCameraP, RENDERED_BLOCK_RADIUS);
     
     //
     // NOTE: Delete blocks that are too far from the camera
@@ -379,10 +412,10 @@ UpdateGameState(game_state *GameState)
     terrain_density_block DensityBlock;
     uint32 MaxBlocksToGenerateInFrame = 3;
     for(size_t PosIndex = 0; 
-        (PosIndex < GameState->BlockPosCount) && (MaxBlocksToGenerateInFrame > 0) ;
+        (PosIndex < BlockPositions.Count) && (MaxBlocksToGenerateInFrame > 0) ;
         ++PosIndex)
     {
-        world_block_pos BlockP = ConvertToResolution(GameState->BlockPositions[PosIndex], 4);
+        world_block_pos BlockP = ConvertToResolution(BlockPositions.Pos[PosIndex], 4);
         block_hash *ZeroHash = GetZeroHash(GameState, BlockP);
         if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
         {
@@ -396,7 +429,6 @@ UpdateGameState(game_state *GameState)
                 {
                     MaxBlocksToGenerateInFrame--;
                     // NOTE: Initialize block
-                    
                     DensityBlock.Pos = GetV3FromWorldPos(GameState, BlockP);
                     //win32_clock Clock;
                     GenerateDensityGrid(&DensityBlock, &GameState->PerlinArray, /*GameState->BlockResolution*/4);
@@ -421,11 +453,15 @@ UpdateGameState(game_state *GameState)
         }
     }
     
+    world_block_pos WorldCameraP2 = ConvertToResolution(WorldCameraP, 2);
+    block_pos_array Block2Positions;
+    CalculateBlockPositions(&Block2Positions, WorldCameraP2, RENDERED_BLOCK_RADIUS);
+    
     for(size_t PosIndex = 0; 
-        (PosIndex < GameState->BlockPosCount) && (MaxBlocksToGenerateInFrame > 0) ;
+        (PosIndex < Block2Positions.Count) && (MaxBlocksToGenerateInFrame > 0) ;
         ++PosIndex)
     {
-        world_block_pos BlockP = ConvertToResolution(GameState->BlockPositions[PosIndex], 2);
+        world_block_pos BlockP = ConvertToResolution(Block2Positions.Pos[PosIndex], 2);
         block_hash *ZeroHash = GetZeroHash(GameState, BlockP);
         if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
         {
@@ -439,7 +475,6 @@ UpdateGameState(game_state *GameState)
                 {
                     MaxBlocksToGenerateInFrame--;
                     // NOTE: Initialize block
-                    
                     DensityBlock.Pos = GetV3FromWorldPos(GameState, BlockP);
                     GenerateDensityGrid(&DensityBlock, &GameState->PerlinArray, 2);
                     PoligoniseBlock(&(GameState->PoligonisedBlocks2[GameState->PoligonisedBlock2Count]), 
@@ -460,20 +495,12 @@ UpdateGameState(game_state *GameState)
         }
     }
     
-    const v3 CamDir = GameState->CameraDir;
-    const v3 Diff4X = GetV3FromWorldPos(GameState, world_block_pos{1,0,0,4});
-    const v3 Diff4Y = GetV3FromWorldPos(GameState, world_block_pos{0,1,0,4});
-    const v3 Diff4Z = GetV3FromWorldPos(GameState, world_block_pos{0,0,1,4});
-    const v3 Diff2X = GetV3FromWorldPos(GameState, world_block_pos{1,0,0,2});
-    const v3 Diff2Y = GetV3FromWorldPos(GameState, world_block_pos{0,1,0,2});
-    const v3 Diff2Z = GetV3FromWorldPos(GameState, world_block_pos{0,0,1,2});
-    
     GameState->RenderBlockCount = 0;
     for(size_t PosIndex = 0; 
-        (PosIndex < GameState->BlockPosCount);
+        (PosIndex < BlockPositions.Count);
         ++PosIndex)
     {
-        world_block_pos BlockP = ConvertToResolution(GameState->BlockPositions[PosIndex], 4);
+        world_block_pos BlockP = ConvertToResolution(BlockPositions.Pos[PosIndex], 4);
         block_hash *ZeroHash = GetZeroHash(GameState, BlockP);
         if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
         {
@@ -508,89 +535,17 @@ UpdateGameState(game_state *GameState)
                     if((LowBlockHash->BlockIndex != HASH_UNINITIALIZED) &&
                         (LowBlockHash->BlockIndex != HASH_DELETED))
                     {
-                        terrain_render_block *Block = GameState->PoligonisedBlocks2 + LowBlockHash->BlockIndex;
-                        v3 P = Block->Pos - CameraP;
-                        
-                        v3 P0 = P;
-                        v3 P1 = P + Diff2X;
-                        v3 P2 = P + Diff2Y;
-                        v3 P3 = P + Diff2Z;
-                        v3 P4 = P + Diff2X + Diff2Y;
-                        v3 P5 = P + Diff2Y + Diff2Z;
-                        v3 P6 = P + Diff2X + Diff2Z;
-                        v3 P7 = P + Diff2X + Diff2Y + Diff2Z;
-                        if((DotProduct(P0, CamDir) > 0.0f) || (DotProduct(P1, CamDir) > 0.0f) ||
-                           (DotProduct(P2, CamDir) > 0.0f) || (DotProduct(P3, CamDir) > 0.0f) ||
-                           (DotProduct(P4, CamDir) > 0.0f) || (DotProduct(P5, CamDir) > 0.0f) ||
-                           (DotProduct(P6, CamDir) > 0.0f) || (DotProduct(P7, CamDir) > 0.0f))
-                        {
-                            GameState->RenderBlocks[GameState->RenderBlockCount++] = Block;
-                            Assert(GameState->RenderBlockCount < ArrayCount(GameState->RenderBlocks));
-                        }
+                        AddToRenderBlocks(GameState, GameState->PoligonisedBlocks2, LowBlockHash->BlockIndex, 2);
                     }
                 }
             }
             else if((BlockHash->BlockIndex != HASH_UNINITIALIZED) &&
                     (BlockHash->BlockIndex != HASH_DELETED))
             {
-                terrain_render_block *Block = GameState->PoligonisedBlocks4 + BlockHash->BlockIndex;
-                v3 P = Block->Pos - CameraP;
-                
-                v3 P0 = P;
-                v3 P1 = P + Diff4X;
-                v3 P2 = P + Diff4Y;
-                v3 P3 = P + Diff4Z;
-                v3 P4 = P + Diff4X + Diff4Y;
-                v3 P5 = P + Diff4Y + Diff4Z;
-                v3 P6 = P + Diff4X + Diff4Z;
-                v3 P7 = P + Diff4X + Diff4Y + Diff4Z;
-                if((DotProduct(P0, CamDir) > 0.0f) || (DotProduct(P1, CamDir) > 0.0f) ||
-                   (DotProduct(P2, CamDir) > 0.0f) || (DotProduct(P3, CamDir) > 0.0f) ||
-                   (DotProduct(P4, CamDir) > 0.0f) || (DotProduct(P5, CamDir) > 0.0f) ||
-                   (DotProduct(P6, CamDir) > 0.0f) || (DotProduct(P7, CamDir) > 0.0f))
-                {
-                    GameState->RenderBlocks[GameState->RenderBlockCount++] = Block;
-                    Assert(GameState->RenderBlockCount < ArrayCount(GameState->RenderBlocks));
-                }   
+                AddToRenderBlocks(GameState, GameState->PoligonisedBlocks4, BlockHash->BlockIndex, 4);
             }
         }
     }
-    /*
-    for(size_t PosIndex = 0; 
-        (PosIndex < GameState->BlockPosCount);
-        ++PosIndex)
-    {
-        world_block_pos BlockP = GameState->BlockPositions[PosIndex];
-        BlockP.Resolution = 2;
-        block_hash *ZeroHash = GetZeroHash(GameState, BlockP);
-        if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
-        {
-            block_hash *BlockHash = GetBlockHash(GameState, BlockP);
-            if((BlockHash->BlockIndex != HASH_UNINITIALIZED) &&
-               (BlockHash->BlockIndex != HASH_DELETED))
-            {
-                terrain_render_block *Block = GameState->PoligonisedBlocks2 + BlockHash->BlockIndex;
-                v3 P = Block->Pos - CameraP;
-                
-                v3 P0 = P;
-                v3 P1 = P + Diff2X;
-                v3 P2 = P + Diff2Y;
-                v3 P3 = P + Diff2Z;
-                v3 P4 = P + Diff2X + Diff2Y;
-                v3 P5 = P + Diff2Y + Diff2Z;
-                v3 P6 = P + Diff2X + Diff2Z;
-                v3 P7 = P + Diff2X + Diff2Y + Diff2Z;
-                if((DotProduct(P0, CamDir) > 0.0f) || (DotProduct(P1, CamDir) > 0.0f) ||
-                   (DotProduct(P2, CamDir) > 0.0f) || (DotProduct(P3, CamDir) > 0.0f) ||
-                   (DotProduct(P4, CamDir) > 0.0f) || (DotProduct(P5, CamDir) > 0.0f) ||
-                   (DotProduct(P6, CamDir) > 0.0f) || (DotProduct(P7, CamDir) > 0.0f))
-                {
-                    GameState->RenderBlocks[GameState->RenderBlockCount++] = Block;
-                    Assert(GameState->RenderBlockCount < ArrayCount(GameState->RenderBlocks));
-                }   
-            }
-        }
-    }*/
 }
 
 internal void

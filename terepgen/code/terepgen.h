@@ -38,6 +38,13 @@ struct block_hash
 #define BLOCK_HASH_SIZE 4096
 #define ZERO_HASH_SIZE 32768
 
+// TODO: how to implement different blockpos array sizes? do i need it?
+struct block_pos_array
+{
+    uint32 Count;
+    world_block_pos Pos[BLOCK_POS_COUNT];
+};
+
 struct game_state 
 {
     bool32 Initialized;
@@ -49,9 +56,6 @@ struct game_state
     real32 BlockSize;
     uint32 BlockResolution;
     uint32 RenderMode;
-    
-    uint32 BlockPosCount;
-    world_block_pos BlockPositions[BLOCK_POS_COUNT];
     
     uint32 DeletedBlockCount;
     uint32 PoligonisedBlock1Count;
