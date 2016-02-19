@@ -8,9 +8,34 @@
 #include "terepgen_grid.h"
 #include "terepgen_vector.h"
 #include "terepgen_random.h"
+
+struct vertex
+{
+    // NOTE: position is in left handed coordinate system
+    // +X points right initially, -X points left
+    // +Y is vertical axis and points up 
+    // -Z points through screen to user initially, +Z points toward screen 
+    real32 X, Y, Z;
+    real32 NX, NY, NZ;
+    v4 Color;
+};
+
+vertex Vertex(v3 Pos, v3 Norm, v4 Color)
+{
+    vertex Result;
+    Result.X = Pos.X;
+    Result.Y = Pos.Y;
+    Result.Z = Pos.Z;
+    Result.NX = Norm.X;
+    Result.NY = Norm.Y;
+    Result.NZ = Norm.Z;
+    Result.Color = Color;
+    
+    return Result;
+}
+
 #include "terepgen_dx_renderer.h"
 #include "terepgen_terrain.h"
-
 
 
 struct world_block_pos
@@ -26,6 +51,12 @@ struct block_hash
 {
     world_block_pos Key;
     int32 BlockIndex;
+};
+
+struct cube
+{
+    v3 Pos;
+    vertex Vertices[36];
 };
 
 // NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
@@ -72,9 +103,11 @@ struct game_state
     block_hash BlockHash[BLOCK_HASH_SIZE];
     uint32 ZeroBlockCount;
     block_hash ZeroHash[ZERO_HASH_SIZE];
+    
+    cube Cube;
 };
 
-internal void UpdateGameState(game_state);
+internal void UpdateGameState(game_state, v3);
 internal void RenderGame(game_state *GameState, camera *Camera);
 
 #define TEREPGEN_H

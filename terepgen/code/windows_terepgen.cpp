@@ -344,7 +344,7 @@ WinMain(HINSTANCE Instance,
                 GameState->CameraDir = Camera.GetLookDirection();
                 
                 v2 MouseInPixel = v2{(real32)MouseP.x, (real32)MouseP.y};
-                real32 WorldScreenSizeY = 2.0f*Camera.NearZ*Tan(Camera.Fov/2.0f);
+                real32 WorldScreenSizeY = 2.0f*Tan(Camera.Fov/2.0f);
                 real32 WorldScreenSizeX = WorldScreenSizeY*(real32)ScreenInfo.Width/ScreenInfo.Height;
                 v3 UpDir = Camera.GetUpDirection();
                 v3 RightDir = Normalize(-Cross(GameState->CameraDir, UpDir));
@@ -352,7 +352,8 @@ WinMain(HINSTANCE Instance,
                 NormalizedMouse.X = NormalizedMouse.X / ScreenInfo.Width;
                 NormalizedMouse.Y = -NormalizedMouse.Y / ScreenInfo.Height;
                 
-                v3 WorldMouse = GameState->CameraPos + (UpDir*NormalizedMouse.Y*WorldScreenSizeY) + (RightDir*NormalizedMouse.X*WorldScreenSizeX);
+                v3 WorldMouse = GameState->CameraPos + (UpDir*NormalizedMouse.Y*WorldScreenSizeY) 
+                    + (RightDir*NormalizedMouse.X*WorldScreenSizeX);
 #if TEREPGEN_DEBUG
                 char DebugBuffer[256];
                 sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] MouseX: %f, Y: %f, Z: %f\n", 
@@ -365,7 +366,7 @@ WinMain(HINSTANCE Instance,
                 GameState->Seed = GlobalSeed;
                 GameState->RenderMode = GlobalInput.RenderMode;
                 
-                UpdateGameState(GameState);
+                UpdateGameState(GameState, WorldMouse);
                 RenderGame(GameState, &Camera);
                 
                 //FrameClock.PrintMiliSeconds("Frame time:");

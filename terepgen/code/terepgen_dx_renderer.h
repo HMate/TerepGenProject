@@ -4,17 +4,6 @@
 
 */
 
-struct vertex
-{
-    // NOTE: position is in left handed coordinate system
-    // +X points right initially, -X points left
-    // +Y is vertical axis and points up 
-    // -Z points through screen to user initially, +Z points toward screen 
-    real32 X, Y, Z;
-    real32 NX, NY, NZ;
-    v4 Color;
-};
-
 struct scene_constants
 {
     DirectX::XMFLOAT4X4 ViewProjMx;
@@ -90,6 +79,8 @@ struct camera
     real32 CameraSpeed = 60.0f;
     
     real32 Fov = 3.14f * 0.35f;
+    // NOTE: Regardless of nearZ, the screen always 
+    // have a distance of 1.0 from the eye with PerspectiveFovLH
     real32 NearZ = 10.0f;
     real32 FarZ = 100000.0f;
     

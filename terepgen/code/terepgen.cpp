@@ -311,7 +311,75 @@ AddToRenderBlocks(game_state *GameState, terrain_render_block *PoligonisedBlocks
 }
 
 internal void
-UpdateGameState(game_state *GameState)
+AddCube(game_state *GameState, v3 WorldMouse)
+{
+    GameState->Cube.Pos = WorldMouse;
+
+    const v3 Corner0 ={-0.5f, -0.5f, -0.5f};
+    const v3 Corner1 ={-0.5f, 0.5f, -0.5f};
+    const v3 Corner2 ={0.5f, -0.5f, -0.5f};
+    const v3 Corner3 ={0.5f, 0.5f, -0.5f};
+    const v3 Corner4 ={-0.5f, -0.5f, 0.5f};
+    const v3 Corner5 ={-0.5f, 0.5f, 0.5f};
+    const v3 Corner6 ={0.5f, -0.5f, 0.5f};
+    const v3 Corner7 ={0.5f, 0.5f, 0.5f};
+    
+    v3 Normal0 = v3{0.0f, 0.0f, -1.0f}; //front
+    v3 Normal1 = v3{1.0f, 0.0f, 0.0f};  //right
+    v3 Normal2 = v3{0.0f, 0.0f, 1.0f};  //back
+    v3 Normal3 = v3{-1.0f, 0.0f, 0.0f}; //left
+    v3 Normal4 = v3{0.0f, -1.0f, 0.0f}; // down
+    v3 Normal5 = v3{0.0f, 1.0f, 0.0f};  //up
+    
+    v4 ColorR = {1.0f, 0.0f, 0.0f, 1.0f};
+    v4 ColorG = {0.0f, 1.0f, 0.0f, 1.0f};
+    v4 ColorB = {0.0f, 0.0f, 1.0f, 1.0f};
+    
+    GameState->Cube.Vertices[0] = Vertex(Corner0, Normal0, ColorB);
+    GameState->Cube.Vertices[1] = Vertex(Corner1, Normal0, ColorB);
+    GameState->Cube.Vertices[2] = Vertex(Corner2, Normal0, ColorB);
+    GameState->Cube.Vertices[3] = Vertex(Corner2, Normal0, ColorB);
+    GameState->Cube.Vertices[4] = Vertex(Corner1, Normal0, ColorB);
+    GameState->Cube.Vertices[5] = Vertex(Corner3, Normal0, ColorB);
+    
+    GameState->Cube.Vertices[6] = Vertex(Corner2, Normal1, ColorR);
+    GameState->Cube.Vertices[7] = Vertex(Corner3, Normal1, ColorR);
+    GameState->Cube.Vertices[8] = Vertex(Corner6, Normal1, ColorR);
+    GameState->Cube.Vertices[9] = Vertex(Corner6, Normal1, ColorR);
+    GameState->Cube.Vertices[10] = Vertex(Corner3, Normal1, ColorR);
+    GameState->Cube.Vertices[11] = Vertex(Corner7, Normal1, ColorR);
+    
+    GameState->Cube.Vertices[12] = Vertex(Corner6, Normal2, ColorB);
+    GameState->Cube.Vertices[13] = Vertex(Corner7, Normal2, ColorB);
+    GameState->Cube.Vertices[14] = Vertex(Corner4, Normal2, ColorB);
+    GameState->Cube.Vertices[15] = Vertex(Corner4, Normal2, ColorB);
+    GameState->Cube.Vertices[16] = Vertex(Corner7, Normal2, ColorB);
+    GameState->Cube.Vertices[17] = Vertex(Corner5, Normal2, ColorB);
+    
+    GameState->Cube.Vertices[18] = Vertex(Corner4, Normal3, ColorR);
+    GameState->Cube.Vertices[19] = Vertex(Corner5, Normal3, ColorR);
+    GameState->Cube.Vertices[20] = Vertex(Corner0, Normal3, ColorR);
+    GameState->Cube.Vertices[21] = Vertex(Corner0, Normal3, ColorR);
+    GameState->Cube.Vertices[22] = Vertex(Corner5, Normal3, ColorR);
+    GameState->Cube.Vertices[23] = Vertex(Corner1, Normal3, ColorR);
+    
+    GameState->Cube.Vertices[24] = Vertex(Corner4, Normal4, ColorG);
+    GameState->Cube.Vertices[25] = Vertex(Corner0, Normal4, ColorG);
+    GameState->Cube.Vertices[26] = Vertex(Corner6, Normal4, ColorG);
+    GameState->Cube.Vertices[27] = Vertex(Corner6, Normal4, ColorG);
+    GameState->Cube.Vertices[28] = Vertex(Corner0, Normal4, ColorG);
+    GameState->Cube.Vertices[29] = Vertex(Corner2, Normal4, ColorG);
+    
+    GameState->Cube.Vertices[30] = Vertex(Corner1, Normal5, ColorG);
+    GameState->Cube.Vertices[31] = Vertex(Corner5, Normal5, ColorG);
+    GameState->Cube.Vertices[32] = Vertex(Corner3, Normal5, ColorG);
+    GameState->Cube.Vertices[33] = Vertex(Corner3, Normal5, ColorG);
+    GameState->Cube.Vertices[34] = Vertex(Corner5, Normal5, ColorG);
+    GameState->Cube.Vertices[35] = Vertex(Corner7, Normal5, ColorG);
+}
+
+internal void
+UpdateGameState(game_state *GameState, v3 WorldMouse)
 {
     if(GameState->Initialized == false)
     {
@@ -324,6 +392,13 @@ UpdateGameState(game_state *GameState)
         InitZeroHash(GameState);
         
         GameState->Initialized = true;
+    }
+    
+    // TODO: Refactor to input!
+    bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
+    if(MouseRightIsDown)
+    {
+        AddCube(GameState, WorldMouse);
     }
     
     v3 CameraP = GameState->CameraPos;
@@ -624,6 +699,13 @@ RenderGame(game_state *GameState, camera *Camera)
             GameState->RenderBlocks[RenderBlockIndex]->VertexCount);
         DXResources->SetTransformations(v3{});
     }
+    
+    // Draw cube
+    DXResources->DeviceContext->PSSetShader(DXResources->LinePS, 0, 0);
+    
+    DXResources->SetTransformations(GameState->Cube.Pos);
+    DXResources->DrawTriangles(GameState->Cube.Vertices, 36);
+    DXResources->SetTransformations(v3{});
     
     DXResources->SwapChain->Present(0, 0);
     //RenderClock.PrintMiliSeconds("Render time:");

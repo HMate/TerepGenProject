@@ -386,7 +386,7 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
         if(BlobError != nullptr)
         {
             OutputDebugStringA((char*)BlobError->GetBufferPointer());
-            MessageBox(Window, (char*)BlobError->GetBufferPointer(),	
+            MessageBox(Window, (char*)BlobError->GetBufferPointer(),
                 "Error in VShader", MB_OK | MB_ICONERROR);
             BlobError->Release();
         }
@@ -400,7 +400,7 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
         if(BlobError != nullptr)
         {
             OutputDebugStringA((char*)BlobError->GetBufferPointer());
-            MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),	
+            MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),
                 "Error in TerrainPShader", MB_OK | MB_ICONERROR);
             BlobError->Release();
         }
@@ -559,10 +559,10 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     DeviceContext->PSSetShaderResources(2, 1, &SkyTexture);
     
     D3D11_SAMPLER_DESC SampDesc;
-	ZeroMemory( &SampDesc, sizeof(SampDesc) );
-	SampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	SampDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
-	SampDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+    ZeroMemory( &SampDesc, sizeof(SampDesc) );
+    SampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    SampDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SampDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
     SampDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
     SampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
     SampDesc.MinLOD = 0;
@@ -576,10 +576,10 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     DeviceContext->PSSetSamplers(0, 1, &TexSamplerState);
     
     D3D11_SAMPLER_DESC CubeSampDesc;
-	ZeroMemory( &CubeSampDesc, sizeof(CubeSampDesc) );
-	CubeSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	CubeSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	CubeSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    ZeroMemory( &CubeSampDesc, sizeof(CubeSampDesc) );
+    CubeSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    CubeSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    CubeSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
     CubeSampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
     CubeSampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
     CubeSampDesc.MinLOD = 0;
