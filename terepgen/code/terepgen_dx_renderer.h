@@ -90,8 +90,8 @@ struct camera
     real32 CameraSpeed = 60.0f;
     
     real32 Fov = 3.14f * 0.35f;
-    real32 NearClipZ = 10.0f;
-    real32 FarClipZ = 100000.0f;
+    real32 NearZ = 10.0f;
+    real32 FarZ = 100000.0f;
     
     DirectX::XMFLOAT4X4 ViewMx;
     DirectX::XMFLOAT4X4 ProjMx;
@@ -102,6 +102,7 @@ struct camera
     
     v3 GetPos();
     v3 GetLookDirection();
+    v3 GetUpDirection();
     void Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 ScreenHeight, real32 CamSpeed);
     void Release();
     

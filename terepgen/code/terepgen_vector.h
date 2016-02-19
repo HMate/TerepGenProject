@@ -102,6 +102,13 @@ operator-(v3 A, v3 B)
 }
 
 inline v3 
+operator-(v3 A)
+{
+    v3 Result = {-A.X, -A.Y, -A.Z};
+    return Result;
+}
+
+inline v3 
 operator*(v3 A, real32 B)
 {
     v3 Result = {A.X * B, A.Y * B, A.Z * B};

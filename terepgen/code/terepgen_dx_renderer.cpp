@@ -874,6 +874,19 @@ v3 camera::GetLookDirection()
     Result.X = XMVectorGetX(TargetDirection);
     Result.Y = XMVectorGetY(TargetDirection);
     Result.Z = XMVectorGetZ(TargetDirection);
+    Result = Normalize(Result);
+    return Result;
+}
+
+v3 camera::GetUpDirection()
+{
+    using namespace DirectX;
+    v3 Result = {};
+    XMVECTOR TargetDirection =  XMLoadFloat3(&UpDirection);
+    Result.X = XMVectorGetX(TargetDirection);
+    Result.Y = XMVectorGetY(TargetDirection);
+    Result.Z = XMVectorGetZ(TargetDirection);
+    Result = Normalize(Result);
     return Result;
 }
 
@@ -893,7 +906,7 @@ void camera::Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 Scr
     OutputDebugStringA(DebugBuffer);
 #endif  
     XMStoreFloat4x4(&ProjMx, 
-        XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearClipZ, FarClipZ));
+        XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearZ, FarZ));
     XMStoreFloat4x4(&ViewProjMx,
         XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
                                   XMLoadFloat4x4(&ProjMx)));
@@ -994,7 +1007,7 @@ void camera::Update(input *Input, real64 TimeDelta)
         char DebugBuffer[256];
         sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Mouse dX: %d, dY: %d Time: %f\n", dMouseX, dMouseY, (real32)TimeDelta);
         OutputDebugStringA(DebugBuffer);
-#endif   
+#endif
         XMVECTOR NewTargetDir = TargetDirection;
         
         NewTargetDir = XMVector3Transform(TargetDirection, XMMatrixRotationNormal(
@@ -1032,7 +1045,7 @@ void camera::Resize(uint32 ScreenWidth, uint32 ScreenHeight)
         OutputDebugStringA(DebugBuffer);
 #endif        
         XMStoreFloat4x4(&ProjMx, 
-            XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearClipZ, FarClipZ));
+            XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearZ, FarZ));
         XMStoreFloat4x4(&ViewProjMx,
             XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx), XMLoadFloat4x4(&ProjMx)));
     }

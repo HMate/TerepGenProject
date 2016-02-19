@@ -52,6 +52,7 @@ struct game_state
     uint32 Seed;
     v3 CameraPos;
     v3 CameraDir;
+    
     perlin_noise_array PerlinArray;
     real32 BlockSize;
     uint32 BlockResolution;

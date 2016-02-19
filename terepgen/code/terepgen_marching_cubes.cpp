@@ -341,7 +341,7 @@ v3 VertexInterp(real32 isolevel, v3 p1, v3 p2, real32 valp1, real32 valp2)
    facets required to represent the isosurface through the cell.
    Return the number of triangular facets, the array "triangles"
    will be loaded up with the vertices at most 5 triangular facets.
-	0 will be returned if the grid cell is either totally above
+    0 will be returned if the grid cell is either totally above
    of totally below the isolevel.
    
    triangle points are stored in clockwise 

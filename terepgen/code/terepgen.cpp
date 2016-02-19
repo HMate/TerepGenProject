@@ -577,7 +577,6 @@ RenderGame(game_state *GameState, camera *Camera)
     DXResources->SetTransformations(v3{});
     v3 CamDir = Camera->GetLookDirection();
     DXResources->ObjectConstants.CameraDir = DirectX::XMFLOAT4(CamDir.X, CamDir.Y, CamDir.Z, 0.0f);
-    // DXResources->ObjectConstants.CameraDir = DirectX::XMFLOAT4(1, 0, 0, 1.0f);
     DXResources->DrawBackground(BGVertices, 6);
     
     // NOTE: Render axis

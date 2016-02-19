@@ -131,10 +131,18 @@ Sqrt(real32 Val)
     return Result;
 }
 
+// NOTE: Cuberoot
 inline int32
 Cbrt(uint32 Val)
 {
     int32 Result = (int32)cbrt(Val);
+    return Result;
+}
+
+inline real32
+Tan(real32 Val)
+{
+    real32 Result = tan(Val);
     return Result;
 }
 
