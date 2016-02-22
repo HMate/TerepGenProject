@@ -239,9 +239,9 @@ GetWorldGrid(world_density *World, terrain_density_block *DensityBlock, int32 X,
     world_block_pos ActualWPos = DensityBlock->Pos;;
     
     int32 GridStep = (int32)World->BlockSize;
-    int32 DiffX = X / GridStep;
-    int32 DiffY = Y / GridStep;
-    int32 DiffZ = Z / GridStep;
+    int32 DiffX = FloorInt32(X / World->BlockSize);
+    int32 DiffY = FloorInt32(Y / World->BlockSize);
+    int32 DiffZ = FloorInt32(Z / World->BlockSize);
     
     ActualWPos.BlockX += DiffX;
     ActualWPos.BlockY += DiffY;
@@ -318,19 +318,13 @@ GetPointNormal(world_density *World, terrain_density_block *DensityBlock, v3 Poi
     real32 DimensionBound = (real32)DensityBlock->Grid.Dimension-1.0f;
     
     real32 DiffXMin = Point.X - Diff;
-    DiffXMin = ClampReal32(DiffXMin, 0.0f, DimensionBound);
     real32 DiffXMax = Point.X + Diff;
-    DiffXMax = ClampReal32(DiffXMax, 0.0f, DimensionBound);
     
     real32 DiffYMin = Point.Y - Diff;
-    DiffYMin = ClampReal32(DiffYMin, 0.0f, DimensionBound);
     real32 DiffYMax = Point.Y + Diff;
-    DiffYMax = ClampReal32(DiffYMax, 0.0f, DimensionBound);
     
     real32 DiffZMin = Point.Z - Diff;
-    DiffZMin = ClampReal32(DiffZMin, 0.0f, DimensionBound);
     real32 DiffZMax = Point.Z + Diff;
-    DiffZMax = ClampReal32(DiffZMax, 0.0f, DimensionBound);
     
     real32 XP = GetInterpolatedWorldGrid(World, DensityBlock, DiffXMax, Point.Y, Point.Z);
     real32 XM = GetInterpolatedWorldGrid(World, DensityBlock, DiffXMin, Point.Y, Point.Z);
