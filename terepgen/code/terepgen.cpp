@@ -48,20 +48,6 @@ CalculateBlockPositions(block_pos_array *PosArray, world_block_pos CentralBlockP
     Assert(PosArray->Count <= ArrayCount(PosArray->Pos));
 }
 
-internal void
-PrintDebug(world_block_pos BlockP, terrain_density_block DensityBlock)
-{
-#if TEREPGEN_DEBUG
-    char DebugBuffer[256];
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG_GAME] Block Pos X: %d, Y: %d, Z: %d\n",
-        BlockP.BlockX, BlockP.BlockY, BlockP.BlockZ);
-    OutputDebugStringA(DebugBuffer);
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG_GAME] World Pos X: %f, Y: %f, Z: %f\n",
-        DensityBlock.Pos.X, DensityBlock.Pos.Y, DensityBlock.Pos.Z);
-    OutputDebugStringA(DebugBuffer);
-#endif
-}
-
 internal world_block_pos
 ConvertToResolution(world_block_pos P, int32 NewRes)
 {
@@ -322,7 +308,7 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
     }
     
     //
-    // NOTE: Collect the render block we want to draw to the screen
+    // NOTE: Generate and collect the render block we want to draw to the screen
     //
     
     uint32 MaxBlocksToGenerateInFrame = 3;
@@ -331,40 +317,83 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
         ++PosIndex)
     {
         world_block_pos BlockP = ConvertToResolution(BlockPositions.Pos[PosIndex], 4);
+        block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, BlockP);
+        // NOTE: This can give back a deleted hash, if it had the same key as this block,
+        // and it was already deleted once, and wasn't overwritten since.
+        if(HashIsEmpty(BlockHash))
+        {
+            if(MaxBlocksToGenerateInFrame > 0)
+            {
+                MaxBlocksToGenerateInFrame--;
+                // NOTE: Initialize block
+                uint32 BlockIndex = World->DensityBlockCount;
+                terrain_density_block *DensityBlock = World->DensityBlocks + BlockIndex;
+                
+                GenerateDensityGrid(World, DensityBlock, &GameState->PerlinArray, BlockP);
+                    
+                BlockHash = WriteHash((block_hash*)&World->BlockHash, BlockP, World->DensityBlockCount++);
+                Assert(World->DensityBlockCount < ArrayCount(World->DensityBlocks));
+            }
+        }
+    }
+    
+    uint32 MaxRenderBlocksToGenerateInFrame = 3;
+    for(size_t PosIndex = 0; 
+        (PosIndex < BlockPositions.Count) && (MaxRenderBlocksToGenerateInFrame > 0) ;
+        ++PosIndex)
+    {
+        world_block_pos BlockP = ConvertToResolution(BlockPositions.Pos[PosIndex], 4);
         block_hash *ZeroHash = GetZeroHash(World, BlockP);
         if(ZeroHash->Index == HASH_UNINITIALIZED)
         {
-            block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, BlockP);
+            block_hash *RenderHash = GetHash((block_hash*)&World->RenderHash, BlockP);
             // NOTE: This can give back a deleted hash, if it had the same key as this block,
             // and it was already deleted once, and wasn't overwritten since.
-            if(HashIsEmpty(BlockHash))
+            if(HashIsEmpty(RenderHash))
             {
-                if(MaxBlocksToGenerateInFrame > 0)
+                if(MaxRenderBlocksToGenerateInFrame > 0)
                 {
-                    MaxBlocksToGenerateInFrame--;
-                    // NOTE: Initialize block
-                    uint32 BlockIndex = World->DensityBlockCount;
-                    terrain_density_block *DensityBlock = World->DensityBlocks + BlockIndex;
+                    bool32 NeighboursGenerated = true;
                     
-                    DensityBlock->Pos = V3FromWorldPos(World, BlockP);
-                    GenerateDensityGrid(DensityBlock, &GameState->PerlinArray, 4);
-                    // TODO: What should i do with neighbouring blocks for normal calculation?
-                    PoligoniseBlock(World, &World->PoligonisedBlocks[World->PoligonisedBlockCount], 
-                        DensityBlock);
-                        
-                    BlockHash = WriteHash((block_hash*)&World->BlockHash, BlockP, World->DensityBlockCount++);
-                    Assert(World->DensityBlockCount < ArrayCount(World->DensityBlocks));
-                    
-                    if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
+                    for(int32 DiffX = -1; DiffX < 2; ++DiffX)
                     {
-                        BlockHash = WriteHash((block_hash*)&World->RenderHash, BlockP, World->PoligonisedBlockCount++);
-                        Assert(World->PoligonisedBlockCount < ArrayCount(World->PoligonisedBlocks));
+                        for(int32 DiffY = -1; DiffY < 2; ++DiffY)
+                        {
+                            for(int32 DiffZ = -1; DiffZ < 2; ++DiffZ)
+                            {
+                                world_block_pos NeighbourP = BlockP;
+                                NeighbourP.BlockX += DiffX;
+                                NeighbourP.BlockY += DiffY;
+                                NeighbourP.BlockZ += DiffZ;
+                                block_hash *NeighbourHash = GetHash((block_hash*)&World->BlockHash, NeighbourP);
+                                if(HashIsEmpty(NeighbourHash))
+                                {
+                                    NeighboursGenerated = false;
+                                }
+                            }
+                        }
                     }
-                    else
+                    block_hash *DensityHash = GetHash((block_hash*)&World->BlockHash, BlockP);
+                    
+                    if(NeighboursGenerated)
                     {
-                        ZeroHash->Key = BlockP;
-                        ZeroHash->Index = HASH_ZERO_BLOCK;
-                        World->ZeroBlockCount++;
+                        MaxRenderBlocksToGenerateInFrame--;
+                        // NOTE: Initialize block
+                        terrain_density_block *DensityBlock = World->DensityBlocks + DensityHash->Index;
+                        PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
+                            DensityBlock);
+                        
+                        if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
+                        {
+                            RenderHash = WriteHash((block_hash*)&World->RenderHash, BlockP, World->PoligonisedBlockCount++);
+                            Assert(World->PoligonisedBlockCount < ArrayCount(World->PoligonisedBlocks));
+                        }
+                        else
+                        {
+                            ZeroHash->Key = BlockP;
+                            ZeroHash->Index = HASH_ZERO_BLOCK;
+                            World->ZeroBlockCount++;
+                        }
                     }
                 }
             }

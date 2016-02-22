@@ -3,13 +3,42 @@
 
 */
 
+inline world_block_pos
+WorldPosFromV3(world_density *World, v3 Pos, int32 Resolution)
+{
+    world_block_pos Result = {};
+    
+    v3 CentralBlockPos = Pos / (World->BlockSize*Resolution);
+    Result.BlockX = FloorInt32(CentralBlockPos.X); 
+    Result.BlockY = FloorInt32(CentralBlockPos.Y);
+    Result.BlockZ = FloorInt32(CentralBlockPos.Z);
+    Result.Resolution = Resolution;
+     
+    return Result;
+}
+
+inline v3
+V3FromWorldPos(world_density *World, world_block_pos Pos)
+{
+    v3 Result = {};
+    Result.X = (real32)Pos.BlockX * World->BlockSize * Pos.Resolution;
+    Result.Y = (real32)Pos.BlockY * World->BlockSize * Pos.Resolution;
+    Result.Z = (real32)Pos.BlockZ * World->BlockSize * Pos.Resolution;
+    
+    return Result;
+}
+
 // NOTE: Block Resolution gives how many density values are skipped
 // This way a bigger area can be stored in the same block, 
 // if at rendering we only use every BlockResolution'th value too.
 internal void 
-GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNArray, uint32 BlockResolution)
+GenerateDensityGrid(world_density *World, terrain_density_block *DensityBlock, perlin_noise_array *PNArray, world_block_pos WorldP)
 {
-    DensityBlock->Resolution = BlockResolution;
+    DensityBlock->Pos = WorldP;
+    real32 BlockResolution = (real32)WorldP.Resolution;
+    
+    v3 BlockPos = V3FromWorldPos(World, WorldP);
+    
     uint32 TerrainDimension = DensityBlock->Grid.Dimension;
     for(uint32 Plane = 0;
         Plane < TerrainDimension;
@@ -23,12 +52,12 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
                 Column < TerrainDimension;
                 ++Column)
             {
-                real32 DensityValue = DensityBlock->Pos.Y + (real32)((Row) * (real32)BlockResolution);
+                real32 DensityValue = BlockPos.Y + (real32)((Row) * BlockResolution);
                 // real32 DensityValue = 0;
                 
-                real32 WorldX = DensityBlock->Pos.X + ((Plane) * (real32)BlockResolution);
-                real32 WorldY = DensityBlock->Pos.Y + ((Row) * (real32)BlockResolution);
-                real32 WorldZ = DensityBlock->Pos.Z + ((Column) * (real32)BlockResolution);
+                real32 WorldX = BlockPos.X + ((Plane) * BlockResolution);
+                real32 WorldY = BlockPos.Y + ((Row) * BlockResolution);
+                real32 WorldZ = BlockPos.Z + ((Column) * BlockResolution);
                 
                 v3 WorldPos = v3{WorldX, WorldY, WorldZ} / 32.0f;
                 real32 Scale = 50.0f;
@@ -203,38 +232,11 @@ InitZeroHash(world_density *World)
     }
 }
 
-inline world_block_pos
-WorldPosFromV3(world_density *World, v3 Pos, int32 Resolution)
-{
-    world_block_pos Result = {};
-    
-    v3 CentralBlockPos = Pos / (World->BlockSize*Resolution);
-    Result.BlockX = FloorInt32(CentralBlockPos.X); 
-    Result.BlockY = FloorInt32(CentralBlockPos.Y);
-    Result.BlockZ = FloorInt32(CentralBlockPos.Z);
-    Result.Resolution = Resolution;
-     
-    return Result;
-}
-
-inline v3
-V3FromWorldPos(world_density *World, world_block_pos Pos)
-{
-    v3 Result = {};
-    Result.X = (real32)Pos.BlockX * World->BlockSize * Pos.Resolution;
-    Result.Y = (real32)Pos.BlockY * World->BlockSize * Pos.Resolution;
-    Result.Z = (real32)Pos.BlockZ * World->BlockSize * Pos.Resolution;
-    
-    return Result;
-}
-
 // NOTE: XYZ are relative to the block position
 internal real32
 GetWorldGrid(world_density *World, terrain_density_block *DensityBlock, int32 X, int32 Y, int32 Z)
 {
-    v3 Pos = DensityBlock->Pos;
-    world_block_pos WPos = WorldPosFromV3(World, Pos, DensityBlock->Resolution);
-    world_block_pos ActualWPos = WPos;
+    world_block_pos ActualWPos = DensityBlock->Pos;;
     
     int32 GridStep = (int32)World->BlockSize;
     int32 DiffX = X / GridStep;
@@ -355,11 +357,11 @@ GetPointNormal(world_density *World, terrain_density_block *DensityBlock, v3 Poi
 internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
 {
-    Assert(DensityBlock->Resolution > 0);
-    real32 CellDiff = (real32)DensityBlock->Resolution;
+    Assert(DensityBlock->Pos.Resolution > 0);
+    real32 CellDiff = (real32)DensityBlock->Pos.Resolution;
     v4 GreenColor = v4{0.0, 1.0f, 0.0f, 1.0f};
     
-    RenderBlock->Pos = DensityBlock->Pos;
+    RenderBlock->Pos = V3FromWorldPos(World, DensityBlock->Pos);
     uint32 TerrainDimension = DensityBlock->Grid.Dimension;
     
     uint32 VertexCount = 0;

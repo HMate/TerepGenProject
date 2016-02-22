@@ -6,13 +6,6 @@
 
 #include "terepgen_marching_cubes.cpp"
 
-struct terrain_density_block
-{
-    v3 Pos;
-    uint32 Resolution;
-    static_grid3D Grid;
-};
-
 struct world_block_pos
 {
     int32 BlockX;
@@ -20,6 +13,12 @@ struct world_block_pos
     int32 BlockZ;
     
     int32 Resolution;
+};
+
+struct terrain_density_block
+{
+    world_block_pos Pos;
+    static_grid3D Grid;
 };
 
 #define HASH_UNINITIALIZED -1
