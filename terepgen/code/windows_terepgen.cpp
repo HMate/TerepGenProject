@@ -355,13 +355,13 @@ WinMain(HINSTANCE Instance,
                 v3 WorldMouse = GameState->CameraPos + (UpDir*NormalizedMouse.Y*WorldScreenSizeY) 
                     + (RightDir*NormalizedMouse.X*WorldScreenSizeX);
 #if TEREPGEN_DEBUG
-                char DebugBuffer[256];
-                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] MouseX: %f, Y: %f, Z: %f\n", 
-                    WorldMouse.X, WorldMouse.Y, WorldMouse.Z);
-                OutputDebugStringA(DebugBuffer);
-                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] CamraCenterX: %f, Y: %f, Z: %f\n", 
-                    GameState->CameraPos.X, GameState->CameraPos.Y, GameState->CameraPos.Z);
-                OutputDebugStringA(DebugBuffer);
+                // char DebugBuffer[256];
+                // sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] MouseX: %f, Y: %f, Z: %f\n", 
+                    // WorldMouse.X, WorldMouse.Y, WorldMouse.Z);
+                // OutputDebugStringA(DebugBuffer);
+                // sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] CamraCenterX: %f, Y: %f, Z: %f\n", 
+                    // GameState->CameraPos.X, GameState->CameraPos.Y, GameState->CameraPos.Z);
+                // OutputDebugStringA(DebugBuffer);
 #endif
                 GameState->Seed = GlobalSeed;
                 GameState->RenderMode = GlobalInput.RenderMode;
@@ -369,7 +369,7 @@ WinMain(HINSTANCE Instance,
                 UpdateGameState(GameState, WorldMouse);
                 RenderGame(GameState, &Camera);
                 
-                //FrameClock.PrintMiliSeconds("Frame time:");
+                FrameClock.PrintMiliSeconds("Frame time:");
                 FrameClock.Reset();
             }
             

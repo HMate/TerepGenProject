@@ -102,6 +102,7 @@ GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
     return Result;
 }
 
+#define DENSITY_ISO_LEVEL 0.0f
 /*
     NOTE: The dimension of the grids required to be 5 units bigger
         than the size of the final terrain
@@ -153,7 +154,7 @@ PoligoniseBlock(terrain_render_block *RenderBlock, terrain_density_block *Densit
                 Cell.val[6] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column+1);
                 Cell.val[7] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column  );
                 TRIANGLE Triangles[5];
-                uint32 TriangleCount = Polygonise(Cell, 0.0f, Triangles);
+                uint32 TriangleCount = Polygonise(Cell, DENSITY_ISO_LEVEL, Triangles);
                 
                 for(uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
                 {

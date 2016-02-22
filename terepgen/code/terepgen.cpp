@@ -179,9 +179,10 @@ inline void
 InitBlockHash(game_state *GameState)
 {
     // TODO: Does zeroing out stored block count belong here?
-    GameState->PoligonisedBlock1Count = 0;
-    GameState->PoligonisedBlock2Count = 0;
-    GameState->PoligonisedBlock4Count = 0;
+    GameState->DensityBlockCount = 0;
+    // GameState->PoligonisedBlock1Count = 0;
+    // GameState->PoligonisedBlock2Count = 0;
+    // GameState->PoligonisedBlock4Count = 0;
     GameState->DeletedBlockCount = 0;
     
     for(uint32 HashIndex = 0;
@@ -281,7 +282,7 @@ GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos 
 }
 
 internal void
-AddToRenderBlocks(game_state *GameState, terrain_render_block *PoligonisedBlocks, int32 BlockIndex, int32 Resolution)
+AddToRenderBlocks(game_state *GameState, terrain_density_block *DensityBlock, int32 BlockIndex, int32 Resolution)
 {
     const v3 CameraP = GameState->CameraPos;
     const v3 CamDir = GameState->CameraDir;
@@ -289,8 +290,7 @@ AddToRenderBlocks(game_state *GameState, terrain_render_block *PoligonisedBlocks
     const v3 DiffY = GetV3FromWorldPos(GameState, world_block_pos{0,1,0,Resolution});
     const v3 DiffZ = GetV3FromWorldPos(GameState, world_block_pos{0,0,1,Resolution});
     
-    terrain_render_block *Block = PoligonisedBlocks + BlockIndex;
-    v3 P = Block->Pos - CameraP;
+    v3 P = DensityBlock->Pos - CameraP;
     
     v3 P0 = P;
     v3 P1 = P + DiffX;
@@ -305,7 +305,8 @@ AddToRenderBlocks(game_state *GameState, terrain_render_block *PoligonisedBlocks
        (DotProduct(P4, CamDir) > 0.0f) || (DotProduct(P5, CamDir) > 0.0f) ||
        (DotProduct(P6, CamDir) > 0.0f) || (DotProduct(P7, CamDir) > 0.0f))
     {
-        GameState->RenderBlocks[GameState->RenderBlockCount++] = Block;
+        PoligoniseBlock(&GameState->RenderBlocks[GameState->RenderBlockCount++], 
+                DensityBlock, 4);
         Assert(GameState->RenderBlockCount < ArrayCount(GameState->RenderBlocks));
     }  
 }
@@ -378,6 +379,25 @@ AddCube(game_state *GameState, v3 WorldMouse)
     GameState->Cube.Vertices[35] = Vertex(Corner7, Normal5, ColorG);
 }
 
+internal bool32
+IsZeroBlock(terrain_density_block *DensityBlock)
+{
+    real32 LastElem;
+    LastElem = GetElement(&DensityBlock->Grid, 0);
+    const uint32 GridSize = GRID_DIMENSION*GRID_DIMENSION*GRID_DIMENSION;
+    for(uint32 Index = 1; Index < GridSize; ++Index)
+    {
+        real32 Elem = GetElement(&DensityBlock->Grid, Index);
+        if((Elem > DENSITY_ISO_LEVEL && LastElem < DENSITY_ISO_LEVEL) || 
+           (Elem < DENSITY_ISO_LEVEL && LastElem > DENSITY_ISO_LEVEL))
+        {
+            return false;
+        }
+        LastElem = Elem;
+    }
+    return true;
+}
+
 internal void
 UpdateGameState(game_state *GameState, v3 WorldMouse)
 {
@@ -413,10 +433,10 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
     // TODO: Delete from other resolutions too!
     int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
     for(uint32 StoreIndex = 0; 
-        StoreIndex < GameState->PoligonisedBlock4Count; 
+        StoreIndex < GameState->DensityBlockCount; 
         ++StoreIndex)
     {
-        terrain_render_block *Block = GameState->PoligonisedBlocks4 + StoreIndex;
+        terrain_density_block *Block = GameState->DensityBlocks + StoreIndex;
         world_block_pos BlockP = GetWorldPosFromV3(GameState, Block->Pos, 4);
         if((WorldCameraP.BlockX + LoadSpaceRadius < BlockP.BlockX) ||
            (WorldCameraP.BlockX - LoadSpaceRadius > BlockP.BlockX) ||
@@ -425,7 +445,7 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
            (WorldCameraP.BlockZ + LoadSpaceRadius < BlockP.BlockZ) ||
            (WorldCameraP.BlockZ - LoadSpaceRadius > BlockP.BlockZ))
         {
-            terrain_render_block *Last = GameState->PoligonisedBlocks4 + (--GameState->PoligonisedBlock4Count);
+            terrain_density_block *Last = GameState->DensityBlocks + (--GameState->DensityBlockCount);
             world_block_pos LastP = GetWorldPosFromV3(GameState, Last->Pos, 4);
             
             // NOTE: This is from stored blocks, so it cant be a zero block!
@@ -484,6 +504,72 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
     // NOTE: Collect the render block we want to draw to the screen
     //
     
+    win32_clock DensityClock;
+    uint32 MaxBlocksToGenerateInFrame = 3;
+    for(size_t PosIndex = 0; 
+        (PosIndex < BlockPositions.Count) && (MaxBlocksToGenerateInFrame > 0) ;
+        ++PosIndex)
+    {
+        world_block_pos BlockP = ConvertToResolution(BlockPositions.Pos[PosIndex], 4);
+        block_hash *ZeroHash = GetZeroHash(GameState, BlockP);
+        if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
+        {
+            block_hash *BlockHash = GetBlockHash(GameState, BlockP);
+            // NOTE: This can give back a deleted hash, if it had the same key as this block,
+            // and it was already deleted once, and wasn't overwritten since.
+            if((BlockHash->BlockIndex == HASH_UNINITIALIZED) ||
+               (BlockHash->BlockIndex == HASH_DELETED))
+            {
+                if(MaxBlocksToGenerateInFrame > 0)
+                {
+                    MaxBlocksToGenerateInFrame--;
+                    // NOTE: Initialize block
+                    uint32 BlockIndex = GameState->DensityBlockCount;
+                    terrain_density_block *DensityBlock = GameState->DensityBlocks + BlockIndex;
+                    
+                    DensityBlock->Pos = GetV3FromWorldPos(GameState, BlockP);
+                    GenerateDensityGrid(DensityBlock, &GameState->PerlinArray, 4);
+                    if(!IsZeroBlock(DensityBlock))
+                    {
+                        BlockHash = WriteBlockHash(GameState, BlockP, GameState->DensityBlockCount++);
+                        Assert(GameState->DensityBlockCount < ArrayCount(GameState->DensityBlocks));
+                    }
+                    else
+                    {
+                        ZeroHash->Key = BlockP;
+                        ZeroHash->BlockIndex = HASH_ZERO_BLOCK;
+                        GameState->ZeroBlockCount++;
+                    }
+                }
+            }
+        }
+    }
+    DensityClock.PrintMiliSeconds("Density time:");
+    
+    win32_clock PoligoniseClock;
+    GameState->RenderBlockCount = 0;
+    for(size_t PosIndex = 0; 
+        (PosIndex < BlockPositions.Count);
+        ++PosIndex)
+    {
+        world_block_pos BlockP = ConvertToResolution(BlockPositions.Pos[PosIndex], 4);
+        block_hash *ZeroHash = GetZeroHash(GameState, BlockP);
+        if(ZeroHash->BlockIndex == HASH_UNINITIALIZED)
+        {
+            block_hash *BlockHash = GetBlockHash(GameState, BlockP);
+            
+            if((BlockHash->BlockIndex != HASH_UNINITIALIZED) &&
+                (BlockHash->BlockIndex != HASH_DELETED))
+            {
+                // TODO: Add polgonising here
+                // And dont forget to empty the hashes too.
+                AddToRenderBlocks(GameState, GameState->DensityBlocks + BlockHash->BlockIndex, 0, 4);
+            }
+        }
+    }
+    PoligoniseClock.PrintMiliSeconds("Poligonise time:");
+    
+    /*
     terrain_density_block DensityBlock;
     uint32 MaxBlocksToGenerateInFrame = 3;
     for(size_t PosIndex = 0; 
@@ -505,15 +591,11 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
                     MaxBlocksToGenerateInFrame--;
                     // NOTE: Initialize block
                     DensityBlock.Pos = GetV3FromWorldPos(GameState, BlockP);
-                    //win32_clock Clock;
-                    GenerateDensityGrid(&DensityBlock, &GameState->PerlinArray, /*GameState->BlockResolution*/4);
-                    //Clock.PrintMiliSeconds("Density time:");
-                    //Clock.Reset();
+                    GenerateDensityGrid(&DensityBlock, &GameState->PerlinArray, 4);
                     PoligoniseBlock(&(GameState->PoligonisedBlocks4[GameState->PoligonisedBlock4Count]), 
-                        &DensityBlock, /*GameState->BlockResolution*/4);
+                        &DensityBlock, 4);
                     if(GameState->PoligonisedBlocks4[GameState->PoligonisedBlock4Count].VertexCount != 0)
                     {
-                        //Clock.PrintMiliSeconds("Poligonise time:");
                         BlockHash = WriteBlockHash(GameState, BlockP, GameState->PoligonisedBlock4Count++);
                         Assert(GameState->PoligonisedBlock4Count < ArrayCount(GameState->PoligonisedBlocks4));
                     }
@@ -617,10 +699,12 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
             else if((BlockHash->BlockIndex != HASH_UNINITIALIZED) &&
                     (BlockHash->BlockIndex != HASH_DELETED))
             {
+                // TODO: Add polgonising here
+                // And dont forget to empty the hashes too.
                 AddToRenderBlocks(GameState, GameState->PoligonisedBlocks4, BlockHash->BlockIndex, 4);
             }
         }
-    }
+    }*/
 }
 
 internal void
@@ -693,10 +777,10 @@ RenderGame(game_state *GameState, camera *Camera)
         RenderBlockIndex < GameState->RenderBlockCount; 
         RenderBlockIndex++)
     {
-        DXResources->SetTransformations(GameState->RenderBlocks[RenderBlockIndex]->Pos);
+        DXResources->SetTransformations(GameState->RenderBlocks[RenderBlockIndex].Pos);
         DXResources->DrawTriangles(
-            GameState->RenderBlocks[RenderBlockIndex]->Vertices,
-            GameState->RenderBlocks[RenderBlockIndex]->VertexCount);
+            GameState->RenderBlocks[RenderBlockIndex].Vertices,
+            GameState->RenderBlocks[RenderBlockIndex].VertexCount);
         DXResources->SetTransformations(v3{});
     }
     

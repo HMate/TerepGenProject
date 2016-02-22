@@ -110,7 +110,14 @@ GetGridPRCWithInterpolate(static_grid3D *Grid, real32 Plane, real32 Row, real32 
         return Result;
     }
 }
-
+    
+inline real32 
+GetElement(static_grid3D *Grid, uint32 Index)
+{
+    Assert(Index < GRID_DIMENSION * GRID_DIMENSION * GRID_DIMENSION);
+    real32 Result = Grid->Elements[Index];
+    return Result;
+}
     
 internal void 
 ZeroOutGridPoints(static_grid3D *Grid)

@@ -65,6 +65,7 @@ struct cube
 #define ZERO_BLOCK_RADIUS 23
 #define BLOCK_POS_COUNT POS_GRID_SIZE(RENDERED_BLOCK_RADIUS)
 #define RENDER_BLOCK_COUNT 1500
+#define DENSITY_BLOCK_COUNT 1500
 
 #define BLOCK_HASH_SIZE 4096
 #define ZERO_HASH_SIZE 32768
@@ -89,15 +90,18 @@ struct game_state
     uint32 BlockResolution;
     uint32 RenderMode;
     
+    uint32 DensityBlockCount;
+    terrain_density_block DensityBlocks[DENSITY_BLOCK_COUNT];
+    
     uint32 DeletedBlockCount;
-    uint32 PoligonisedBlock1Count;
-    uint32 PoligonisedBlock2Count;
-    uint32 PoligonisedBlock4Count;
-    terrain_render_block PoligonisedBlocks1[RENDER_BLOCK_COUNT];
-    terrain_render_block PoligonisedBlocks2[RENDER_BLOCK_COUNT];
-    terrain_render_block PoligonisedBlocks4[RENDER_BLOCK_COUNT];
+    // uint32 PoligonisedBlock1Count;
+    // uint32 PoligonisedBlock2Count;
+    // uint32 PoligonisedBlock4Count;
+    // terrain_render_block PoligonisedBlocks1[RENDER_BLOCK_COUNT];
+    // terrain_render_block PoligonisedBlocks2[RENDER_BLOCK_COUNT];
+    // terrain_render_block PoligonisedBlocks4[RENDER_BLOCK_COUNT];
     uint32 RenderBlockCount;
-    terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
+    terrain_render_block RenderBlocks[RENDER_BLOCK_COUNT];
     
     // NOTE: This must be a power of two for now!
     block_hash BlockHash[BLOCK_HASH_SIZE];
