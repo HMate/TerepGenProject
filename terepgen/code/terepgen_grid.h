@@ -33,12 +33,12 @@ struct dynamic_grid3D
         }
     }
     
-    real32& GetPRC(int32 Plane, int32 Row, int32 Column)
+    real32& GetPRC(int32 X, int32 Y, int32 Z)
     {
-        if(Row > Dimension - 1) Row = Dimension - 1;
-        if(Column > Dimension - 1) Column = Dimension - 1;
-        if(Plane > Dimension - 1) Plane = Dimension - 1;
-        return Elements[Plane*Dimension*Dimension + Row*Dimension + Column];
+        if(X > Dimension - 1) X = Dimension - 1;
+        if(Y > Dimension - 1) Y = Dimension - 1;
+        if(Z > Dimension - 1) Z = Dimension - 1;
+        return Elements[X*Dimension*Dimension + Y*Dimension + Z];
     }
 };
 
@@ -52,61 +52,61 @@ struct static_grid3D
 
         
 internal real32 
-GetGridPRC(static_grid3D *Grid, int32 Plane, int32 Row, int32 Column)
+GetGrid(static_grid3D *Grid, int32 X, int32 Y, int32 Z)
 {
-    uint32 Dimension = Grid->Dimension;
-    Assert(Plane < GRID_DIMENSION && Row < GRID_DIMENSION && Column < GRID_DIMENSION);
-    return Grid->Elements[Plane*Dimension*Dimension + Row*Dimension + Column];
+    uint32 Dim = Grid->Dimension;
+    Assert(X < GRID_DIMENSION && Y < GRID_DIMENSION && Z < GRID_DIMENSION);
+    return Grid->Elements[X*Dim*Dim + Y*Dim + Z];
 }
         
 internal void 
-SetGridPRC(static_grid3D *Grid, int32 Plane, int32 Row, int32 Column, real32 Value)
+SetGrid(static_grid3D *Grid, int32 X, int32 Y, int32 Z, real32 Value)
 {
-    uint32 Dimension = Grid->Dimension;
-    Assert(Plane < GRID_DIMENSION && Row < GRID_DIMENSION && Column < GRID_DIMENSION);
-    Grid->Elements[Plane*Dimension*Dimension + Row*Dimension + Column] = Value;
+    uint32 Dim = Grid->Dimension;
+    Assert(X < GRID_DIMENSION && Y < GRID_DIMENSION && Z < GRID_DIMENSION);
+    Grid->Elements[X*Dim*Dim + Y*Dim + Z] = Value;
 }
 
 internal real32 
-GetGridPRCWithInterpolate(static_grid3D *Grid, real32 Plane, real32 Row, real32 Column)
+GetGridWithInterpolate(static_grid3D *Grid, real32 X, real32 Y, real32 Z)
 {
-    uint32 Dimension = Grid->Dimension;
-    Assert(Plane >= 0.0f && Plane <= (real32)(Dimension - 1));
-    Assert(Row >= 0.0f && Row <= (real32)(Dimension - 1));
-    Assert(Column >= 0.0f && Column <= (real32)(Dimension - 1));
+    uint32 Dim = Grid->Dimension;
+    Assert(X >= 0.0f && X <= (real32)(Dim - 1));
+    Assert(Y >= 0.0f && Y <= (real32)(Dim - 1));
+    Assert(Z >= 0.0f && Z <= (real32)(Dim - 1));
     
-    uint32 PlaneWhole = FloorUint32(Plane);
-    real32 PlaneRemainder = Plane - (real32)PlaneWhole;
-    uint32 RowWhole = FloorUint32(Row);
-    real32 RowRemainder = Row - (real32)RowWhole;
-    uint32 ColumnWhole = FloorUint32(Column);
-    real32 ColumnRemainder = Column - (real32)ColumnWhole;
+    uint32 XFloor = FloorUint32(X);
+    real32 XRemainder = X - (real32)XFloor;
+    uint32 YFloor = FloorUint32(Y);
+    real32 YRemainder = Y - (real32)YFloor;
+    uint32 ZFloor = FloorUint32(Z);
+    real32 ZRemainder = Z - (real32)ZFloor;
     
     // NOTE: If every parameter is whole number, we can just give back the grid value
-    if(PlaneRemainder < 0.0001f && RowRemainder < 0.0001f && ColumnRemainder < 0.0001f)
-        return Grid->Elements[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
-    else if(PlaneRemainder < 0.0001f && RowRemainder < 0.0001f)
+    if(XRemainder < 0.0001f && YRemainder < 0.0001f && ZRemainder < 0.0001f)
+        return Grid->Elements[XFloor*Dim*Dim + YFloor*Dim + ZFloor];
+    else if(XRemainder < 0.0001f && YRemainder < 0.0001f)
     {
-        real32 Elem1 = Grid->Elements[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole];
-        real32 Elem2 = Grid->Elements[PlaneWhole*Dimension*Dimension + RowWhole*Dimension + ColumnWhole + 1];
+        real32 Elem1 = Grid->Elements[XFloor*Dim*Dim + YFloor*Dim + ZFloor];
+        real32 Elem2 = Grid->Elements[XFloor*Dim*Dim + YFloor*Dim + ZFloor + 1];
     
-        real32 Result = Elem1 + ColumnRemainder * (Elem2 - Elem1);
+        real32 Result = Elem1 + ZRemainder * (Elem2 - Elem1);
         return Result;
     }
-    else if(PlaneRemainder < 0.0001f)
+    else if(XRemainder < 0.0001f)
     {
-        real32 Elem1 = GetGridPRCWithInterpolate(Grid, Plane, (real32)RowWhole, Column);
-        real32 Elem2 = GetGridPRCWithInterpolate(Grid, Plane, (real32)(RowWhole+1), Column);
+        real32 Elem1 = GetGridWithInterpolate(Grid, X, (real32)YFloor, Z);
+        real32 Elem2 = GetGridWithInterpolate(Grid, X, (real32)(YFloor+1), Z);
         
-        real32 Result = Elem1 + RowRemainder * (Elem2 - Elem1);
+        real32 Result = Elem1 + YRemainder * (Elem2 - Elem1);
         return Result;
     }
     else
     {
-        real32 Elem1 = GetGridPRCWithInterpolate(Grid, (real32)PlaneWhole, Row, Column);
-        real32 Elem2 = GetGridPRCWithInterpolate(Grid, (real32)(PlaneWhole+1), Row, Column);
+        real32 Elem1 = GetGridWithInterpolate(Grid, (real32)XFloor, Y, Z);
+        real32 Elem2 = GetGridWithInterpolate(Grid, (real32)(XFloor+1), Y, Z);
         
-        real32 Result = Elem1 + PlaneRemainder * (Elem2 - Elem1);
+        real32 Result = Elem1 + XRemainder * (Elem2 - Elem1);
         return Result;
     }
 }
@@ -122,20 +122,14 @@ GetElement(static_grid3D *Grid, uint32 Index)
 internal void 
 ZeroOutGridPoints(static_grid3D *Grid)
 {
-    int32 Dimension = Grid->Dimension;
-    for(int32 Plane = 0;
-        Plane < Dimension;
-        ++Plane)
+    int32 Dim = Grid->Dimension;
+    for(int32 X = 0; X < Dim; ++X)
     {
-        for(int32 Row = 0;
-            Row < Dimension;
-            ++Row)
+        for(int32 Y = 0; Y < Dim; ++Y)
         {
-            for(int32 Column = 0;
-                Column < Dimension;
-                ++Column)
+            for(int32 Z = 0; Z < Dim; ++Z)
             {
-                Grid->Elements[Plane*Dimension*Dimension + Row*Dimension + Column] = 0.0f;
+                Grid->Elements[X*Dim*Dim + Y*Dim + Z] = 0.0f;
             }
         }
     }

@@ -51,7 +51,7 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
                 DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 0.023f) * Scale * 4.0f;
                 DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 0.00646f) * Scale * 16.0f;
                 
-                SetGridPRC(&DensityBlock->Grid, Plane, Row, Column, DensityValue);
+                SetGrid(&DensityBlock->Grid, Plane, Row, Column, DensityValue);
             }
         }
     }
@@ -69,6 +69,8 @@ Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
 internal v3
 GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
 {    
+    // TODO: Compute normals from adjecent density blocks, 
+    // instead of generating adjecent blocks points in current block
     real32 Diff = 0.5f;
     real32 DimensionBound = (real32)DensityBlock->Grid.Dimension-1.0f;
     
@@ -87,14 +89,14 @@ GetPointNormal(terrain_density_block *DensityBlock, v3 Point)
     real32 DiffZMax = Point.Z + Diff;
     DiffZMax = ClampReal32(DiffZMax, 0.0f, DimensionBound);
     
-    real32 XP = GetGridPRCWithInterpolate(&DensityBlock->Grid, DiffXMax, Point.Y, Point.Z);
-    real32 XM = GetGridPRCWithInterpolate(&DensityBlock->Grid, DiffXMin, Point.Y, Point.Z);
+    real32 XP = GetGridWithInterpolate(&DensityBlock->Grid, DiffXMax, Point.Y, Point.Z);
+    real32 XM = GetGridWithInterpolate(&DensityBlock->Grid, DiffXMin, Point.Y, Point.Z);
     real32 NormalX = XP - XM;
-    real32 YP = GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, DiffYMax, Point.Z);
-    real32 YM = GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, DiffYMin, Point.Z);
+    real32 YP = GetGridWithInterpolate(&DensityBlock->Grid, Point.X, DiffYMax, Point.Z);
+    real32 YM = GetGridWithInterpolate(&DensityBlock->Grid, Point.X, DiffYMin, Point.Z);
     real32 NormalY = YP - YM;
-    real32 ZP = GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, Point.Y, DiffZMax);
-    real32 ZM = GetGridPRCWithInterpolate(&DensityBlock->Grid, Point.X, Point.Y, DiffZMin);
+    real32 ZP = GetGridWithInterpolate(&DensityBlock->Grid, Point.X, Point.Y, DiffZMax);
+    real32 ZM = GetGridWithInterpolate(&DensityBlock->Grid, Point.X, Point.Y, DiffZMin);
     real32 NormalZ = ZP - ZM;
         
     v3 Result = v3{NormalX, NormalY, NormalZ};
@@ -137,22 +139,22 @@ PoligoniseBlock(terrain_render_block *RenderBlock, terrain_density_block *Densit
                 real32 Planef = (real32)Plane;
                 real32 Rowf = (real32)Row;
                 real32 Columnf = (real32)Column;
-                Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf         };
+                Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf     };
                 Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
                 Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
-                Cell.p[3] = v3{Planef     , Rowf     , Columnf         };
-                Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf         };
+                Cell.p[3] = v3{Planef     , Rowf     , Columnf     };
+                Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf     };
                 Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
                 Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
-                Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf         };
-                Cell.val[0] = GetGridPRC(&DensityBlock->Grid, Plane  , Row+1, Column  );
-                Cell.val[1] = GetGridPRC(&DensityBlock->Grid, Plane  , Row+1, Column+1);
-                Cell.val[2] = GetGridPRC(&DensityBlock->Grid, Plane  , Row  , Column+1);
-                Cell.val[3] = GetGridPRC(&DensityBlock->Grid, Plane  , Row  , Column  );
-                Cell.val[4] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row+1, Column  );
-                Cell.val[5] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row+1, Column+1);
-                Cell.val[6] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column+1);
-                Cell.val[7] = GetGridPRC(&DensityBlock->Grid, Plane+1, Row  , Column  );
+                Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
+                Cell.val[0] = GetGrid(&DensityBlock->Grid, Plane  , Row+1, Column  );
+                Cell.val[1] = GetGrid(&DensityBlock->Grid, Plane  , Row+1, Column+1);
+                Cell.val[2] = GetGrid(&DensityBlock->Grid, Plane  , Row  , Column+1);
+                Cell.val[3] = GetGrid(&DensityBlock->Grid, Plane  , Row  , Column  );
+                Cell.val[4] = GetGrid(&DensityBlock->Grid, Plane+1, Row+1, Column  );
+                Cell.val[5] = GetGrid(&DensityBlock->Grid, Plane+1, Row+1, Column+1);
+                Cell.val[6] = GetGrid(&DensityBlock->Grid, Plane+1, Row  , Column+1);
+                Cell.val[7] = GetGrid(&DensityBlock->Grid, Plane+1, Row  , Column  );
                 TRIANGLE Triangles[5];
                 uint32 TriangleCount = Polygonise(Cell, DENSITY_ISO_LEVEL, Triangles);
                 
