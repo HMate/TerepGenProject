@@ -38,21 +38,6 @@ vertex Vertex(v3 Pos, v3 Norm, v4 Color)
 #include "terepgen_terrain.h"
 
 
-struct world_block_pos
-{
-    int32 BlockX;
-    int32 BlockY;
-    int32 BlockZ;
-    
-    int32 Resolution;
-};
-
-struct block_hash
-{
-    world_block_pos Key;
-    int32 BlockIndex;
-};
-
 struct cube
 {
     v3 Pos;
@@ -64,11 +49,6 @@ struct cube
 #define RENDERED_BLOCK_RADIUS 7
 #define ZERO_BLOCK_RADIUS 23
 #define BLOCK_POS_COUNT POS_GRID_SIZE(RENDERED_BLOCK_RADIUS)
-#define RENDER_BLOCK_COUNT 1500
-#define DENSITY_BLOCK_COUNT 1500
-
-#define BLOCK_HASH_SIZE 4096
-#define ZERO_HASH_SIZE 32768
 
 // TODO: how to implement different blockpos array sizes? do i need it?
 struct block_pos_array
@@ -86,27 +66,12 @@ struct game_state
     v3 CameraDir;
     
     perlin_noise_array PerlinArray;
-    real32 BlockSize;
-    uint32 BlockResolution;
     uint32 RenderMode;
     
-    uint32 DensityBlockCount;
-    terrain_density_block DensityBlocks[DENSITY_BLOCK_COUNT];
+    world_density WorldDensity;
     
-    uint32 DeletedBlockCount;
-    // uint32 PoligonisedBlock1Count;
-    // uint32 PoligonisedBlock2Count;
-    // uint32 PoligonisedBlock4Count;
-    // terrain_render_block PoligonisedBlocks1[RENDER_BLOCK_COUNT];
-    // terrain_render_block PoligonisedBlocks2[RENDER_BLOCK_COUNT];
-    // terrain_render_block PoligonisedBlocks4[RENDER_BLOCK_COUNT];
     uint32 RenderBlockCount;
-    terrain_render_block RenderBlocks[RENDER_BLOCK_COUNT];
-    
-    // NOTE: This must be a power of two for now!
-    block_hash BlockHash[BLOCK_HASH_SIZE];
-    uint32 ZeroBlockCount;
-    block_hash ZeroHash[ZERO_HASH_SIZE];
+    terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
     
     cube Cube;
 };

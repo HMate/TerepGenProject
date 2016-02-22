@@ -9,7 +9,7 @@ echo TerepGen compile starting at %TIME%
 cd /d Y:\code
 call "..\misc\load_msvc.bat"
 
-set debugBuild= 1
+set debugBuild= 0
 
 if %debugBuild% == 1 (
 echo Debug build

@@ -42,17 +42,16 @@ struct dynamic_grid3D
     }
 };
 
-#define GRID_DIMENSION 13
+#define GRID_DIMENSION 8
 
 struct static_grid3D
 {
-    int32 Dimension = GRID_DIMENSION;
+    uint32 Dimension = GRID_DIMENSION;
     real32 Elements[GRID_DIMENSION * GRID_DIMENSION * GRID_DIMENSION];
 };
 
-        
 internal real32 
-GetGrid(static_grid3D *Grid, int32 X, int32 Y, int32 Z)
+GetGrid(static_grid3D *Grid, uint32 X, uint32 Y, uint32 Z)
 {
     uint32 Dim = Grid->Dimension;
     Assert(X < GRID_DIMENSION && Y < GRID_DIMENSION && Z < GRID_DIMENSION);

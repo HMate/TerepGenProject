@@ -352,7 +352,7 @@ uint32 Polygonise(GRIDCELL grid, real32 isolevel, TRIANGLE *triangles)
 
    /*
       Determine the index into the edge table which
-      tells us which vertices are inside of the surface
+      tells us which vertices are outside of the surface
    */
    uint32 cubeindex = 0;
    if (grid.val[0] > isolevel) cubeindex |= 1;
