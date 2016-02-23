@@ -46,6 +46,17 @@ struct win32_printer
         OutputDebugStringA(DebugBuffer2);
 #endif
     }
+    
+    static void DebugPrint(char *Text, real32 Arg1, real32 Arg2)
+    {
+#if TEREPGEN_DEBUG
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+        char DebugBuffer2[256];
+        sprintf_s(DebugBuffer2, DebugBuffer, Arg1, Arg2);
+        OutputDebugStringA(DebugBuffer2);
+#endif
+    }
 }; 
 
 // NOTE: Requires GlobalPerfCountFrequency to be initialized
@@ -370,7 +381,7 @@ WinMain(HINSTANCE Instance,
                 real32 WorldScreenSizeY = 2.0f*Tan(Camera.Fov/2.0f);
                 real32 WorldScreenSizeX = WorldScreenSizeY*(real32)ScreenInfo.Width/ScreenInfo.Height;
                 v3 UpDir = Camera.GetUpDirection();
-                v3 RightDir = Normalize(-Cross(GameState->CameraDir, UpDir));
+                v3 RightDir = Normalize(Cross(UpDir, GameState->CameraDir));
                 v2 NormalizedMouse = MouseInPixel - v2{(real32)ScreenInfo.Width/2, (real32)ScreenInfo.Height/2};
                 NormalizedMouse.X = NormalizedMouse.X / ScreenInfo.Width;
                 NormalizedMouse.Y = -NormalizedMouse.Y / ScreenInfo.Height;
@@ -386,7 +397,7 @@ WinMain(HINSTANCE Instance,
                 UpdateGameState(GameState, WorldMouse, CameraOrigo);
                 RenderGame(GameState, &Camera);
                 
-                FrameClock.PrintMiliSeconds("Frame time:");
+                //FrameClock.PrintMiliSeconds("Frame time:");
                 FrameClock.Reset();
             }
             

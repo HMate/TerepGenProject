@@ -73,6 +73,9 @@ struct dx_resource
 
 struct camera
 {
+    const DirectX::XMFLOAT3 AbsUpDir = DirectX::XMFLOAT3(0, 1, 0);
+    const DirectX::XMFLOAT3 AbsHorzDir = DirectX::XMFLOAT3(0, 0, 1);
+    
     DirectX::XMFLOAT3 Position = DirectX::XMFLOAT3(0, 0, 0);
     DirectX::XMFLOAT3 TargetPos = DirectX::XMFLOAT3(0, 0, 1);
     DirectX::XMFLOAT3 UpDirection = DirectX::XMFLOAT3(0, 1, 0);
@@ -83,6 +86,9 @@ struct camera
     // have a distance of 1.0 from the eye with PerspectiveFovLH
     real32 NearZ = 10.0f;
     real32 FarZ = 100000.0f;
+    
+    real32 YawRadian = 0.0f; // Turnning left-right
+    real32 PitchRadian = 0.0f; // Turning up-down
     
     DirectX::XMFLOAT4X4 ViewMx;
     DirectX::XMFLOAT4X4 ProjMx;

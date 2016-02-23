@@ -894,6 +894,7 @@ void camera::Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 Scr
 {   
     using namespace DirectX;
     CameraSpeed = CamSpeed;
+    
     XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
         XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));            
 #if TEREPGEN_DEBUG
@@ -999,24 +1000,33 @@ void camera::Update(input *Input, real64 TimeDelta)
     //bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
     
     // NOTE: rotate camera
-    auto dMouseX = Input->MouseX - Input->OldMouseX;
-    auto dMouseY = Input->MouseY - Input->OldMouseY;
-    if(MouseLeftIsDown && (dMouseX != 0 || dMouseY != 0))
+    real32 dMouseX = (real32)(Input->MouseX - Input->OldMouseX);
+    real32 dMouseY = (real32)(Input->MouseY - Input->OldMouseY);
+    if(MouseLeftIsDown)
     {
 #if 0
         char DebugBuffer[256];
         sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Mouse dX: %d, dY: %d Time: %f\n", dMouseX, dMouseY, (real32)TimeDelta);
         OutputDebugStringA(DebugBuffer);
 #endif
-        XMVECTOR NewTargetDir = TargetDirection;
+        YawRadian += dMouseX/100.0f;
+        PitchRadian -= dMouseY/100.0f;
         
-        NewTargetDir = XMVector3Transform(TargetDirection, XMMatrixRotationNormal(
-                XMVector3Normalize(XMVector3Cross( XMLoadFloat3(&UpDirection), TargetDirection)),
-                -(real32)dMouseY/100.0f));
+        //win32_printer::DebugPrint("Yaw: %f Pitch: %f", YawRadian, PitchRadian);
+
+        XMVECTOR NewTargetDir = XMLoadFloat3(&AbsHorzDir);
+        XMVECTOR NewUpDir = XMLoadFloat3(&AbsUpDir);
+        XMVECTOR LeftDir = XMVector3Normalize(XMVector3Cross( XMLoadFloat3(&AbsUpDir), XMLoadFloat3(&AbsHorzDir)));
+        
+        XMMATRIX VerticalRotation = XMMatrixRotationNormal(LeftDir, PitchRadian);
+        XMMATRIX HorzRotation = XMMatrixRotationNormal(XMLoadFloat3(&AbsUpDir), YawRadian);
+                
+        NewTargetDir = XMVector3Transform(XMLoadFloat3(&AbsHorzDir), VerticalRotation);
+        NewUpDir = XMVector3Transform(XMLoadFloat3(&AbsUpDir), VerticalRotation);
         
         XMStoreFloat3(&TargetPos,
-            XMVector3Transform(NewTargetDir, XMMatrixRotationNormal(XMLoadFloat3(&UpDirection), (real32)dMouseX/100.0f)) +
-                XMLoadFloat3(&Position));
+            XMVector3Transform(NewTargetDir, HorzRotation) + XMLoadFloat3(&Position));
+        XMStoreFloat3(&UpDirection, XMVector3Transform(NewUpDir, HorzRotation));
     }
               
     XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
