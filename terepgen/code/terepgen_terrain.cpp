@@ -235,9 +235,9 @@ InitZeroHash(world_density *World)
 
 // NOTE: XYZ are relative to the block position
 internal real32
-GetWorldGrid(world_density *World, terrain_density_block *DensityBlock, int32 X, int32 Y, int32 Z)
+GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, int32 Z)
 {
-    world_block_pos ActualWPos = DensityBlock->Pos;;
+    world_block_pos ActualWPos = *BlockP;
     
     int32 GridStep = (int32)World->BlockSize;
     int32 DiffX = FloorInt32(X / World->BlockSize);
@@ -263,8 +263,9 @@ GetWorldGrid(world_density *World, terrain_density_block *DensityBlock, int32 X,
     return Result;
 }
 
+// NOTE: floating values here are world grid positions in float, not render space values!
 internal real32
-GetInterpolatedWorldGrid(world_density *World, terrain_density_block *DensityBlock, 
+GetInterpolatedWorldGrid(world_density *World, world_block_pos *BlockP, 
                          real32 X, real32 Y, real32 Z)
 {
     int32 XFloor = FloorInt32(X);
@@ -276,31 +277,44 @@ GetInterpolatedWorldGrid(world_density *World, terrain_density_block *DensityBlo
     
     // NOTE: If every parameter is whole number, we can just give back the grid value
     if(XRemainder < 0.0001f && YRemainder < 0.0001f && ZRemainder < 0.0001f)
-        return GetWorldGrid(World, DensityBlock, XFloor, YFloor, ZFloor);
+        return GetWorldGrid(World, BlockP, XFloor, YFloor, ZFloor);
     else if(XRemainder < 0.0001f && YRemainder < 0.0001f)
     {
-        real32 Elem1 = GetWorldGrid(World, DensityBlock, XFloor, YFloor, ZFloor);
-        real32 Elem2 = GetWorldGrid(World, DensityBlock, XFloor, YFloor, ZFloor + 1);
+        real32 Elem1 = GetWorldGrid(World, BlockP, XFloor, YFloor, ZFloor);
+        real32 Elem2 = GetWorldGrid(World, BlockP, XFloor, YFloor, ZFloor + 1);
     
         real32 Result = Elem1 + ZRemainder * (Elem2 - Elem1);
         return Result;
     }
     else if(XRemainder < 0.0001f)
     {
-        real32 Elem1 = GetInterpolatedWorldGrid(World, DensityBlock, X, (real32)YFloor, Z);
-        real32 Elem2 = GetInterpolatedWorldGrid(World, DensityBlock, X, (real32)(YFloor+1), Z);
+        real32 Elem1 = GetInterpolatedWorldGrid(World, BlockP, X, (real32)YFloor, Z);
+        real32 Elem2 = GetInterpolatedWorldGrid(World, BlockP, X, (real32)(YFloor+1), Z);
         
         real32 Result = Elem1 + YRemainder * (Elem2 - Elem1);
         return Result;
     }
     else
     {
-        real32 Elem1 = GetInterpolatedWorldGrid(World, DensityBlock, (real32)XFloor, Y, Z);
-        real32 Elem2 = GetInterpolatedWorldGrid(World, DensityBlock, (real32)(XFloor+1), Y, Z);
+        real32 Elem1 = GetInterpolatedWorldGrid(World, BlockP, (real32)XFloor, Y, Z);
+        real32 Elem2 = GetInterpolatedWorldGrid(World, BlockP, (real32)(XFloor+1), Y, Z);
         
         real32 Result = Elem1 + XRemainder * (Elem2 - Elem1);
         return Result;
     }
+}
+
+// NOTE: V3 contains renderspace values here
+internal real32
+GetWorldGridValueFromV3(world_density *World, v3 Pos)
+{
+    // TODO: Resolution
+    world_block_pos WorldOrigo{0, 0, 0, 4};
+    
+    v3 BlockPos = Pos/4;
+    
+    real32 Result = GetInterpolatedWorldGrid(World, &WorldOrigo, BlockPos.X, BlockPos.Y, BlockPos.Z);
+    return Result;
 }
 
 internal vertex
@@ -313,10 +327,9 @@ Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
 }
 
 internal v3
-GetPointNormal(world_density *World, terrain_density_block *DensityBlock, v3 Point)
+GetPointNormal(world_density *World, world_block_pos *BlockP, v3 Point)
 {
     real32 Diff = 0.5f;
-    real32 DimensionBound = (real32)DensityBlock->Grid.Dimension-1.0f;
     
     real32 DiffXMin = Point.X - Diff;
     real32 DiffXMax = Point.X + Diff;
@@ -327,14 +340,14 @@ GetPointNormal(world_density *World, terrain_density_block *DensityBlock, v3 Poi
     real32 DiffZMin = Point.Z - Diff;
     real32 DiffZMax = Point.Z + Diff;
     
-    real32 XP = GetInterpolatedWorldGrid(World, DensityBlock, DiffXMax, Point.Y, Point.Z);
-    real32 XM = GetInterpolatedWorldGrid(World, DensityBlock, DiffXMin, Point.Y, Point.Z);
+    real32 XP = GetInterpolatedWorldGrid(World, BlockP, DiffXMax, Point.Y, Point.Z);
+    real32 XM = GetInterpolatedWorldGrid(World, BlockP, DiffXMin, Point.Y, Point.Z);
     real32 NormalX = XP - XM;
-    real32 YP = GetInterpolatedWorldGrid(World, DensityBlock, Point.X, DiffYMax, Point.Z);
-    real32 YM = GetInterpolatedWorldGrid(World, DensityBlock, Point.X, DiffYMin, Point.Z);
+    real32 YP = GetInterpolatedWorldGrid(World, BlockP, Point.X, DiffYMax, Point.Z);
+    real32 YM = GetInterpolatedWorldGrid(World, BlockP, Point.X, DiffYMin, Point.Z);
     real32 NormalY = YP - YM;
-    real32 ZP = GetInterpolatedWorldGrid(World, DensityBlock, Point.X, Point.Y, DiffZMax);
-    real32 ZM = GetInterpolatedWorldGrid(World, DensityBlock, Point.X, Point.Y, DiffZMin);
+    real32 ZP = GetInterpolatedWorldGrid(World, BlockP, Point.X, Point.Y, DiffZMax);
+    real32 ZM = GetInterpolatedWorldGrid(World, BlockP, Point.X, Point.Y, DiffZMin);
     real32 NormalZ = ZP - ZM;
         
     v3 Result = v3{NormalX, NormalY, NormalZ};
@@ -356,6 +369,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain
     real32 CellDiff = (real32)DensityBlock->Pos.Resolution;
     v4 GreenColor = v4{0.0, 1.0f, 0.0f, 1.0f};
     
+    world_block_pos *BlockP = &DensityBlock->Pos;
     RenderBlock->Pos = V3FromWorldPos(World, DensityBlock->Pos);
     uint32 TerrainDimension = DensityBlock->Grid.Dimension;
     
@@ -384,14 +398,14 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain
                 Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
                 Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
                 Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
-                Cell.val[0] = GetWorldGrid(World, DensityBlock, Plane  , Row+1, Column  );
-                Cell.val[1] = GetWorldGrid(World, DensityBlock, Plane  , Row+1, Column+1);
-                Cell.val[2] = GetWorldGrid(World, DensityBlock, Plane  , Row  , Column+1);
-                Cell.val[3] = GetWorldGrid(World, DensityBlock, Plane  , Row  , Column  );
-                Cell.val[4] = GetWorldGrid(World, DensityBlock, Plane+1, Row+1, Column  );
-                Cell.val[5] = GetWorldGrid(World, DensityBlock, Plane+1, Row+1, Column+1);
-                Cell.val[6] = GetWorldGrid(World, DensityBlock, Plane+1, Row  , Column+1);
-                Cell.val[7] = GetWorldGrid(World, DensityBlock, Plane+1, Row  , Column  );
+                Cell.val[0] = GetWorldGrid(World, BlockP, Plane  , Row+1, Column  );
+                Cell.val[1] = GetWorldGrid(World, BlockP, Plane  , Row+1, Column+1);
+                Cell.val[2] = GetWorldGrid(World, BlockP, Plane  , Row  , Column+1);
+                Cell.val[3] = GetWorldGrid(World, BlockP, Plane  , Row  , Column  );
+                Cell.val[4] = GetWorldGrid(World, BlockP, Plane+1, Row+1, Column  );
+                Cell.val[5] = GetWorldGrid(World, BlockP, Plane+1, Row+1, Column+1);
+                Cell.val[6] = GetWorldGrid(World, BlockP, Plane+1, Row  , Column+1);
+                Cell.val[7] = GetWorldGrid(World, BlockP, Plane+1, Row  , Column  );
                 TRIANGLE Triangles[5];
                 uint32 TriangleCount = Polygonise(Cell, DENSITY_ISO_LEVEL, Triangles);
                 
@@ -401,9 +415,9 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain
                     v3 Point1 = Triangles[TriangleIndex].p[1];
                     v3 Point2 = Triangles[TriangleIndex].p[2];
                                         
-                    v3 Normal0 = GetPointNormal(World, DensityBlock, Point0);
-                    v3 Normal1 = GetPointNormal(World, DensityBlock, Point1);
-                    v3 Normal2 = GetPointNormal(World, DensityBlock, Point2);
+                    v3 Normal0 = GetPointNormal(World, BlockP, Point0);
+                    v3 Normal1 = GetPointNormal(World, BlockP, Point1);
+                    v3 Normal2 = GetPointNormal(World, BlockP, Point2);
                     
                     RenderBlock->Vertices[VertexCount++] = 
                         Get3DVertex(Point0 * CellDiff, Normal0, GreenColor);

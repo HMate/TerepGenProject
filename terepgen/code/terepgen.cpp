@@ -138,9 +138,9 @@ AddToRenderBlocks(game_state *GameState, terrain_render_block *Block, int32 Reso
 }
 
 internal void
-AddCube(game_state *GameState, v3 WorldMouse)
+AddCube(game_state *GameState, v3 WorldMousePos)
 {
-    GameState->Cube.Pos = WorldMouse;
+    GameState->Cube.Pos = WorldMousePos;
 
     const v3 Corner0 ={-0.5f, -0.5f, -0.5f};
     const v3 Corner1 ={-0.5f, 0.5f, -0.5f};
@@ -206,7 +206,7 @@ AddCube(game_state *GameState, v3 WorldMouse)
 }
 
 internal void
-UpdateGameState(game_state *GameState, v3 WorldMouse)
+UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
 {
     world_density *World = &GameState->WorldDensity;
     if(GameState->Initialized == false)
@@ -219,13 +219,6 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
         InitZeroHash(World);
         
         GameState->Initialized = true;
-    }
-    
-    // TODO: Refactor to input!
-    bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
-    if(MouseRightIsDown)
-    {
-        AddCube(GameState, WorldMouse);
     }
     
     v3 CameraP = GameState->CameraPos;
@@ -457,6 +450,25 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
         }
     }
     //PoligoniseClock.PrintMiliSeconds("Poligonise time:");
+    
+    // TODO: Refactor to input!
+    bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
+    if(MouseRightIsDown)
+    {
+        v3 RayDirection = Normalize(WorldMousePos - CameraOrigo);
+        for(real32 RayLength = 0.5f; 
+            RayLength < 2000.0f; 
+            RayLength+=0.5f)
+        {
+            v3 CheckPos = CameraOrigo + (RayLength*RayDirection);
+            real32 PosValue = GetWorldGridValueFromV3(World, CheckPos);
+            if(PosValue < DENSITY_ISO_LEVEL)
+            {
+                AddCube(GameState, CheckPos);
+                break;
+            }
+        }
+    }
     
     /*
     terrain_density_block DensityBlock;
