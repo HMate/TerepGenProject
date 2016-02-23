@@ -19,7 +19,7 @@ struct terrain_density_block
 {
     world_block_pos Pos;
     static_grid3D Grid;
-};
+};//2'064 B
 
 #define HASH_UNINITIALIZED -1
 #define HASH_ZERO_BLOCK -2
@@ -40,7 +40,7 @@ struct terrain_render_block
     v3 Pos;
     uint32 VertexCount;
     vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];
-};
+};//280'016 B
 
 #define DENSITY_BLOCK_COUNT 1500
 #define RENDER_BLOCK_COUNT 1500
@@ -50,7 +50,8 @@ struct terrain_render_block
 struct world_density
 {
     real32 BlockSize;
-    uint32 DeletedBlockCount;
+    uint32 DeletedDensityBlockCount;
+    uint32 DeletedRenderBlockCount;
     
     uint32 DensityBlockCount;
     terrain_density_block DensityBlocks[DENSITY_BLOCK_COUNT];

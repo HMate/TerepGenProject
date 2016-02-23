@@ -23,7 +23,30 @@ global_variable bool32 DrawTerrain1;
 global_variable bool32 DrawTerrain2;   
 global_variable uint32 GlobalSeed;  
 global_variable real32 Persistence;
-global_variable LARGE_INTEGER GlobalPerfCountFrequency;   
+global_variable LARGE_INTEGER GlobalPerfCountFrequency;  
+
+struct win32_printer
+{
+    static void DebugPrint(char *Text)
+    {
+#if TEREPGEN_DEBUG
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+        OutputDebugStringA(DebugBuffer);
+#endif
+    }
+    
+    static void DebugPrint(char *Text, uint32 Arg1)
+    {
+#if TEREPGEN_DEBUG
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+        char DebugBuffer2[256];
+        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+        OutputDebugStringA(DebugBuffer2);
+#endif
+    }
+}; 
 
 // NOTE: Requires GlobalPerfCountFrequency to be initialized
 struct win32_clock
@@ -354,15 +377,7 @@ WinMain(HINSTANCE Instance,
                 
                 v3 WorldMouse = GameState->CameraPos + (UpDir*NormalizedMouse.Y*WorldScreenSizeY) 
                     + (RightDir*NormalizedMouse.X*WorldScreenSizeX);
-#if TEREPGEN_DEBUG
-                // char DebugBuffer[256];
-                // sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] MouseX: %f, Y: %f, Z: %f\n", 
-                    // WorldMouse.X, WorldMouse.Y, WorldMouse.Z);
-                // OutputDebugStringA(DebugBuffer);
-                // sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] CamraCenterX: %f, Y: %f, Z: %f\n", 
-                    // GameState->CameraPos.X, GameState->CameraPos.Y, GameState->CameraPos.Z);
-                // OutputDebugStringA(DebugBuffer);
-#endif
+                
                 GameState->Seed = GlobalSeed;
                 GameState->RenderMode = GlobalInput.RenderMode;
                 

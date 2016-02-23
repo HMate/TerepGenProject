@@ -238,36 +238,73 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
     //
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
     // TODO: Delete from other resolutions too!
-    /*int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
-    for(uint32 StoreIndex = 0; 
-        StoreIndex < World->DensityBlockCount; 
-        ++StoreIndex)
+    if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) * 7 / 8))
     {
-        terrain_density_block *Block = World->DensityBlocks + StoreIndex;
-        world_block_pos BlockP = WorldPosFromV3(World, Block->Pos, 4);
-        if((WorldCameraP.BlockX + LoadSpaceRadius < BlockP.BlockX) ||
-           (WorldCameraP.BlockX - LoadSpaceRadius > BlockP.BlockX) ||
-           (WorldCameraP.BlockY + LoadSpaceRadius < BlockP.BlockY) ||
-           (WorldCameraP.BlockY - LoadSpaceRadius > BlockP.BlockY) ||
-           (WorldCameraP.BlockZ + LoadSpaceRadius < BlockP.BlockZ) ||
-           (WorldCameraP.BlockZ - LoadSpaceRadius > BlockP.BlockZ))
+        int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
+        for(uint32 StoreIndex = 0; 
+            StoreIndex < World->DensityBlockCount; 
+            ++StoreIndex)
         {
-            terrain_density_block *Last = World->DensityBlocks + (--World->DensityBlockCount);
-            world_block_pos LastP = WorldPosFromV3(World, Last->Pos, 4);
-            
-            // NOTE: This is from stored blocks, so it cant be a zero block!
-            block_hash *RemovedHash = GetHash((block_hash*)&World->BlockHash, BlockP);
-            Assert(RemovedHash->Index != HASH_UNINITIALIZED && RemovedHash->Index != HASH_DELETED);
-            block_hash *LastHash = GetHash((block_hash*)&World->BlockHash, LastP);
-            Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
-            
-            RemovedHash->Index = HASH_DELETED;
-            LastHash->Index = StoreIndex;
-            World->DeletedBlockCount++;
-            
-            *Block = *Last;
+            terrain_density_block *Block = World->DensityBlocks + StoreIndex;
+            world_block_pos BlockP = Block->Pos;
+            if((WorldCameraP.BlockX + LoadSpaceRadius < BlockP.BlockX) ||
+               (WorldCameraP.BlockX - LoadSpaceRadius > BlockP.BlockX) ||
+               (WorldCameraP.BlockY + LoadSpaceRadius < BlockP.BlockY) ||
+               (WorldCameraP.BlockY - LoadSpaceRadius > BlockP.BlockY) ||
+               (WorldCameraP.BlockZ + LoadSpaceRadius < BlockP.BlockZ) ||
+               (WorldCameraP.BlockZ - LoadSpaceRadius > BlockP.BlockZ))
+            {
+                terrain_density_block *Last = World->DensityBlocks + (--World->DensityBlockCount);
+                world_block_pos LastP = Last->Pos;
+                
+                // NOTE: This is from stored blocks, so it cant be a zero block!
+                block_hash *RemovedHash = GetHash((block_hash*)&World->BlockHash, BlockP);
+                Assert(RemovedHash->Index != HASH_UNINITIALIZED && RemovedHash->Index != HASH_DELETED);
+                block_hash *LastHash = GetHash((block_hash*)&World->BlockHash, LastP);
+                Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
+                
+                RemovedHash->Index = HASH_DELETED;
+                LastHash->Index = StoreIndex;
+                World->DeletedDensityBlockCount++;
+                
+                *Block = *Last;
+            }
         }
-    }*/
+    }
+    
+    if(World->PoligonisedBlockCount > (ArrayCount(World->PoligonisedBlocks) * 7/8))
+    {
+        int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
+        for(uint32 StoreIndex = 0; 
+            StoreIndex < World->PoligonisedBlockCount; 
+            ++StoreIndex)
+        {
+            terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
+            world_block_pos BlockP = WorldPosFromV3(World, Block->Pos, 4);
+            if((WorldCameraP.BlockX + LoadSpaceRadius < BlockP.BlockX) ||
+               (WorldCameraP.BlockX - LoadSpaceRadius > BlockP.BlockX) ||
+               (WorldCameraP.BlockY + LoadSpaceRadius < BlockP.BlockY) ||
+               (WorldCameraP.BlockY - LoadSpaceRadius > BlockP.BlockY) ||
+               (WorldCameraP.BlockZ + LoadSpaceRadius < BlockP.BlockZ) ||
+               (WorldCameraP.BlockZ - LoadSpaceRadius > BlockP.BlockZ))
+            {
+                terrain_render_block *Last = World->PoligonisedBlocks + (--World->PoligonisedBlockCount);
+                world_block_pos LastP = WorldPosFromV3(World, Last->Pos, 4);
+                
+                // NOTE: This is from stored blocks, so it cant be a zero block!
+                block_hash *RemovedHash = GetHash((block_hash*)&World->RenderHash, BlockP);
+                Assert(RemovedHash->Index != HASH_UNINITIALIZED && RemovedHash->Index != HASH_DELETED);
+                block_hash *LastHash = GetHash((block_hash*)&World->RenderHash, LastP);
+                Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
+                
+                RemovedHash->Index = HASH_DELETED;
+                LastHash->Index = StoreIndex;
+                World->DeletedRenderBlockCount++;
+                
+                *Block = *Last;
+            }
+        }
+    }
     
     int32 ZeroGridTotalSize = POS_GRID_SIZE(ZERO_BLOCK_RADIUS);
     Assert(ZeroGridTotalSize < ZERO_HASH_SIZE);
@@ -400,7 +437,7 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
         }
     }
     
-    win32_clock PoligoniseClock;
+    //win32_clock PoligoniseClock;
     GameState->RenderBlockCount = 0;
     for(size_t PosIndex = 0; 
         (PosIndex < BlockPositions.Count);
@@ -419,7 +456,7 @@ UpdateGameState(game_state *GameState, v3 WorldMouse)
             }
         }
     }
-    PoligoniseClock.PrintMiliSeconds("Poligonise time:");
+    //PoligoniseClock.PrintMiliSeconds("Poligonise time:");
     
     /*
     terrain_density_block DensityBlock;

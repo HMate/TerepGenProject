@@ -200,7 +200,8 @@ InitBlockHash(world_density *World)
     World->PoligonisedBlockCount = 0;
     // GameState->PoligonisedBlock2Count = 0;
     // GameState->PoligonisedBlock4Count = 0;
-    World->DeletedBlockCount = 0;
+    World->DeletedDensityBlockCount = 0;
+    World->DeletedRenderBlockCount = 0;
     
     for(uint32 HashIndex = 0;
         HashIndex < ArrayCount(World->BlockHash);
