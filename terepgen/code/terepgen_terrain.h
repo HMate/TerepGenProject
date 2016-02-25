@@ -12,7 +12,15 @@ struct world_block_pos
     int32 BlockY;
     int32 BlockZ;
     
-    int32 Resolution;
+    uint32 Resolution;
+};
+
+struct block_node
+{
+    world_block_pos BlockP;
+    uint32 X;
+    uint32 Y;
+    uint32 Z;
 };
 
 struct terrain_density_block

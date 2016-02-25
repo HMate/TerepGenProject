@@ -109,7 +109,7 @@ GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos 
 }
 
 internal void
-AddToRenderBlocks(game_state *GameState, terrain_render_block *Block, int32 Resolution)
+AddToRenderBlocks(game_state *GameState, terrain_render_block *Block, uint32 Resolution)
 {
     const v3 CameraP = GameState->CameraPos;
     const v3 CamDir = GameState->CameraDir;
@@ -444,26 +444,27 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             
             if(!HashIsEmpty(Hash))
             {
-                // TODO: dont forget to empty the hashes too.
                 AddToRenderBlocks(GameState, World->PoligonisedBlocks + Hash->Index, 4);
             }
         }
     }
     //PoligoniseClock.PrintMiliSeconds("Poligonise time:");
     
-    // TODO: Refactor to input!
+    // TODO: Refactor mouse buttons to input!
     bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
     if(MouseRightIsDown)
     {
         v3 RayDirection = Normalize(WorldMousePos - CameraOrigo);
         for(real32 RayLength = 0.5f; 
             RayLength < 2000.0f; 
-            RayLength+=0.5f)
+            RayLength += 0.5f)
         {
             v3 CheckPos = CameraOrigo + (RayLength*RayDirection);
-            real32 PosValue = GetWorldGridValueFromV3(World, CheckPos);
+            real32 PosValue = GetWorldGridValueFromV3(World, CheckPos, 4);
             if(PosValue < DENSITY_ISO_LEVEL)
             {
+                // TODO: Change grounds density, and rerender the touched blocks
+                
                 AddCube(GameState, CheckPos);
                 break;
             }

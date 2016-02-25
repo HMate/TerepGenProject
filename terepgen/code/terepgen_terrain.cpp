@@ -233,31 +233,41 @@ InitZeroHash(world_density *World)
     }
 }
 
-// NOTE: XYZ are relative to the block position
-internal real32
-GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, int32 Z)
+internal block_node
+GetActualBlockNode(world_density *World, world_block_pos *Original, int32 X, int32 Y, int32 Z)
 {
-    world_block_pos ActualWPos = *BlockP;
+    block_node Result;
+    
+    Result.BlockP = *Original;
     
     int32 GridStep = (int32)World->BlockSize;
     int32 DiffX = FloorInt32(X / World->BlockSize);
     int32 DiffY = FloorInt32(Y / World->BlockSize);
     int32 DiffZ = FloorInt32(Z / World->BlockSize);
     
-    ActualWPos.BlockX += DiffX;
-    ActualWPos.BlockY += DiffY;
-    ActualWPos.BlockZ += DiffZ;
+    Result.BlockP.BlockX += DiffX;
+    Result.BlockP.BlockY += DiffY;
+    Result.BlockP.BlockZ += DiffZ;
     
-    uint32 ActX = (uint32)(X - (DiffX * GridStep));
-    uint32 ActY = (uint32)(Y - (DiffY * GridStep));
-    uint32 ActZ = (uint32)(Z - (DiffZ * GridStep));
+    Result.X = (uint32)(X - (DiffX * GridStep));
+    Result.Y = (uint32)(Y - (DiffY * GridStep));
+    Result.Z = (uint32)(Z - (DiffZ * GridStep));
     
-    block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, ActualWPos);
+    return Result;
+}
+
+// NOTE: XYZ are relative to the block position
+internal real32
+GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, int32 Z)
+{
+    block_node Node = GetActualBlockNode(World, BlockP, X, Y, Z);
+    
+    block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, Node.BlockP);
     real32 Result = 2.0f;
     if(!HashIsEmpty(BlockHash))
     {
         terrain_density_block *ActDensityBlock = World->DensityBlocks + BlockHash->Index;
-        Result = GetGrid(&ActDensityBlock->Grid, ActX, ActY, ActZ);
+        Result = GetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z);
     }
     
     return Result;
@@ -306,12 +316,12 @@ GetInterpolatedWorldGrid(world_density *World, world_block_pos *BlockP,
 
 // NOTE: V3 contains renderspace values here
 internal real32
-GetWorldGridValueFromV3(world_density *World, v3 Pos)
+GetWorldGridValueFromV3(world_density *World, v3 Pos, uint32 Resolution)
 {
     // TODO: Resolution
-    world_block_pos WorldOrigo{0, 0, 0, 4};
+    world_block_pos WorldOrigo{0, 0, 0, Resolution};
     
-    v3 BlockPos = Pos/4;
+    v3 BlockPos = Pos/(real32)Resolution;
     
     real32 Result = GetInterpolatedWorldGrid(World, &WorldOrigo, BlockPos.X, BlockPos.Y, BlockPos.Z);
     return Result;

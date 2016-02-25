@@ -59,7 +59,7 @@ GetGrid(static_grid3D *Grid, uint32 X, uint32 Y, uint32 Z)
 }
         
 internal void 
-SetGrid(static_grid3D *Grid, int32 X, int32 Y, int32 Z, real32 Value)
+SetGrid(static_grid3D *Grid, uint32 X, uint32 Y, uint32 Z, real32 Value)
 {
     uint32 Dim = Grid->Dimension;
     Assert(X < GRID_DIMENSION && Y < GRID_DIMENSION && Z < GRID_DIMENSION);
