@@ -84,7 +84,7 @@ struct camera
     real32 Fov = 3.14f * 0.35f;
     // NOTE: Regardless of nearZ, the screen always 
     // have a distance of 1.0 from the eye with PerspectiveFovLH
-    real32 NearZ = 10.0f;
+    real32 NearZ = 1.0f;
     real32 FarZ = 100000.0f;
     
     real32 YawRadian = 0.0f; // Turnning left-right
