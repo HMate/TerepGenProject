@@ -256,6 +256,20 @@ GetActualBlockNode(world_density *World, world_block_pos *Original, int32 X, int
     return Result;
 }
 
+internal block_node
+ConvertRenderPosToBlockNode(world_density *World, v3 RenderPos, uint32 Resolution)
+{
+    world_block_pos WorldOrigo{0, 0, 0, Resolution};
+    v3 NodeFromOrigo = RenderPos/(real32)Resolution;
+    
+    int32 XFloor = FloorInt32(NodeFromOrigo.X);
+    int32 YFloor = FloorInt32(NodeFromOrigo.Y);
+    int32 ZFloor = FloorInt32(NodeFromOrigo.Z);
+    
+    block_node Node = GetActualBlockNode(World, &WorldOrigo, XFloor, YFloor, ZFloor);
+    return Node;
+}
+
 // NOTE: XYZ are relative to the block position
 internal real32
 GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, int32 Z)

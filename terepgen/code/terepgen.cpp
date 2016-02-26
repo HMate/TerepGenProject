@@ -464,7 +464,37 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             if(PosValue < DENSITY_ISO_LEVEL)
             {
                 // TODO: Change grounds density, and rerender the touched blocks
+                // get a box of block_node-s around ChecPos
+                real32 SphereRadius = 30.0f;
+                v3 StartBlockRP = CheckPos - v3{SphereRadius, SphereRadius, SphereRadius};
+                v3 EndBlockRP = CheckPos + v3{SphereRadius, SphereRadius, SphereRadius};
+                block_node StartNode = ConvertRenderPosToBlockNode(World, StartBlockRP, 4);
+                block_node EndNode = ConvertRenderPosToBlockNode(World, EndBlockRP, 4);
                 
+                block_node Node = StartNode;
+                for(uint32 XIndex = 0;
+                    (Node.BlockP.BlockX != EndNode.BlockP.BlockX) || (Node.X != EndNode.X);
+                    XIndex++)
+                {
+                    Node = GetActualBlockNode(World, &StartNode.BlockP, 
+                        StartNode.X+XIndex, StartNode.Y, StartNode.Z);
+                    for(uint32 YIndex = 0; 
+                        (Node.BlockP.BlockY != EndNode.BlockP.BlockY) || (Node.Y != EndNode.Y);
+                        YIndex++)
+                    {
+                        Node = GetActualBlockNode(World, &StartNode.BlockP, 
+                            StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z);
+                        for(uint32 ZIndex = 0; 
+                            (Node.BlockP.BlockZ != EndNode.BlockP.BlockZ) || (Node.Z != EndNode.Z);
+                            ZIndex++)
+                        {
+                            Node = GetActualBlockNode(World, &StartNode.BlockP, 
+                                StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
+                            // TODO: Chamge node density and invalidate render block
+                        }
+                    }
+                }
+                // Add densitySphere at CheckPos
                 AddCube(GameState, CheckPos);
                 break;
             }
