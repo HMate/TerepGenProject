@@ -171,7 +171,7 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     TextureDesc.Usage = D3D11_USAGE_DEFAULT;
     TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
     TextureDesc.CPUAccessFlags = 0;
-    TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+    TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
     
     ID3D11Texture2D* Tex;
     HRESULT HResult = DXResources->Device->CreateTexture2D(&TextureDesc, &pData[0], &Tex);
@@ -313,8 +313,8 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     Viewport.TopLeftY = 0.0f;
     Viewport.Width = (real32)ScreenWidth;
     Viewport.Height = (real32)ScreenHeight;
-    Viewport.MinDepth = 0.0f;
-    Viewport.MaxDepth = 1.0f;
+    Viewport.MinDepth = ViewPortMinDepth;
+    Viewport.MaxDepth = ViewPortMaxDepth;
     DeviceContext->RSSetViewports(1, &Viewport);
     
     // NOTE: Create Render Target View
@@ -595,6 +595,14 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     return HResult;
 }
 
+void dx_resource::ClearViews()
+{
+    v4 BackgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
+    DeviceContext->ClearDepthStencilView(DepthStencilView, 
+        D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, DefaultDepthValue, 0);
+    DeviceContext->ClearRenderTargetView(BackBuffer, BackgroundColor.C);
+}
+
 void dx_resource::LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize)
 {
     // NOTE: This kind of resource mapping is optimized for per frame updating 
@@ -751,12 +759,14 @@ HRESULT dx_resource::Resize(uint32 ScreenWidth, uint32 ScreenHeight)
         DeviceContext->OMSetRenderTargets(1, &BackBuffer, DepthStencilView);
 
         D3D11_VIEWPORT Viewport;
-        Viewport.Width = (real32)ScreenWidth;
-        Viewport.Height = (real32)ScreenHeight;
-        Viewport.MinDepth = 0.0f;
-        Viewport.MaxDepth = 1.0f;
+        ZeroMemory(&Viewport, sizeof(D3D11_VIEWPORT));
+        
         Viewport.TopLeftX = 0.0f;
         Viewport.TopLeftY = 0.0f;
+        Viewport.Width = (real32)ScreenWidth;
+        Viewport.Height = (real32)ScreenHeight;
+        Viewport.MinDepth = ViewPortMinDepth;
+        Viewport.MaxDepth = ViewPortMaxDepth;
         DeviceContext->RSSetViewports( 1, &Viewport);
     }
     return HResult;

@@ -14,14 +14,14 @@ struct VIn
 {
     float3 position : POSITION;
     float3 normal : NORMAL;
-    float4 v4 : COLOR;
+    float4 color : COLOR;
 };
 
 struct VOut
 {
     float4 screenPos : SV_POSITION;
     linear float3 normal : NORMAL;
-    float4 v4 : COLOR;
+    float4 color : COLOR;
     float4 worldPos : POSITION;
 };
 
@@ -40,7 +40,7 @@ VOut VShader(VIn input)
     // output.normal = normalize(input.normal.xyz);
     output.normal = normalize(mul(float4(input.normal.xyz, 0.0), WorldMx).xyz);
     // output.normal = input.normal.xyz;
-    output.v4 = input.v4;
+    output.color = input.color;
 
     return output;
 }
@@ -61,7 +61,7 @@ float4 TerrainPShader(VOut input) : SV_TARGET
     float cosTheta = dot(sunDir, input.normal);
     if(cosTheta > 0.0f) cosTheta = -cosTheta/3.0;
     
-    //NOTE: Texture blending based on http://http.developer.nvidia.com/GPUGems3/gpugems3_ch01.html
+    // NOTE: Texture blending based on http://http.developer.nvidia.com/GPUGems3/gpugems3_ch01.html
     
     float3 blend_weights = abs(input.normal.xyz);
     blend_weights = (blend_weights - 0.25) * 7;  
@@ -97,5 +97,5 @@ float4 TerrainPShader(VOut input) : SV_TARGET
 
 float4 LinePShader(VOut input) : SV_TARGET
 {
-    return input.v4;
+    return input.color;
 }

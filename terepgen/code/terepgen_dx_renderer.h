@@ -22,6 +22,11 @@ struct dx_resource
 {
     object_constants ObjectConstants;
     
+    real32 ViewPortMinDepth = 0.0f;
+    real32 ViewPortMaxDepth = 1.0f;
+    
+    real32 DefaultDepthValue = 1.0f;
+    
     IDXGISwapChain *SwapChain = nullptr;
     ID3D11Device *Device = nullptr;
     ID3D11DeviceContext *DeviceContext = nullptr;
@@ -58,6 +63,7 @@ struct dx_resource
     HRESULT Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight);
     void Release();
     
+    void ClearViews();
     void LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize);
     void SetTransformations(v3 Translation);
     void SetDrawModeDefault(void);
@@ -84,8 +90,8 @@ struct camera
     real32 Fov = 3.14f * 0.35f;
     // NOTE: Regardless of nearZ, the screen always 
     // have a distance of 1.0 from the eye with PerspectiveFovLH
-    real32 NearZ = 1.0f;
-    real32 FarZ = 100000.0f;
+    real32 NearZ = 3.0f;
+    real32 FarZ = 10000.0f;
     
     real32 YawRadian = 0.0f; // Turnning left-right
     real32 PitchRadian = 0.0f; // Turning up-down
