@@ -3,12 +3,14 @@
 
 */
 
+#define RENDER_SPACE_UNIT 1.0f
+
 inline world_block_pos
 WorldPosFromV3(world_density *World, v3 Pos, int32 Resolution)
 {
     world_block_pos Result = {};
     
-    v3 CentralBlockPos = Pos / (World->BlockSize*Resolution);
+    v3 CentralBlockPos = Pos / (World->BlockSize * Resolution * RENDER_SPACE_UNIT);
     Result.BlockX = FloorInt32(CentralBlockPos.X); 
     Result.BlockY = FloorInt32(CentralBlockPos.Y);
     Result.BlockZ = FloorInt32(CentralBlockPos.Z);
@@ -21,9 +23,9 @@ inline v3
 V3FromWorldPos(world_density *World, world_block_pos Pos)
 {
     v3 Result = {};
-    Result.X = (real32)Pos.BlockX * World->BlockSize * Pos.Resolution;
-    Result.Y = (real32)Pos.BlockY * World->BlockSize * Pos.Resolution;
-    Result.Z = (real32)Pos.BlockZ * World->BlockSize * Pos.Resolution;
+    Result.X = (real32)Pos.BlockX * World->BlockSize * Pos.Resolution * RENDER_SPACE_UNIT;
+    Result.Y = (real32)Pos.BlockY * World->BlockSize * Pos.Resolution * RENDER_SPACE_UNIT;
+    Result.Z = (real32)Pos.BlockZ * World->BlockSize * Pos.Resolution * RENDER_SPACE_UNIT;
     
     return Result;
 }
@@ -32,10 +34,11 @@ V3FromWorldPos(world_density *World, world_block_pos Pos)
 // This way a bigger area can be stored in the same block, 
 // if at rendering we only use every BlockResolution'th value too.
 internal void 
-GenerateDensityGrid(world_density *World, terrain_density_block *DensityBlock, perlin_noise_array *PNArray, world_block_pos WorldP)
+GenerateDensityGrid(world_density *World, terrain_density_block *DensityBlock, perlin_noise_array *PNArray, 
+                    world_block_pos WorldP)
 {
     DensityBlock->Pos = WorldP;
-    real32 BlockResolution = (real32)WorldP.Resolution;
+    real32 BlockResolution = (real32)WorldP.Resolution * RENDER_SPACE_UNIT;
     
     v3 BlockPos = V3FromWorldPos(World, WorldP);
     
@@ -94,6 +97,9 @@ HashIsEmpty(block_hash *BlockHash)
     return Result;
 }
     
+// TODO: Take a look at hashes now, that we delete from them too. Do we need DELETED?
+// NOTE: This can give back a deleted hash, if it had the same key as this block,
+// and it was already deleted once, and wasn't overwritten since.
 internal block_hash *
 GetHash(block_hash *HashArray, world_block_pos P)
 {
@@ -160,6 +166,8 @@ WriteHash(block_hash *HashArray, world_block_pos P, int32 NewBlockIndex)
     return Result;
 }
 
+// NOTE: This can give back a deleted hash, if it had the same key as this block,
+// and it was already deleted once, and wasn't overwritten since.
 internal block_hash *
 GetZeroHash(world_density *World, world_block_pos P)
 {
@@ -188,6 +196,42 @@ GetZeroHash(world_density *World, world_block_pos P)
         }
     }
     Assert(Result);
+    
+    return Result;
+}
+
+internal block_hash *
+WriteZeroHash(world_density *World, world_block_pos P)
+{
+    block_hash *Result = 0;
+
+    uint32 HashValue = 2579*P.Resolution + 757*P.BlockX + 89*P.BlockY + 5*P.BlockZ;
+    uint32 HashMask = (ArrayCount(World->ZeroHash) - 1);
+    
+    for(uint32 Offset = 0;
+        Offset < ArrayCount(World->ZeroHash);
+        ++Offset)
+    {
+        uint32 HashIndex = (HashValue + Offset) & HashMask;
+        Assert(HashIndex < ArrayCount(World->ZeroHash));
+        block_hash *Hash = World->ZeroHash + HashIndex;
+        
+        // NOTE: return hash, if its uninited, or it has the position we are looking for
+        if(Hash->Index == HASH_UNINITIALIZED || Hash->Index == HASH_DELETED ||
+           ((P.BlockX == Hash->Key.BlockX) && 
+            (P.BlockY == Hash->Key.BlockY) && 
+            (P.BlockZ == Hash->Key.BlockZ) && 
+            (P.Resolution == Hash->Key.Resolution)))
+        {
+            Result = Hash;
+            break;
+        }
+    }
+    Assert(Result);
+    Assert(Result->Index == HASH_UNINITIALIZED || Result->Index == HASH_DELETED);
+    
+    Result->Key = P;
+    Result->Index = HASH_ZERO_BLOCK;
     
     return Result;
 }
@@ -260,7 +304,7 @@ internal block_node
 ConvertRenderPosToBlockNode(world_density *World, v3 RenderPos, uint32 Resolution)
 {
     world_block_pos WorldOrigo{0, 0, 0, Resolution};
-    v3 NodeFromOrigo = RenderPos/(real32)Resolution;
+    v3 NodeFromOrigo = RenderPos/((real32)Resolution * RENDER_SPACE_UNIT);
     
     int32 XFloor = FloorInt32(NodeFromOrigo.X);
     int32 YFloor = FloorInt32(NodeFromOrigo.Y);
@@ -270,6 +314,22 @@ ConvertRenderPosToBlockNode(world_density *World, v3 RenderPos, uint32 Resolutio
     return Node;
 }
 
+internal v3
+ConvertBlockNodeToRenderPos(world_density *World, block_node Node)
+{
+    v3 Result = V3FromWorldPos(World, Node.BlockP);
+    Result = Result + v3{(real32)Node.X, (real32)Node.Y, (real32)Node.Z} 
+                        * (real32)Node.BlockP.Resolution * RENDER_SPACE_UNIT;
+    
+    return Result;
+}
+
+internal terrain_density_block*
+GetDensityBlockAtNode()
+{
+    
+}
+
 // NOTE: XYZ are relative to the block position
 internal real32
 GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, int32 Z)
@@ -277,7 +337,9 @@ GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, in
     block_node Node = GetActualBlockNode(World, BlockP, X, Y, Z);
     
     block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, Node.BlockP);
-    real32 Result = 2.0f;
+    // TODO: What if this block wasnt generated? 
+    // maybe create an IsBlockValid(world_block_pos)->bool32 ?
+    real32 Result = 0.0f; 
     if(!HashIsEmpty(BlockHash))
     {
         terrain_density_block *ActDensityBlock = World->DensityBlocks + BlockHash->Index;
@@ -334,8 +396,7 @@ GetWorldGridValueFromV3(world_density *World, v3 Pos, uint32 Resolution)
 {
     // TODO: Resolution
     world_block_pos WorldOrigo{0, 0, 0, Resolution};
-    
-    v3 BlockPos = Pos/(real32)Resolution;
+    v3 BlockPos = Pos/((real32)Resolution * RENDER_SPACE_UNIT);
     
     real32 Result = GetInterpolatedWorldGrid(World, &WorldOrigo, BlockPos.X, BlockPos.Y, BlockPos.Z);
     return Result;
@@ -390,7 +451,7 @@ internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
 {
     Assert(DensityBlock->Pos.Resolution > 0);
-    real32 CellDiff = (real32)DensityBlock->Pos.Resolution;
+    real32 CellDiff = (real32)DensityBlock->Pos.Resolution  * RENDER_SPACE_UNIT;
     v4 GreenColor = v4{0.0, 1.0f, 0.0f, 1.0f};
     
     world_block_pos *BlockP = &DensityBlock->Pos;

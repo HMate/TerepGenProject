@@ -206,6 +206,31 @@ AddCube(game_state *GameState, v3 WorldMousePos)
 }
 
 internal void
+DeleteRenderBlock(world_density *World, int32 StoreIndex)
+{
+    terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
+    terrain_render_block *Last = World->PoligonisedBlocks + (--World->PoligonisedBlockCount);
+    world_block_pos BlockP = WorldPosFromV3(World, Block->Pos, 4);
+    world_block_pos LastP = WorldPosFromV3(World, Last->Pos, 4);
+    
+    // NOTE: This is from stored blocks, so it cant be a zero block!
+    block_hash *RemovedHash = GetHash((block_hash*)&World->RenderHash, BlockP);
+    Assert(RemovedHash->Index != HASH_UNINITIALIZED && RemovedHash->Index != HASH_DELETED);
+    block_hash *LastHash = GetHash((block_hash*)&World->RenderHash, LastP);
+    Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
+    
+    LastHash->Index = StoreIndex;
+    RemovedHash->Index = HASH_DELETED;
+    World->DeletedRenderBlockCount++;
+    
+    // NOTE: If we are deleting the last block
+    if(StoreIndex != (int32)World->PoligonisedBlockCount)
+    {
+        *Block = *Last;
+    }
+}
+
+internal void
 UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
 {
     world_density *World = &GameState->WorldDensity;
@@ -256,11 +281,14 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                 block_hash *LastHash = GetHash((block_hash*)&World->BlockHash, LastP);
                 Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
                 
-                RemovedHash->Index = HASH_DELETED;
                 LastHash->Index = StoreIndex;
+                RemovedHash->Index = HASH_DELETED;
                 World->DeletedDensityBlockCount++;
                 
-                *Block = *Last;
+                if(StoreIndex != (int32)World->DensityBlockCount)
+                {
+                    *Block = *Last;
+                }
             }
         }
     }
@@ -281,20 +309,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                (WorldCameraP.BlockZ + LoadSpaceRadius < BlockP.BlockZ) ||
                (WorldCameraP.BlockZ - LoadSpaceRadius > BlockP.BlockZ))
             {
-                terrain_render_block *Last = World->PoligonisedBlocks + (--World->PoligonisedBlockCount);
-                world_block_pos LastP = WorldPosFromV3(World, Last->Pos, 4);
-                
-                // NOTE: This is from stored blocks, so it cant be a zero block!
-                block_hash *RemovedHash = GetHash((block_hash*)&World->RenderHash, BlockP);
-                Assert(RemovedHash->Index != HASH_UNINITIALIZED && RemovedHash->Index != HASH_DELETED);
-                block_hash *LastHash = GetHash((block_hash*)&World->RenderHash, LastP);
-                Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
-                
-                RemovedHash->Index = HASH_DELETED;
-                LastHash->Index = StoreIndex;
-                World->DeletedRenderBlockCount++;
-                
-                *Block = *Last;
+                DeleteRenderBlock(World, StoreIndex);
             }
         }
     }
@@ -305,7 +320,6 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
     {
         int32 ZeroSpaceRadius = ZERO_BLOCK_RADIUS;
         block_hash NewZeroHash[ZERO_HASH_SIZE];
-        uint32 NewZeroHashEntryCount = World->ZeroBlockCount;
         for(uint32 ZeroIndex = 0; 
             ZeroIndex < ArrayCount(World->ZeroHash); 
             ++ZeroIndex)
@@ -329,9 +343,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                (WorldCameraP.BlockZ + ZeroSpaceRadius > ZeroP.BlockZ) &&
                (WorldCameraP.BlockZ - ZeroSpaceRadius < ZeroP.BlockZ)))
             {
-                block_hash *ZeroHash = GetZeroHash(World, ZeroP);
-                ZeroHash->Key = ZeroP;
-                ZeroHash->Index = HASH_ZERO_BLOCK;
+                block_hash *ZeroHash = WriteZeroHash(World, ZeroP);
                 World->ZeroBlockCount++;
             }
         }
@@ -374,7 +386,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
     {
         world_block_pos BlockP = ConvertToResolution(BlockPositions.Pos[PosIndex], 4);
         block_hash *ZeroHash = GetZeroHash(World, BlockP);
-        if(ZeroHash->Index == HASH_UNINITIALIZED)
+        if(HashIsEmpty(ZeroHash))
         {
             block_hash *RenderHash = GetHash((block_hash*)&World->RenderHash, BlockP);
             // NOTE: This can give back a deleted hash, if it had the same key as this block,
@@ -420,8 +432,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                         }
                         else
                         {
-                            ZeroHash->Key = BlockP;
-                            ZeroHash->Index = HASH_ZERO_BLOCK;
+                            ZeroHash = WriteZeroHash(World, BlockP);
                             World->ZeroBlockCount++;
                         }
                     }
@@ -438,7 +449,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
     {
         world_block_pos BlockP = ConvertToResolution(BlockPositions.Pos[PosIndex], 4);
         block_hash *ZeroHash = GetZeroHash(World, BlockP);
-        if(ZeroHash->Index == HASH_UNINITIALIZED)
+        if(HashIsEmpty(ZeroHash))
         {
             block_hash *Hash = GetHash((block_hash*)&World->RenderHash, BlockP);
             
@@ -491,6 +502,33 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                             Node = GetActualBlockNode(World, &StartNode.BlockP, 
                                 StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
                             // TODO: Chamge node density and invalidate render block
+                            v3 NodeRenderP = ConvertBlockNodeToRenderPos(World, Node);
+                            v3 Diff = NodeRenderP - CheckPos;
+                            real32 Len = Length(Diff);
+                            if(Len < 25.0f)
+                            {
+                                block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, Node.BlockP);
+                                if(!HashIsEmpty(BlockHash))
+                                {
+                                    terrain_density_block *ActDensityBlock = World->DensityBlocks + BlockHash->Index;
+                                    real32 GridVal = GetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z);
+                                    SetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z, GridVal + 1.0f);
+                                    // NOTE: Delete render block
+                                    block_hash *NodeRenderHash = GetHash((block_hash*)&World->RenderHash, Node.BlockP);
+                                    if(!HashIsEmpty(NodeRenderHash))
+                                    {
+                                        DeleteRenderBlock(World, NodeRenderHash->Index);
+                                    }
+                                    block_hash *NodeZeroHash = GetZeroHash(World, Node.BlockP);
+                                    if(!HashIsEmpty(NodeZeroHash))
+                                    {
+                                        NodeZeroHash->Index = HASH_DELETED;
+                                        World->ZeroBlockCount--;
+                                    }
+                                    // TODO: Rerender neighbouring blocks too, because it can happen that
+                                    // their geometry at the edges of the block comform to the old density values
+                                }
+                            }
                         }
                     }
                 }
@@ -647,10 +685,7 @@ RenderGame(game_state *GameState, camera *Camera)
     DXResources->LoadResource(Camera->SceneConstantBuffer,
                   &Camera->SceneConstants, sizeof(Camera->SceneConstants));
     
-    v4 BackgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
-    DXResources->DeviceContext->ClearDepthStencilView(DXResources->DepthStencilView, 
-        D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL, 1.0f, 0);
-    DXResources->DeviceContext->ClearRenderTargetView(DXResources->BackBuffer, BackgroundColor.C);
+    DXResources->ClearViews();
     
     // NOTE: Background rendering
     DXResources->SetDrawModeDefault();
