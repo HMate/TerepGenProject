@@ -231,6 +231,27 @@ DeleteRenderBlock(world_density *World, int32 StoreIndex)
 }
 
 internal void
+GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_block_pos CenterBlockP)
+{
+    uint32 Index = 0;
+    for(int32 DiffX = -1; DiffX < 2; ++DiffX)
+    {
+        for(int32 DiffY = -1; DiffY < 2; ++DiffY)
+        {
+            for(int32 DiffZ = -1; DiffZ < 2; ++DiffZ)
+            {
+                world_block_pos NeighbourP = CenterBlockP;
+                NeighbourP.BlockX += DiffX;
+                NeighbourP.BlockY += DiffY;
+                NeighbourP.BlockZ += DiffZ;
+                NeighbouringBlockPositions[Index++] = NeighbourP;
+            }
+        }
+    }
+    Assert(Index == 27);
+}
+
+internal void
 UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
 {
     world_density *World = &GameState->WorldDensity;
@@ -379,7 +400,91 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
         }
     }
     
-    uint32 MaxRenderBlocksToGenerateInFrame = 3;
+    // TODO: Refactor mouse buttons to input!
+    bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
+    if(MouseRightIsDown)
+    {
+        v3 RayDirection = Normalize(WorldMousePos - CameraOrigo);
+        for(real32 RayLength = 0.5f; 
+            RayLength < 2000.0f; 
+            RayLength += 0.5f)
+        {
+            v3 CheckPos = CameraOrigo + (RayLength*RayDirection);
+            real32 PosValue = GetWorldGridValueFromV3(World, CheckPos, 4);
+            if(PosValue < DENSITY_ISO_LEVEL)
+            {
+                real32 SphereRadius = 30.0f;
+                v3 StartBlockRP = CheckPos - v3{SphereRadius, SphereRadius, SphereRadius};
+                v3 EndBlockRP = CheckPos + v3{SphereRadius, SphereRadius, SphereRadius};
+                block_node StartNode = ConvertRenderPosToBlockNode(World, StartBlockRP, 4);
+                block_node EndNode = ConvertRenderPosToBlockNode(World, EndBlockRP, 4);
+                
+                block_node Node = StartNode;
+                for(uint32 XIndex = 0;
+                    (Node.BlockP.BlockX != EndNode.BlockP.BlockX) || (Node.X != EndNode.X);
+                    XIndex++)
+                {
+                    Node = GetActualBlockNode(World, &StartNode.BlockP, 
+                        StartNode.X+XIndex, StartNode.Y, StartNode.Z);
+                    for(uint32 YIndex = 0; 
+                        (Node.BlockP.BlockY != EndNode.BlockP.BlockY) || (Node.Y != EndNode.Y);
+                        YIndex++)
+                    {
+                        Node = GetActualBlockNode(World, &StartNode.BlockP, 
+                            StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z);
+                        for(uint32 ZIndex = 0; 
+                            (Node.BlockP.BlockZ != EndNode.BlockP.BlockZ) || (Node.Z != EndNode.Z);
+                            ZIndex++)
+                        {
+                            Node = GetActualBlockNode(World, &StartNode.BlockP, 
+                                StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
+                            // NOTE: Change node density and invalidate render block
+                            v3 NodeRenderP = ConvertBlockNodeToRenderPos(World, Node);
+                            v3 Diff = NodeRenderP - CheckPos;
+                            real32 Len = Length(Diff);
+                            if(Len < 25.0f)
+                            {
+                                block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, Node.BlockP);
+                                if(!HashIsEmpty(BlockHash))
+                                {
+                                    terrain_density_block *ActDensityBlock = World->DensityBlocks + BlockHash->Index;
+                                    real32 GridVal = GetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z);
+                                    SetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z, GridVal + 1.0f);
+                                    
+                                    // NOTE: Delete this and neighbouring render blocks
+                                    const uint32 NeighbourCount = 27;
+                                    world_block_pos NeighbourBlockPositions[NeighbourCount];
+                                    GetNeighbourBlockPositions(NeighbourBlockPositions, Node.BlockP);
+                                    
+                                    for(uint32 NeighbourIndex = 0;
+                                        NeighbourIndex < NeighbourCount;
+                                        NeighbourIndex++)
+                                    {
+                                        world_block_pos BlockP = NeighbourBlockPositions[NeighbourIndex];
+                                        block_hash *NodeRenderHash = GetHash((block_hash*)&World->RenderHash, BlockP);
+                                        if(!HashIsEmpty(NodeRenderHash))
+                                        {
+                                            DeleteRenderBlock(World, NodeRenderHash->Index);
+                                        }
+                                        block_hash *NodeZeroHash = GetZeroHash(World, BlockP);
+                                        if(!HashIsEmpty(NodeZeroHash))
+                                        {
+                                            NodeZeroHash->Index = HASH_DELETED;
+                                            World->ZeroBlockCount--;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                AddCube(GameState, CheckPos);
+                break;
+            }
+        }
+    }
+    
+    uint32 MaxRenderBlocksToGenerateInFrame = 6;
     for(size_t PosIndex = 0; 
         (PosIndex < BlockPositions.Count) && (MaxRenderBlocksToGenerateInFrame > 0) ;
         ++PosIndex)
@@ -397,30 +502,28 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                 {
                     bool32 NeighboursGenerated = true;
                     
-                    for(int32 DiffX = -1; DiffX < 2; ++DiffX)
+                    const uint32 NeighbourCount = 27;
+                    world_block_pos NeighbourBlockPositions[NeighbourCount];
+                    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
+                    
+                    for(uint32 NeighbourIndex = 0;
+                        NeighbourIndex < NeighbourCount;
+                        NeighbourIndex++)
                     {
-                        for(int32 DiffY = -1; DiffY < 2; ++DiffY)
+                        world_block_pos NeighbourBlockP = NeighbourBlockPositions[NeighbourIndex];
+                        block_hash *NeighbourHash = GetHash((block_hash*)&World->BlockHash, NeighbourBlockP);
+                        if(HashIsEmpty(NeighbourHash))
                         {
-                            for(int32 DiffZ = -1; DiffZ < 2; ++DiffZ)
-                            {
-                                world_block_pos NeighbourP = BlockP;
-                                NeighbourP.BlockX += DiffX;
-                                NeighbourP.BlockY += DiffY;
-                                NeighbourP.BlockZ += DiffZ;
-                                block_hash *NeighbourHash = GetHash((block_hash*)&World->BlockHash, NeighbourP);
-                                if(HashIsEmpty(NeighbourHash))
-                                {
-                                    NeighboursGenerated = false;
-                                }
-                            }
+                            NeighboursGenerated = false;
                         }
                     }
-                    block_hash *DensityHash = GetHash((block_hash*)&World->BlockHash, BlockP);
                     
                     if(NeighboursGenerated)
                     {
-                        MaxRenderBlocksToGenerateInFrame--;
                         // NOTE: Initialize block
+                        MaxRenderBlocksToGenerateInFrame--;
+                        // NOTE: DensityHash has been checked among neighbours to be valid
+                        block_hash *DensityHash = GetHash((block_hash*)&World->BlockHash, BlockP);
                         terrain_density_block *DensityBlock = World->DensityBlocks + DensityHash->Index;
                         PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
                             DensityBlock);
@@ -460,84 +563,6 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
         }
     }
     //PoligoniseClock.PrintMiliSeconds("Poligonise time:");
-    
-    // TODO: Refactor mouse buttons to input!
-    bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
-    if(MouseRightIsDown)
-    {
-        v3 RayDirection = Normalize(WorldMousePos - CameraOrigo);
-        for(real32 RayLength = 0.5f; 
-            RayLength < 2000.0f; 
-            RayLength += 0.5f)
-        {
-            v3 CheckPos = CameraOrigo + (RayLength*RayDirection);
-            real32 PosValue = GetWorldGridValueFromV3(World, CheckPos, 4);
-            if(PosValue < DENSITY_ISO_LEVEL)
-            {
-                // TODO: Change grounds density, and rerender the touched blocks
-                // get a box of block_node-s around ChecPos
-                real32 SphereRadius = 30.0f;
-                v3 StartBlockRP = CheckPos - v3{SphereRadius, SphereRadius, SphereRadius};
-                v3 EndBlockRP = CheckPos + v3{SphereRadius, SphereRadius, SphereRadius};
-                block_node StartNode = ConvertRenderPosToBlockNode(World, StartBlockRP, 4);
-                block_node EndNode = ConvertRenderPosToBlockNode(World, EndBlockRP, 4);
-                
-                block_node Node = StartNode;
-                for(uint32 XIndex = 0;
-                    (Node.BlockP.BlockX != EndNode.BlockP.BlockX) || (Node.X != EndNode.X);
-                    XIndex++)
-                {
-                    Node = GetActualBlockNode(World, &StartNode.BlockP, 
-                        StartNode.X+XIndex, StartNode.Y, StartNode.Z);
-                    for(uint32 YIndex = 0; 
-                        (Node.BlockP.BlockY != EndNode.BlockP.BlockY) || (Node.Y != EndNode.Y);
-                        YIndex++)
-                    {
-                        Node = GetActualBlockNode(World, &StartNode.BlockP, 
-                            StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z);
-                        for(uint32 ZIndex = 0; 
-                            (Node.BlockP.BlockZ != EndNode.BlockP.BlockZ) || (Node.Z != EndNode.Z);
-                            ZIndex++)
-                        {
-                            Node = GetActualBlockNode(World, &StartNode.BlockP, 
-                                StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
-                            // TODO: Chamge node density and invalidate render block
-                            v3 NodeRenderP = ConvertBlockNodeToRenderPos(World, Node);
-                            v3 Diff = NodeRenderP - CheckPos;
-                            real32 Len = Length(Diff);
-                            if(Len < 25.0f)
-                            {
-                                block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, Node.BlockP);
-                                if(!HashIsEmpty(BlockHash))
-                                {
-                                    terrain_density_block *ActDensityBlock = World->DensityBlocks + BlockHash->Index;
-                                    real32 GridVal = GetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z);
-                                    SetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z, GridVal + 1.0f);
-                                    // NOTE: Delete render block
-                                    block_hash *NodeRenderHash = GetHash((block_hash*)&World->RenderHash, Node.BlockP);
-                                    if(!HashIsEmpty(NodeRenderHash))
-                                    {
-                                        DeleteRenderBlock(World, NodeRenderHash->Index);
-                                    }
-                                    block_hash *NodeZeroHash = GetZeroHash(World, Node.BlockP);
-                                    if(!HashIsEmpty(NodeZeroHash))
-                                    {
-                                        NodeZeroHash->Index = HASH_DELETED;
-                                        World->ZeroBlockCount--;
-                                    }
-                                    // TODO: Rerender neighbouring blocks too, because it can happen that
-                                    // their geometry at the edges of the block comform to the old density values
-                                }
-                            }
-                        }
-                    }
-                }
-                // Add densitySphere at CheckPos
-                AddCube(GameState, CheckPos);
-                break;
-            }
-        }
-    }
     
     /*
     terrain_density_block DensityBlock;
