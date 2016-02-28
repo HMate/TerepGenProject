@@ -336,7 +336,7 @@ GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, in
 {
     block_node Node = GetActualBlockNode(World, BlockP, X, Y, Z);
     
-    block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, Node.BlockP);
+    block_hash *BlockHash = GetHash(World->BlockHash, Node.BlockP);
     // TODO: What if this block wasnt generated? 
     // maybe create an IsBlockValid(world_block_pos)->bool32 ?
     real32 Result = 0.0f; 

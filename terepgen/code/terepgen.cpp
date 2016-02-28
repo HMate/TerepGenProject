@@ -297,9 +297,9 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                 world_block_pos LastP = Last->Pos;
                 
                 // NOTE: This is from stored blocks, so it cant be a zero block!
-                block_hash *RemovedHash = GetHash((block_hash*)&World->BlockHash, BlockP);
+                block_hash *RemovedHash = GetHash(World->BlockHash, BlockP);
                 Assert(RemovedHash->Index != HASH_UNINITIALIZED && RemovedHash->Index != HASH_DELETED);
-                block_hash *LastHash = GetHash((block_hash*)&World->BlockHash, LastP);
+                block_hash *LastHash = GetHash(World->BlockHash, LastP);
                 Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
                 
                 LastHash->Index = StoreIndex;
@@ -380,7 +380,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
         ++PosIndex)
     {
         world_block_pos BlockP = ConvertToResolution(BlockPositions.Pos[PosIndex], 4);
-        block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, BlockP);
+        block_hash *BlockHash = GetHash(World->BlockHash, BlockP);
         // NOTE: This can give back a deleted hash, if it had the same key as this block,
         // and it was already deleted once, and wasn't overwritten since.
         if(HashIsEmpty(BlockHash))
@@ -394,7 +394,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                 
                 GenerateDensityGrid(World, DensityBlock, &GameState->PerlinArray, BlockP);
                     
-                BlockHash = WriteHash((block_hash*)&World->BlockHash, BlockP, World->DensityBlockCount++);
+                BlockHash = WriteHash(World->BlockHash, BlockP, World->DensityBlockCount++);
                 Assert(World->DensityBlockCount < ArrayCount(World->DensityBlocks));
             }
         }
@@ -444,7 +444,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                             real32 Len = Length(Diff);
                             if(Len < 25.0f)
                             {
-                                block_hash *BlockHash = GetHash((block_hash*)&World->BlockHash, Node.BlockP);
+                                block_hash *BlockHash = GetHash(World->BlockHash, Node.BlockP);
                                 if(!HashIsEmpty(BlockHash))
                                 {
                                     terrain_density_block *ActDensityBlock = World->DensityBlocks + BlockHash->Index;
@@ -461,7 +461,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                                         NeighbourIndex++)
                                     {
                                         world_block_pos BlockP = NeighbourBlockPositions[NeighbourIndex];
-                                        block_hash *NodeRenderHash = GetHash((block_hash*)&World->RenderHash, BlockP);
+                                        block_hash *NodeRenderHash = GetHash(World->RenderHash, BlockP);
                                         if(!HashIsEmpty(NodeRenderHash))
                                         {
                                             DeleteRenderBlock(World, NodeRenderHash->Index);
@@ -493,7 +493,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
         block_hash *ZeroHash = GetZeroHash(World, BlockP);
         if(HashIsEmpty(ZeroHash))
         {
-            block_hash *RenderHash = GetHash((block_hash*)&World->RenderHash, BlockP);
+            block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
             // NOTE: This can give back a deleted hash, if it had the same key as this block,
             // and it was already deleted once, and wasn't overwritten since.
             if(HashIsEmpty(RenderHash))
@@ -511,7 +511,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                         NeighbourIndex++)
                     {
                         world_block_pos NeighbourBlockP = NeighbourBlockPositions[NeighbourIndex];
-                        block_hash *NeighbourHash = GetHash((block_hash*)&World->BlockHash, NeighbourBlockP);
+                        block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
                         if(HashIsEmpty(NeighbourHash))
                         {
                             NeighboursGenerated = false;
@@ -523,14 +523,14 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                         // NOTE: Initialize block
                         MaxRenderBlocksToGenerateInFrame--;
                         // NOTE: DensityHash has been checked among neighbours to be valid
-                        block_hash *DensityHash = GetHash((block_hash*)&World->BlockHash, BlockP);
+                        block_hash *DensityHash = GetHash(World->BlockHash, BlockP);
                         terrain_density_block *DensityBlock = World->DensityBlocks + DensityHash->Index;
                         PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
                             DensityBlock);
                         
                         if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
                         {
-                            RenderHash = WriteHash((block_hash*)&World->RenderHash, BlockP, World->PoligonisedBlockCount++);
+                            RenderHash = WriteHash(World->RenderHash, BlockP, World->PoligonisedBlockCount++);
                             Assert(World->PoligonisedBlockCount < ArrayCount(World->PoligonisedBlocks));
                         }
                         else
@@ -554,7 +554,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
         block_hash *ZeroHash = GetZeroHash(World, BlockP);
         if(HashIsEmpty(ZeroHash))
         {
-            block_hash *Hash = GetHash((block_hash*)&World->RenderHash, BlockP);
+            block_hash *Hash = GetHash(World->RenderHash, BlockP);
             
             if(!HashIsEmpty(Hash))
             {
