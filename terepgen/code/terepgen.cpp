@@ -272,6 +272,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
     block_pos_array BlockPositions;
     CalculateBlockPositions(&BlockPositions, WorldCameraP, RENDERED_BLOCK_RADIUS);
     
+    win32_clock Clock;
     //
     // NOTE: Delete blocks that are too far from the camera
     //
@@ -313,6 +314,8 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
+    Clock.PrintMiliSeconds("Delete density");
+    Clock.Reset();
     
     if(World->PoligonisedBlockCount > (ArrayCount(World->PoligonisedBlocks) * 7/8))
     {
@@ -334,6 +337,8 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
+    Clock.PrintMiliSeconds("Delete render");
+    Clock.Reset();
     
     int32 ZeroGridTotalSize = POS_GRID_SIZE(ZERO_BLOCK_RADIUS);
     Assert(ZeroGridTotalSize < ZERO_HASH_SIZE);
@@ -369,6 +374,8 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
+    Clock.PrintMiliSeconds("Delete zero");
+    Clock.Reset();
     
     //
     // NOTE: Generate and collect the render block we want to draw to the screen
@@ -399,7 +406,10 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
+    Clock.PrintMiliSeconds("Generate density");
+    Clock.Reset();
     
+    uint32 MaxRenderBlocksToGenerateInFrame = 6;
     // TODO: Refactor mouse buttons to input!
     bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
     if(MouseRightIsDown)
@@ -473,6 +483,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                                             World->ZeroBlockCount--;
                                         }
                                     }
+                                    MaxRenderBlocksToGenerateInFrame = 54;
                                 }
                             }
                         }
@@ -483,8 +494,9 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
+    Clock.PrintMiliSeconds("Right Click");
+    Clock.Reset();
     
-    uint32 MaxRenderBlocksToGenerateInFrame = 6;
     for(size_t PosIndex = 0; 
         (PosIndex < BlockPositions.Count) && (MaxRenderBlocksToGenerateInFrame > 0) ;
         ++PosIndex)
@@ -498,53 +510,52 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             // and it was already deleted once, and wasn't overwritten since.
             if(HashIsEmpty(RenderHash))
             {
-                if(MaxRenderBlocksToGenerateInFrame > 0)
+                bool32 NeighboursGenerated = true;
+                
+                const uint32 NeighbourCount = 27;
+                world_block_pos NeighbourBlockPositions[NeighbourCount];
+                GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
+                
+                for(uint32 NeighbourIndex = 0;
+                    NeighbourIndex < NeighbourCount && NeighboursGenerated;
+                    NeighbourIndex++)
                 {
-                    bool32 NeighboursGenerated = true;
-                    
-                    const uint32 NeighbourCount = 27;
-                    world_block_pos NeighbourBlockPositions[NeighbourCount];
-                    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
-                    
-                    for(uint32 NeighbourIndex = 0;
-                        NeighbourIndex < NeighbourCount;
-                        NeighbourIndex++)
+                    world_block_pos NeighbourBlockP = NeighbourBlockPositions[NeighbourIndex];
+                    block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
+                    if(HashIsEmpty(NeighbourHash))
                     {
-                        world_block_pos NeighbourBlockP = NeighbourBlockPositions[NeighbourIndex];
-                        block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
-                        if(HashIsEmpty(NeighbourHash))
-                        {
-                            NeighboursGenerated = false;
-                        }
+                        NeighboursGenerated = false;
                     }
+                }
+                
+                if(NeighboursGenerated)
+                {
+                    // NOTE: Initialize block
+                    MaxRenderBlocksToGenerateInFrame--;
+                    // NOTE: DensityHash has been checked among neighbours to be valid
+                    block_hash *DensityHash = GetHash(World->BlockHash, BlockP);
+                    terrain_density_block *DensityBlock = World->DensityBlocks + DensityHash->Index;
+                    PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
+                        DensityBlock);
                     
-                    if(NeighboursGenerated)
+                    if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
                     {
-                        // NOTE: Initialize block
-                        MaxRenderBlocksToGenerateInFrame--;
-                        // NOTE: DensityHash has been checked among neighbours to be valid
-                        block_hash *DensityHash = GetHash(World->BlockHash, BlockP);
-                        terrain_density_block *DensityBlock = World->DensityBlocks + DensityHash->Index;
-                        PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
-                            DensityBlock);
-                        
-                        if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
-                        {
-                            RenderHash = WriteHash(World->RenderHash, BlockP, World->PoligonisedBlockCount++);
-                            Assert(World->PoligonisedBlockCount < ArrayCount(World->PoligonisedBlocks));
-                        }
-                        else
-                        {
-                            ZeroHash = WriteZeroHash(World, BlockP);
-                            World->ZeroBlockCount++;
-                        }
+                        RenderHash = WriteHash(World->RenderHash, BlockP, World->PoligonisedBlockCount++);
+                        Assert(World->PoligonisedBlockCount < ArrayCount(World->PoligonisedBlocks));
+                    }
+                    else
+                    {
+                        ZeroHash = WriteZeroHash(World, BlockP);
+                        World->ZeroBlockCount++;
                     }
                 }
             }
         }
     }
+    Clock.PrintMiliSeconds("Generate render");
+    Clock.Reset();
     
-    //win32_clock PoligoniseClock;
+    win32_clock PoligoniseClock;
     GameState->RenderBlockCount = 0;
     for(size_t PosIndex = 0; 
         (PosIndex < BlockPositions.Count);
@@ -562,7 +573,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
-    //PoligoniseClock.PrintMiliSeconds("Poligonise time:");
+    PoligoniseClock.PrintMiliSeconds("Poligonise time:");
     
     /*
     terrain_density_block DensityBlock;
@@ -784,5 +795,5 @@ RenderGame(game_state *GameState, camera *Camera)
     DXResources->SetTransformations(v3{});
     
     DXResources->SwapChain->Present(0, 0);
-    //RenderClock.PrintMiliSeconds("Render time:");
+    RenderClock.PrintMiliSeconds("Render time:");
 }

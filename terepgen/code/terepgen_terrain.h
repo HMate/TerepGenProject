@@ -52,7 +52,7 @@ struct terrain_render_block
 
 #define DENSITY_BLOCK_COUNT 4500
 #define RENDER_BLOCK_COUNT 1500
-#define BLOCK_HASH_SIZE 4096
+#define BLOCK_HASH_SIZE 8192
 #define ZERO_HASH_SIZE 32768
 
 struct world_density

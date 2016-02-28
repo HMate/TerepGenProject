@@ -398,6 +398,7 @@ WinMain(HINSTANCE Instance,
                 RenderGame(GameState, &Camera);
                 
                 FrameClock.PrintMiliSeconds("Frame time:");
+                win32_printer::DebugPrint("---------------------------");
                 FrameClock.Reset();
             }
             

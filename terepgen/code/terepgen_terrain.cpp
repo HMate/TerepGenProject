@@ -96,6 +96,12 @@ HashIsEmpty(block_hash *BlockHash)
        (BlockHash->Index == HASH_DELETED);
     return Result;
 }
+
+inline uint32 GetHashValue(world_block_pos P)
+{
+    uint32 Result = 5*P.Resolution + 2557*P.BlockX + 151*P.BlockY + 37*P.BlockZ;
+    return Result;
+}
     
 // TODO: Take a look at hashes now, that we delete from them too. Do we need DELETED?
 // NOTE: This can give back a deleted hash, if it had the same key as this block,
@@ -105,7 +111,7 @@ GetHash(block_hash *HashArray, world_block_pos P)
 {
     block_hash *Result = 0;
 
-    uint32 HashValue = 2557*P.Resolution + 151*P.BlockX + 37*P.BlockY + 5*P.BlockZ;
+    uint32 HashValue = GetHashValue(P);
     uint32 HashMask = (BLOCK_HASH_SIZE - 1);
     
     for(uint32 Offset = 0;
@@ -136,7 +142,7 @@ WriteHash(block_hash *HashArray, world_block_pos P, int32 NewBlockIndex)
 {
     block_hash *Result = 0;
 
-    uint32 HashValue =  2557*P.Resolution + 151*P.BlockX + 37*P.BlockY + 5*P.BlockZ;
+    uint32 HashValue =  GetHashValue(P);
     uint32 HashMask = (BLOCK_HASH_SIZE - 1);
     
     for(uint32 Offset = 0;
@@ -166,6 +172,12 @@ WriteHash(block_hash *HashArray, world_block_pos P, int32 NewBlockIndex)
     return Result;
 }
 
+inline uint32 GetZeroHashValue(world_block_pos P)
+{
+    uint32 Result = 2579*P.Resolution + 757*P.BlockX + 89*P.BlockY + 5*P.BlockZ;
+    return Result;
+}
+
 // NOTE: This can give back a deleted hash, if it had the same key as this block,
 // and it was already deleted once, and wasn't overwritten since.
 internal block_hash *
@@ -173,7 +185,7 @@ GetZeroHash(world_density *World, world_block_pos P)
 {
     block_hash *Result = 0;
 
-    uint32 HashValue = 2579*P.Resolution + 757*P.BlockX + 89*P.BlockY + 5*P.BlockZ;
+    uint32 HashValue = GetZeroHashValue(P);
     uint32 HashMask = (ArrayCount(World->ZeroHash) - 1);
     
     for(uint32 Offset = 0;
@@ -205,7 +217,7 @@ WriteZeroHash(world_density *World, world_block_pos P)
 {
     block_hash *Result = 0;
 
-    uint32 HashValue = 2579*P.Resolution + 757*P.BlockX + 89*P.BlockY + 5*P.BlockZ;
+    uint32 HashValue = GetZeroHashValue(P);
     uint32 HashMask = (ArrayCount(World->ZeroHash) - 1);
     
     for(uint32 Offset = 0;
