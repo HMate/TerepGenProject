@@ -27,8 +27,8 @@ set CommonLinkerFlags= -incremental:no -opt:ref^
  user32.lib d3d11.lib dxgi.lib d3dcompiler.lib 
  
 ) else (
-echo Release build
-set CommonCompilerFlags= -MT -nologo -O2 -EHsc -DTEREPGEN_DEBUG=0 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189
+echo profile build
+set CommonCompilerFlags= -MT -nologo -O2 -Z7 -EHsc -DTEREPGEN_DEBUG=0 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189 
 set CommonLinkerFlags= -incremental:no -opt:ref^
  user32.lib d3d11.lib dxgi.lib d3dcompiler.lib 
 )

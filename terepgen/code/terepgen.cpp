@@ -231,27 +231,6 @@ DeleteRenderBlock(world_density *World, int32 StoreIndex)
 }
 
 internal void
-GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_block_pos CenterBlockP)
-{
-    uint32 Index = 0;
-    for(int32 DiffX = -1; DiffX < 2; ++DiffX)
-    {
-        for(int32 DiffY = -1; DiffY < 2; ++DiffY)
-        {
-            for(int32 DiffZ = -1; DiffZ < 2; ++DiffZ)
-            {
-                world_block_pos NeighbourP = CenterBlockP;
-                NeighbourP.BlockX += DiffX;
-                NeighbourP.BlockY += DiffY;
-                NeighbourP.BlockZ += DiffZ;
-                NeighbouringBlockPositions[Index++] = NeighbourP;
-            }
-        }
-    }
-    Assert(Index == 27);
-}
-
-internal void
 UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
 {
     world_density *World = &GameState->WorldDensity;
@@ -429,6 +408,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                 block_node StartNode = ConvertRenderPosToBlockNode(World, StartBlockRP, 4);
                 block_node EndNode = ConvertRenderPosToBlockNode(World, EndBlockRP, 4);
                 
+                uint32 BlocksTouched = 0;
                 block_node Node = StartNode;
                 for(uint32 XIndex = 0;
                     (Node.BlockP.BlockX != EndNode.BlockP.BlockX) || (Node.X != EndNode.X);
@@ -475,20 +455,22 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                                         if(!HashIsEmpty(NodeRenderHash))
                                         {
                                             DeleteRenderBlock(World, NodeRenderHash->Index);
+                                            BlocksTouched++;
                                         }
                                         block_hash *NodeZeroHash = GetZeroHash(World, BlockP);
                                         if(!HashIsEmpty(NodeZeroHash))
                                         {
                                             NodeZeroHash->Index = HASH_DELETED;
                                             World->ZeroBlockCount--;
+                                            BlocksTouched++;
                                         }
                                     }
-                                    MaxRenderBlocksToGenerateInFrame = 54;
                                 }
                             }
                         }
                     }
                 }
+                MaxRenderBlocksToGenerateInFrame += BlocksTouched;
                 AddCube(GameState, CheckPos);
                 break;
             }
@@ -784,8 +766,8 @@ RenderGame(game_state *GameState, camera *Camera)
         DXResources->DrawTriangles(
             GameState->RenderBlocks[RenderBlockIndex]->Vertices,
             GameState->RenderBlocks[RenderBlockIndex]->VertexCount);
-        DXResources->SetTransformations(v3{});
     }
+    DXResources->SetTransformations(v3{});
     
     // Draw cube
     DXResources->DeviceContext->PSSetShader(DXResources->LinePS, 0, 0);

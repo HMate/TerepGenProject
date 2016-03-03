@@ -27,6 +27,13 @@ global_variable LARGE_INTEGER GlobalPerfCountFrequency;
 
 struct win32_printer
 {
+    static void Print(char *Text)
+    {
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+        OutputDebugStringA(DebugBuffer);
+    }
+    
     static void DebugPrint(char *Text)
     {
 #if TEREPGEN_DEBUG
@@ -398,7 +405,7 @@ WinMain(HINSTANCE Instance,
                 RenderGame(GameState, &Camera);
                 
                 FrameClock.PrintMiliSeconds("Frame time:");
-                win32_printer::DebugPrint("---------------------------");
+                win32_printer::Print("---------------------------");
                 FrameClock.Reset();
             }
             
