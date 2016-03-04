@@ -526,7 +526,7 @@ GetPointNormal(world_density *World, terrain_density_block **Neighbours, world_b
     real32 ZP = GetInterpolatedNeighbour(World, Neighbours, BlockP, Point.X, Point.Y, DiffZMax);
     real32 ZM = GetInterpolatedNeighbour(World, Neighbours, BlockP, Point.X, Point.Y, DiffZMin);
     real32 NormalZ = ZP - ZM;
-        
+    
     v3 Result = v3{NormalX, NormalY, NormalZ};
     Result = Normalize(Result);
     return Result;

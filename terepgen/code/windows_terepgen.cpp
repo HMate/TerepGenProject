@@ -34,6 +34,15 @@ struct win32_printer
         OutputDebugStringA(DebugBuffer);
     }
     
+    static void Print(char *Text, real64 Arg1)
+    {
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+        char DebugBuffer2[256];
+        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+        OutputDebugStringA(DebugBuffer2);
+    }
+    
     static void DebugPrint(char *Text)
     {
 #if TEREPGEN_DEBUG
@@ -404,8 +413,8 @@ WinMain(HINSTANCE Instance,
                 UpdateGameState(GameState, WorldMouse, CameraOrigo);
                 RenderGame(GameState, &Camera);
                 
-                FrameClock.PrintMiliSeconds("Frame time:");
-                win32_printer::Print("---------------------------");
+                //FrameClock.PrintMiliSeconds("Frame time:");
+                //win32_printer::Print("---------------------------");
                 FrameClock.Reset();
             }
             

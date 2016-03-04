@@ -74,6 +74,9 @@ struct game_state
     terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
     
     cube Cube;
+    
+    real64 AvgPoligoniseTime = 0.0f;
+    real64 PoligoniseTimeMeasured = 0.0f;
 };
 
 internal void UpdateGameState(game_state, v3);
