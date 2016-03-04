@@ -413,8 +413,8 @@ WinMain(HINSTANCE Instance,
                 UpdateGameState(GameState, WorldMouse, CameraOrigo);
                 RenderGame(GameState, &Camera);
                 
-                //FrameClock.PrintMiliSeconds("Frame time:");
-                //win32_printer::Print("---------------------------");
+                FrameClock.PrintMiliSeconds("Frame time:");
+                win32_printer::Print("---------------------------");
                 FrameClock.Reset();
             }
             

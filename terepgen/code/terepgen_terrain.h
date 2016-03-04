@@ -42,6 +42,8 @@ struct block_hash
 #define TERRAIN_BLOCK_SIZE GRID_DIMENSION
 #define RENDER_BLOCK_VERTEX_COUNT 7000
 
+#define RENDER_SPACE_UNIT 1.0f
+
 struct terrain_render_block
 {
     // TODO: Put block resolution here?

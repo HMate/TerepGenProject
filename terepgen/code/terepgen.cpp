@@ -113,9 +113,9 @@ AddToRenderBlocks(game_state *GameState, terrain_render_block *Block, uint32 Res
 {
     const v3 CameraP = GameState->CameraPos;
     const v3 CamDir = GameState->CameraDir;
-    const v3 DiffX = V3FromWorldPos(&GameState->WorldDensity, world_block_pos{1,0,0,Resolution});
-    const v3 DiffY = V3FromWorldPos(&GameState->WorldDensity, world_block_pos{0,1,0,Resolution});
-    const v3 DiffZ = V3FromWorldPos(&GameState->WorldDensity, world_block_pos{0,0,1,Resolution});
+    const v3 DiffX = V3FromWorldPos(world_block_pos{1,0,0,Resolution});
+    const v3 DiffY = V3FromWorldPos(world_block_pos{0,1,0,Resolution});
+    const v3 DiffZ = V3FromWorldPos(world_block_pos{0,0,1,Resolution});
     
     v3 P = Block->Pos - CameraP;
     
@@ -210,8 +210,8 @@ DeleteRenderBlock(world_density *World, int32 StoreIndex)
 {
     terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
     terrain_render_block *Last = World->PoligonisedBlocks + (--World->PoligonisedBlockCount);
-    world_block_pos BlockP = WorldPosFromV3(World, Block->Pos, 4);
-    world_block_pos LastP = WorldPosFromV3(World, Last->Pos, 4);
+    world_block_pos BlockP = WorldPosFromV3(Block->Pos, 4);
+    world_block_pos LastP = WorldPosFromV3(Last->Pos, 4);
     
     // NOTE: This is from stored blocks, so it cant be a zero block!
     block_hash *RemovedHash = GetHash((block_hash*)&World->RenderHash, BlockP);
@@ -247,7 +247,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
     }
     
     v3 CameraP = GameState->CameraPos;
-    world_block_pos WorldCameraP = WorldPosFromV3(World, CameraP, 4);
+    world_block_pos WorldCameraP = WorldPosFromV3(CameraP, 4);
     block_pos_array BlockPositions;
     CalculateBlockPositions(&BlockPositions, WorldCameraP, RENDERED_BLOCK_RADIUS);
     
@@ -293,7 +293,6 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
-    //Clock.PrintMiliSeconds("Delete density");
     Clock.Reset();
     
     if(World->PoligonisedBlockCount > (ArrayCount(World->PoligonisedBlocks) * 7/8))
@@ -304,7 +303,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             ++StoreIndex)
         {
             terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
-            world_block_pos BlockP = WorldPosFromV3(World, Block->Pos, 4);
+            world_block_pos BlockP = WorldPosFromV3(Block->Pos, 4);
             if((WorldCameraP.BlockX + LoadSpaceRadius < BlockP.BlockX) ||
                (WorldCameraP.BlockX - LoadSpaceRadius > BlockP.BlockX) ||
                (WorldCameraP.BlockY + LoadSpaceRadius < BlockP.BlockY) ||
@@ -316,7 +315,6 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
-    //Clock.PrintMiliSeconds("Delete render");
     Clock.Reset();
     
     int32 ZeroGridTotalSize = POS_GRID_SIZE(ZERO_BLOCK_RADIUS);
@@ -354,7 +352,6 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
         }
     }
     //real64 DeleteZeroTime = Clock.GetSecondsElapsed();
-    //Clock.PrintMiliSeconds("Delete zero");
     Clock.Reset();
     
     //
@@ -379,15 +376,14 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                 uint32 BlockIndex = World->DensityBlockCount;
                 terrain_density_block *DensityBlock = World->DensityBlocks + BlockIndex;
                 
-                GenerateDensityGrid(World, DensityBlock, &GameState->PerlinArray, BlockP);
+                GenerateDensityGrid(DensityBlock, &GameState->PerlinArray, BlockP);
                     
                 BlockHash = WriteHash(World->BlockHash, BlockP, World->DensityBlockCount++);
                 Assert(World->DensityBlockCount < ArrayCount(World->DensityBlocks));
             }
         }
     }
-    real64 GenerateDensityTime = Clock.GetSecondsElapsed();
-    //Clock.PrintMiliSeconds("Generate density");
+    real64 TimeGenerateDensity = Clock.GetSecondsElapsed();
     Clock.Reset();
     
     uint32 MaxRenderBlocksToGenerateInFrame = 6;
@@ -407,8 +403,8 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                 real32 SphereRadius = 30.0f;
                 v3 StartBlockRP = CheckPos - v3{SphereRadius, SphereRadius, SphereRadius};
                 v3 EndBlockRP = CheckPos + v3{SphereRadius, SphereRadius, SphereRadius};
-                block_node StartNode = ConvertRenderPosToBlockNode(World, StartBlockRP, 4);
-                block_node EndNode = ConvertRenderPosToBlockNode(World, EndBlockRP, 4);
+                block_node StartNode = ConvertRenderPosToBlockNode(StartBlockRP, 4);
+                block_node EndNode = ConvertRenderPosToBlockNode(EndBlockRP, 4);
                 
                 uint32 BlocksTouched = 0;
                 block_node Node = StartNode;
@@ -416,22 +412,22 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
                     (Node.BlockP.BlockX != EndNode.BlockP.BlockX) || (Node.X != EndNode.X);
                     XIndex++)
                 {
-                    Node = GetActualBlockNode(World, &StartNode.BlockP, 
-                        StartNode.X+XIndex, StartNode.Y, StartNode.Z);
+                    Node = GetActualBlockNode(&StartNode.BlockP, 
+                                StartNode.X+XIndex, StartNode.Y, StartNode.Z);
                     for(uint32 YIndex = 0; 
                         (Node.BlockP.BlockY != EndNode.BlockP.BlockY) || (Node.Y != EndNode.Y);
                         YIndex++)
                     {
-                        Node = GetActualBlockNode(World, &StartNode.BlockP, 
-                            StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z);
+                        Node = GetActualBlockNode(&StartNode.BlockP, 
+                                    StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z);
                         for(uint32 ZIndex = 0; 
                             (Node.BlockP.BlockZ != EndNode.BlockP.BlockZ) || (Node.Z != EndNode.Z);
                             ZIndex++)
                         {
-                            Node = GetActualBlockNode(World, &StartNode.BlockP, 
-                                StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
+                            Node = GetActualBlockNode(&StartNode.BlockP, 
+                                        StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
                             // NOTE: Change node density and invalidate render block
-                            v3 NodeRenderP = ConvertBlockNodeToRenderPos(World, Node);
+                            v3 NodeRenderP = ConvertBlockNodeToRenderPos(Node);
                             v3 Diff = NodeRenderP - CheckPos;
                             real32 Len = Length(Diff);
                             if(Len < 25.0f)
@@ -478,8 +474,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
-    real64 RightClickTime = Clock.GetSecondsElapsed();
-    //Clock.PrintMiliSeconds("Right Click");
+    real64 TimeRightClick = Clock.GetSecondsElapsed();
     Clock.Reset();
     
     win32_clock AvgClock;
@@ -548,8 +543,8 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
-    win32_printer::Print("Avg poligonise: %f", GameState->AvgPoligoniseTime * 1000.0);
-    //Clock.PrintMiliSeconds("Generate render");
+    //win32_printer::Print("Avg poligonise: %f", GameState->AvgPoligoniseTime * 1000.0);
+    real64 TimeGenerateRender = Clock.GetSecondsElapsed();
     Clock.Reset();
     
     GameState->RenderBlockCount = 0;
@@ -569,7 +564,12 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
-    //Clock.PrintMiliSeconds("Poligonise time:");
+    real64 TimeAddToRender = Clock.GetSecondsElapsed();
+    
+    win32_printer::Print("Generate density time: %f", TimeGenerateDensity * 1000.0);
+    win32_printer::Print("Right click time: %f", TimeRightClick * 1000.0);
+    win32_printer::Print("Generate render: %f", TimeGenerateRender * 1000.0);
+    win32_printer::Print("Add to render time: %f", TimeAddToRender * 1000.0);
     
     /*
     terrain_density_block DensityBlock;
@@ -791,5 +791,5 @@ RenderGame(game_state *GameState, camera *Camera)
     DXResources->SetTransformations(v3{});
     
     DXResources->SwapChain->Present(0, 0);
-    //RenderClock.PrintMiliSeconds("Render time:");
+    RenderClock.PrintMiliSeconds("Render time:");
 }
