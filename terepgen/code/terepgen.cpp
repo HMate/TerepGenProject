@@ -543,7 +543,6 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
             }
         }
     }
-    //win32_printer::Print("Avg poligonise: %f", GameState->AvgPoligoniseTime * 1000.0);
     real64 TimeGenerateRender = Clock.GetSecondsElapsed();
     Clock.Reset();
     
@@ -565,6 +564,8 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos, v3 CameraOrigo)
         }
     }
     real64 TimeAddToRender = Clock.GetSecondsElapsed();
+    
+    // win32_printer::Print("Avg poligonise: %f", GameState->AvgPoligoniseTime * 1000.0);
     
     win32_printer::Print("Generate density time: %f", TimeGenerateDensity * 1000.0);
     win32_printer::Print("Right click time: %f", TimeRightClick * 1000.0);

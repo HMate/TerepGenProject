@@ -467,33 +467,25 @@ GetInterpolatedNeighbour(terrain_density_block **Neighbours, world_block_pos *Bl
     int32 ZFloor = FloorInt32(Z);
     real32 ZRemainder = Z - (real32)ZFloor;
     
-    // NOTE: If every parameter is whole number, we can just give back the grid value
-    if(XRemainder < 0.0001f && YRemainder < 0.0001f && ZRemainder < 0.0001f)
-        return GetFromNeighbours(Neighbours, BlockP, XFloor, YFloor, ZFloor);
-    else if(XRemainder < 0.0001f && YRemainder < 0.0001f)
-    {
-        real32 Elem1 = GetFromNeighbours(Neighbours, BlockP, XFloor, YFloor, ZFloor);
-        real32 Elem2 = GetFromNeighbours(Neighbours, BlockP, XFloor, YFloor, ZFloor + 1);
+    real32 V0 = GetFromNeighbours(Neighbours, BlockP, XFloor    , YFloor    , ZFloor    );
+    real32 V1 = GetFromNeighbours(Neighbours, BlockP, XFloor    , YFloor    , ZFloor + 1);
+    real32 V2 = GetFromNeighbours(Neighbours, BlockP, XFloor    , YFloor + 1, ZFloor    );
+    real32 V3 = GetFromNeighbours(Neighbours, BlockP, XFloor    , YFloor + 1, ZFloor + 1);
+    real32 V4 = GetFromNeighbours(Neighbours, BlockP, XFloor + 1, YFloor    , ZFloor    );
+    real32 V5 = GetFromNeighbours(Neighbours, BlockP, XFloor + 1, YFloor    , ZFloor + 1);
+    real32 V6 = GetFromNeighbours(Neighbours, BlockP, XFloor + 1, YFloor + 1, ZFloor    );
+    real32 V7 = GetFromNeighbours(Neighbours, BlockP, XFloor + 1, YFloor + 1, ZFloor + 1);
     
-        real32 Result = Elem1 + ZRemainder * (Elem2 - Elem1);
-        return Result;
-    }
-    else if(XRemainder < 0.0001f)
-    {
-        real32 Elem1 = GetInterpolatedNeighbour(Neighbours, BlockP, X, (real32)YFloor, Z);
-        real32 Elem2 = GetInterpolatedNeighbour(Neighbours, BlockP, X, (real32)(YFloor+1), Z);
-        
-        real32 Result = Elem1 + YRemainder * (Elem2 - Elem1);
-        return Result;
-    }
-    else
-    {
-        real32 Elem2 = GetInterpolatedNeighbour(Neighbours, BlockP, (real32)(XFloor+1), Y, Z);
-        real32 Elem1 = GetInterpolatedNeighbour(Neighbours, BlockP, (real32)XFloor, Y, Z);
-        
-        real32 Result = Elem1 + XRemainder * (Elem2 - Elem1);
-        return Result;
-    }
+    real32 Z0 = V0 + ZRemainder *(V1-V0);
+    real32 Z1 = V2 + ZRemainder *(V3-V2);
+    real32 Z2 = V4 + ZRemainder *(V5-V4);
+    real32 Z3 = V6 + ZRemainder *(V7-V6);
+    
+    real32 Y0 = Z0 + YRemainder *(Z1-Z0);
+    real32 Y1 = Z2 + YRemainder *(Z3-Z2);
+    
+    real32 Result = Y0 + XRemainder * (Y1 - Y0);
+    return Result;
 }
 
 internal vertex
