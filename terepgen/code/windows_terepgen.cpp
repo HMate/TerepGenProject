@@ -405,12 +405,12 @@ WinMain(HINSTANCE Instance,
                 v3 WorldMouse = GameState->CameraPos + (UpDir*NormalizedMouse.Y*WorldScreenSizeY) 
                     + (RightDir*NormalizedMouse.X*WorldScreenSizeX);
                     
-                v3 CameraOrigo = GameState->CameraPos + Normalize(Cross(UpDir, RightDir));
+                GameState->CameraOrigo = GameState->CameraPos + Normalize(Cross(UpDir, RightDir));
                 
                 GameState->Seed = GlobalSeed;
                 GameState->RenderMode = GlobalInput.RenderMode;
                 
-                UpdateGameState(GameState, WorldMouse, CameraOrigo);
+                UpdateGameState(GameState, WorldMouse);
                 RenderGame(GameState, &Camera);
                 
                 FrameClock.PrintMiliSeconds("Frame time:");

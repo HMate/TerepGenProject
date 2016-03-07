@@ -3,92 +3,6 @@
 
 */
 
-inline world_block_pos
-WorldPosFromV3(v3 Pos, int32 Resolution)
-{
-    world_block_pos Result = {};
-    real32 BlockSize = (real32)TERRAIN_BLOCK_SIZE;
-    
-    v3 CentralBlockPos = Pos / (BlockSize * Resolution * RENDER_SPACE_UNIT);
-    Result.BlockX = FloorInt32(CentralBlockPos.X); 
-    Result.BlockY = FloorInt32(CentralBlockPos.Y);
-    Result.BlockZ = FloorInt32(CentralBlockPos.Z);
-    Result.Resolution = Resolution;
-     
-    return Result;
-}
-
-inline v3
-V3FromWorldPos(world_block_pos Pos)
-{
-    v3 Result = {};
-    real32 BlockSize = (real32)TERRAIN_BLOCK_SIZE;
-    Result.X = (real32)Pos.BlockX * BlockSize * Pos.Resolution * RENDER_SPACE_UNIT;
-    Result.Y = (real32)Pos.BlockY * BlockSize * Pos.Resolution * RENDER_SPACE_UNIT;
-    Result.Z = (real32)Pos.BlockZ * BlockSize * Pos.Resolution * RENDER_SPACE_UNIT;
-    
-    return Result;
-}
-
-// NOTE: Block Resolution gives how many density values are skipped
-// This way a bigger area can be stored in the same block, 
-// if at rendering we only use every BlockResolution'th value too.
-internal void 
-GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNArray, 
-                    world_block_pos WorldP)
-{
-    DensityBlock->Pos = WorldP;
-    real32 BlockResolution = (real32)WorldP.Resolution * RENDER_SPACE_UNIT;
-    
-    v3 BlockPos = V3FromWorldPos(WorldP);
-    
-    uint32 TerrainDimension = DensityBlock->Grid.Dimension;
-    for(uint32 Plane = 0;
-        Plane < TerrainDimension;
-        ++Plane) 
-    {
-        for(uint32 Row = 0;
-            Row < TerrainDimension;
-            ++Row)
-        {
-            for(uint32 Column = 0;
-                Column < TerrainDimension;
-                ++Column)
-            {
-                real32 DensityValue = BlockPos.Y + ((Row) * BlockResolution);
-                // real32 DensityValue = 0;
-                
-                real32 WorldX = BlockPos.X + ((Plane) * BlockResolution);
-                real32 WorldY = BlockPos.Y + ((Row) * BlockResolution);
-                real32 WorldZ = BlockPos.Z + ((Column) * BlockResolution);
-                
-                v3 WorldPos = v3{WorldX, WorldY, WorldZ} / 32.0f;
-                real32 Scale = 50.0f;
-                             
-                //win32_clock Clock;
-                // DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 256.03f) * Scale * 0.0036025f;
-                // DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 128.96f) * Scale * 0.0078125f;
-                DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 64.01f)  * Scale * 0.015625f;
-                //Clock.PrintMiliSeconds("Perlin gen time:");
-                
-                DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 32.03f) * Scale * 0.03125f;
-                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 16.16f) * Scale * 0.0625f;
-                // DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 7.91f)  * Scale * 0.125f;
-                
-                // DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 4.03f) * Scale * 0.25f;
-                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 1.96f) * Scale * 0.5f;
-                // DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 1.01f) * Scale * 1.0f;
-                DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 0.491f) * Scale * 1.0f;
-                
-                DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 0.023f) * Scale * 4.0f;
-                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 0.00646f) * Scale * 16.0f;
-                
-                SetGrid(&DensityBlock->Grid, Plane, Row, Column, DensityValue);
-            }
-        }
-    }
-}
-
 inline bool32
 HashIsEmpty(block_hash *BlockHash)
 {
@@ -289,9 +203,96 @@ InitZeroHash(world_density *World)
     }
 }
 
+inline world_block_pos
+WorldPosFromV3(v3 Pos, int32 Resolution)
+{
+    world_block_pos Result = {};
+    real32 BlockSize = (real32)TERRAIN_BLOCK_SIZE;
+    
+    v3 CentralBlockPos = Pos / (BlockSize * Resolution * RENDER_SPACE_UNIT);
+    Result.BlockX = FloorInt32(CentralBlockPos.X); 
+    Result.BlockY = FloorInt32(CentralBlockPos.Y);
+    Result.BlockZ = FloorInt32(CentralBlockPos.Z);
+    Result.Resolution = Resolution;
+     
+    return Result;
+}
+
+inline v3
+V3FromWorldPos(world_block_pos Pos)
+{
+    v3 Result = {};
+    real32 BlockSize = (real32)TERRAIN_BLOCK_SIZE;
+    Result.X = (real32)Pos.BlockX * BlockSize * Pos.Resolution * RENDER_SPACE_UNIT;
+    Result.Y = (real32)Pos.BlockY * BlockSize * Pos.Resolution * RENDER_SPACE_UNIT;
+    Result.Z = (real32)Pos.BlockZ * BlockSize * Pos.Resolution * RENDER_SPACE_UNIT;
+    
+    return Result;
+}
+
+// NOTE: Block Resolution gives how many density values are skipped
+// This way a bigger area can be stored in the same block, 
+// if at rendering we only use every BlockResolution'th value too.
+internal void 
+GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNArray, 
+                    world_block_pos WorldP)
+{
+    DensityBlock->Pos = WorldP;
+    real32 BlockResolution = (real32)WorldP.Resolution * RENDER_SPACE_UNIT;
+    
+    v3 BlockPos = V3FromWorldPos(WorldP);
+    
+    uint32 TerrainDimension = DensityBlock->Grid.Dimension;
+    for(uint32 Plane = 0;
+        Plane < TerrainDimension;
+        ++Plane) 
+    {
+        for(uint32 Row = 0;
+            Row < TerrainDimension;
+            ++Row)
+        {
+            for(uint32 Column = 0;
+                Column < TerrainDimension;
+                ++Column)
+            {
+                real32 DensityValue = BlockPos.Y + ((Row) * BlockResolution);
+                // real32 DensityValue = 0;
+                
+                real32 WorldX = BlockPos.X + ((Plane) * BlockResolution);
+                real32 WorldY = BlockPos.Y + ((Row) * BlockResolution);
+                real32 WorldZ = BlockPos.Z + ((Column) * BlockResolution);
+                
+                v3 WorldPos = v3{WorldX, WorldY, WorldZ} / 32.0f;
+                real32 Scale = 50.0f;
+                             
+                //win32_clock Clock;
+                // DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 256.03f) * Scale * 0.0036025f;
+                // DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 128.96f) * Scale * 0.0078125f;
+                DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 64.01f)  * Scale * 0.015625f;
+                //Clock.PrintMiliSeconds("Perlin gen time:");
+                
+                DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 32.03f) * Scale * 0.03125f;
+                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 16.16f) * Scale * 0.0625f;
+                // DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 7.91f)  * Scale * 0.125f;
+                
+                // DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 4.03f) * Scale * 0.25f;
+                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 1.96f) * Scale * 0.5f;
+                // DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 1.01f) * Scale * 1.0f;
+                DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 0.491f) * Scale * 1.0f;
+                
+                DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 0.023f) * Scale * 4.0f;
+                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 0.00646f) * Scale * 16.0f;
+                
+                SetGrid(&DensityBlock->Grid, Plane, Row, Column, DensityValue);
+            }
+        }
+    }
+}
+
 internal block_node
 GetActualBlockNode(world_block_pos *Original, int32 X, int32 Y, int32 Z)
 {
+    // TODO: What to do with Resolution ??
     block_node Result;
     
     Result.BlockP = *Original;
@@ -412,6 +413,7 @@ GetWorldGridValueFromV3(world_density *World, v3 Pos, uint32 Resolution)
 internal void
 GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_block_pos CenterBlockP)
 {
+    // TODO: Also give back block poses with resolutions bigger and smaller by 1
     uint32 Index = 0;
     for(int32 DiffX = -1; DiffX < 2; ++DiffX)
     {
@@ -419,6 +421,7 @@ GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_bl
         {
             for(int32 DiffZ = -1; DiffZ < 2; ++DiffZ)
             {
+                // TODO: How to handle different Resolutions ??
                 world_block_pos NeighbourP = CenterBlockP;
                 NeighbourP.BlockX += DiffX;
                 NeighbourP.BlockY += DiffY;
@@ -441,6 +444,7 @@ GetFromNeighbours(terrain_density_block **Neighbours,
     int32 DiffY = FloorInt32(Y /BlockSize);
     int32 DiffZ = FloorInt32(Z /BlockSize);
     
+    // TODO: How to index different Resolutions ?
     uint32 NIndex = 13 + DiffX*9 + DiffY*3 + DiffZ;
     Assert(NIndex < 27);
     
@@ -642,7 +646,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain
     }
     RenderBlock->VertexCount = VertexCount;
     
-#if 0 //TEREPGEN_DEBUG
+#if 0
     char DebugBuffer[256];
     sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Current Vertex Count: %d\n", VertexCount);
     OutputDebugStringA(DebugBuffer);

@@ -62,8 +62,12 @@ struct game_state
     bool32 Initialized;
     dx_resource *DXResources;
     uint32 Seed;
+    
+    // NOTE: Camera pos is the screen rectangles position in renderspace
     v3 CameraPos;
     v3 CameraDir;
+    // NOTE: Camera origo is from where the origin of the camera ray casts that hit the screen
+    v3 CameraOrigo;
     
     perlin_noise_array PerlinArray;
     uint32 RenderMode;

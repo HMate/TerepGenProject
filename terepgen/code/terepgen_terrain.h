@@ -11,7 +11,8 @@ struct world_block_pos
     int32 BlockX;
     int32 BlockY;
     int32 BlockZ;
-    
+        
+    // TODO: Maybe resolution shouldnt be stored here
     uint32 Resolution;
 };
 
