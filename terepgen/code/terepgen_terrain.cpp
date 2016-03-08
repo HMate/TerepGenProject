@@ -413,7 +413,6 @@ GetWorldGridValueFromV3(world_density *World, v3 Pos, uint32 Resolution)
 internal void
 GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_block_pos CenterBlockP)
 {
-    // TODO: Also give back block poses with resolutions bigger and smaller by 1
     uint32 Index = 0;
     for(int32 DiffX = -1; DiffX < 2; ++DiffX)
     {
@@ -421,7 +420,6 @@ GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_bl
         {
             for(int32 DiffZ = -1; DiffZ < 2; ++DiffZ)
             {
-                // TODO: How to handle different Resolutions ??
                 world_block_pos NeighbourP = CenterBlockP;
                 NeighbourP.BlockX += DiffX;
                 NeighbourP.BlockY += DiffY;
@@ -433,6 +431,20 @@ GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_bl
     Assert(Index == 27);
 }
 
+internal world_block_pos
+ConvertToResolution(world_block_pos *P, uint32 NewRes)
+{
+    world_block_pos Result;
+    Result.Resolution = NewRes;
+    
+    real32 Ratio = (real32)P->Resolution / NewRes;
+    Result.BlockX = FloorInt32(P->BlockX * Ratio);
+    Result.BlockY = FloorInt32(P->BlockY * Ratio);
+    Result.BlockZ = FloorInt32(P->BlockZ * Ratio);
+    
+    return Result;
+}
+
 // NOTE: XYZ are relative to the block position
 internal real32
 GetFromNeighbours(terrain_density_block **Neighbours,
@@ -440,20 +452,29 @@ GetFromNeighbours(terrain_density_block **Neighbours,
                   int32 X, int32 Y, int32 Z)
 {
     real32 BlockSize = (real32)TERRAIN_BLOCK_SIZE;
-    int32 DiffX = FloorInt32(X /BlockSize);
-    int32 DiffY = FloorInt32(Y /BlockSize);
-    int32 DiffZ = FloorInt32(Z /BlockSize);
+    int32 DiffX = FloorInt32(X / BlockSize);
+    int32 DiffY = FloorInt32(Y / BlockSize);
+    int32 DiffZ = FloorInt32(Z / BlockSize);
     
-    // TODO: How to index different Resolutions ?
     uint32 NIndex = 13 + DiffX*9 + DiffY*3 + DiffZ;
     Assert(NIndex < 27);
     
-    int32 GridStep = (int32)TERRAIN_BLOCK_SIZE;
-    uint32 NewX = (uint32)(X - (DiffX * GridStep));
-    uint32 NewY = (uint32)(Y - (DiffY * GridStep));
-    uint32 NewZ = (uint32)(Z - (DiffZ * GridStep));
-    
+    // TODO: We could optimize here
+    Assert(NIndex != 0 && NIndex != 1 && NIndex != 2 && NIndex != 3 && NIndex != 6 && 
+           NIndex != 9 && NIndex != 18);
+           
     terrain_density_block *ActDensityBlock = Neighbours[NIndex];
+    
+    // TODO: Inline this if ConvertToRes is not used anywhere else
+    world_block_pos NewPos = ConvertToResolution(BlockP, ActDensityBlock->Pos.Resolution);
+    
+    int32 GridStep = (int32)TERRAIN_BLOCK_SIZE;
+    int32 OriginalRes = (int32)BlockP->Resolution;
+    int32 NewRes = (int32)ActDensityBlock->Pos.Resolution;
+    uint32 NewX = (uint32)(X - (DiffX * GridStep * OriginalRes / NewRes));
+    uint32 NewY = (uint32)(Y - (DiffY * GridStep * OriginalRes / NewRes));
+    uint32 NewZ = (uint32)(Z - (DiffZ * GridStep * OriginalRes / NewRes));
+    
     real32 Result = GetGrid(&ActDensityBlock->Grid, NewX, NewY, NewZ);
     
     return Result;
@@ -540,8 +561,6 @@ GetPointNormal(terrain_density_block **Neighbours, world_block_pos *BlockP, v3 P
 internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
 {
-    // TODO: Optimize GetworlGrid and GetInterpolatedWorldGrid by eliminating the search in the hash
-    // To do this, get all the blocks it can touch in advance and only search in those
     Assert(DensityBlock->Pos.Resolution > 0);
     real32 CellDiff = (real32)DensityBlock->Pos.Resolution  * RENDER_SPACE_UNIT;
     v4 GreenColor = v4{0.0, 1.0f, 0.0f, 1.0f};
@@ -651,6 +670,149 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain
     sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Current Vertex Count: %d\n", VertexCount);
     OutputDebugStringA(DebugBuffer);
 #endif
+}
+
+internal world_block_pos
+GetBiggerResBlockPosition(world_block_pos *BlockP)
+{
+    world_block_pos Result = ConvertToResolution(BlockP, BlockP->Resolution*2);
+    return Result;
+}
+
+internal void
+GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos *BlockP)
+{
+    // TODO: Be more concise
+    // TODO: Give Resolution in param
+    LowerBlockPositions[0].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[0].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[0].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[0].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[1].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[1].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[1].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[1].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[2].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[2].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[2].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[2].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[3].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[3].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[3].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[3].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[4].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[4].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[4].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[4].BlockZ = BlockP->BlockZ * 2 + 1;
+    
+    LowerBlockPositions[5].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[5].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[5].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[5].BlockZ = BlockP->BlockZ * 2 + 1;
+    
+    LowerBlockPositions[6].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[6].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[6].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[6].BlockZ = BlockP->BlockZ * 2 + 1;
+    
+    LowerBlockPositions[7].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[7].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[7].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[7].BlockZ = BlockP->BlockZ * 2 + 1;
+}
+
+internal void
+MixedPoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
+{
+    // TODO: This is really similar to PoligoniseBlock, maybe merge them together
+    Assert(DensityBlock->Pos.Resolution > 0);
+    real32 CellDiff = (real32)DensityBlock->Pos.Resolution  * RENDER_SPACE_UNIT;
+    v4 GreenColor = v4{0.0, 1.0f, 0.0f, 1.0f};
+    
+    world_block_pos *BlockP = &DensityBlock->Pos;
+    RenderBlock->Pos = V3FromWorldPos(DensityBlock->Pos);
+    uint32 TerrainDimension = DensityBlock->Grid.Dimension;
+    
+    const uint32 NeighbourCount = 27;
+    world_block_pos NeighbourBlockPositions[NeighbourCount];
+    GetNeighbourBlockPositions(NeighbourBlockPositions, *BlockP);
+    terrain_density_block *Neighbours[NeighbourCount];
+    for(uint32 NeighbourIndex = 0;
+        NeighbourIndex < NeighbourCount;
+        NeighbourIndex++)
+    {
+        world_block_pos NeighbourBlockP = NeighbourBlockPositions[NeighbourIndex];
+        block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
+        if(HashIsEmpty(NeighbourHash))
+        {
+            world_block_pos BiggerBP = GetBiggerResBlockPosition(&NeighbourBlockP);
+            NeighbourHash = GetHash(World->BlockHash, BiggerBP);
+            Assert(!HashIsEmpty(NeighbourHash));
+        }
+        Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
+    }
+    
+    uint32 VertexCount = 0;
+    for(uint32 Plane = 0;
+        Plane < TerrainDimension;
+        Plane += 1)
+    {
+        for(uint32 Row = 0;
+            Row < TerrainDimension;
+            Row += 1)
+        {
+            for(uint32 Column = 0;
+                Column < TerrainDimension;
+                Column += 1)
+            {                
+                GRIDCELL Cell;
+                real32 Planef = (real32)Plane;
+                real32 Rowf = (real32)Row;
+                real32 Columnf = (real32)Column;
+                Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf     };
+                Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
+                Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
+                Cell.p[3] = v3{Planef     , Rowf     , Columnf     };
+                Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf     };
+                Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
+                Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
+                Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
+                Cell.val[0] = GetFromNeighbours(Neighbours, BlockP, Plane  , Row+1, Column  );
+                Cell.val[1] = GetFromNeighbours(Neighbours, BlockP, Plane  , Row+1, Column+1);
+                Cell.val[2] = GetFromNeighbours(Neighbours, BlockP, Plane  , Row  , Column+1);
+                Cell.val[3] = GetFromNeighbours(Neighbours, BlockP, Plane  , Row  , Column  );
+                Cell.val[4] = GetFromNeighbours(Neighbours, BlockP, Plane+1, Row+1, Column  );
+                Cell.val[5] = GetFromNeighbours(Neighbours, BlockP, Plane+1, Row+1, Column+1);
+                Cell.val[6] = GetFromNeighbours(Neighbours, BlockP, Plane+1, Row  , Column+1);
+                Cell.val[7] = GetFromNeighbours(Neighbours, BlockP, Plane+1, Row  , Column  );
+                TRIANGLE Triangles[5];
+                uint32 TriangleCount = Polygonise(Cell, DENSITY_ISO_LEVEL, Triangles);
+                
+                for(uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
+                {
+                    v3 Point0 = Triangles[TriangleIndex].p[0];
+                    v3 Point1 = Triangles[TriangleIndex].p[1];
+                    v3 Point2 = Triangles[TriangleIndex].p[2];
+                                        
+                    v3 Normal0 = GetPointNormal(Neighbours, BlockP, Point0);
+                    v3 Normal1 = GetPointNormal(Neighbours, BlockP, Point1);
+                    v3 Normal2 = GetPointNormal(Neighbours, BlockP, Point2);
+                    
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DVertex(Point0 * CellDiff, Normal0, GreenColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DVertex(Point1 * CellDiff, Normal1, GreenColor);
+                    RenderBlock->Vertices[VertexCount++] = 
+                        Get3DVertex(Point2 * CellDiff, Normal2, GreenColor);
+                }
+            }
+        }
+    }
+    RenderBlock->VertexCount = VertexCount;
 }
 
 
