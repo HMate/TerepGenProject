@@ -49,8 +49,9 @@ CalculateBlockPositions(block_pos_array *PosArray, world_block_pos *CentralBlock
 }
 
 internal void
-AddToRenderBlocks(game_state *GameState, terrain_render_block *Block, uint32 Resolution)
+AddToRenderBlocks(game_state *GameState, terrain_render_block *Block)
 {
+    const uint32 Resolution = Block->Resolution;
     const v3 CameraP = GameState->CameraPos;
     const v3 CamDir = GameState->CameraDir;
     const v3 DiffX = V3FromWorldPos(world_block_pos{1,0,0,Resolution});
@@ -91,16 +92,16 @@ AddCube(game_state *GameState, v3 WorldMousePos)
     const v3 Corner6 ={0.5f, -0.5f, 0.5f};
     const v3 Corner7 ={0.5f, 0.5f, 0.5f};
     
-    v3 Normal0 = v3{0.0f, 0.0f, -1.0f}; //front
-    v3 Normal1 = v3{1.0f, 0.0f, 0.0f};  //right
-    v3 Normal2 = v3{0.0f, 0.0f, 1.0f};  //back
-    v3 Normal3 = v3{-1.0f, 0.0f, 0.0f}; //left
-    v3 Normal4 = v3{0.0f, -1.0f, 0.0f}; // down
-    v3 Normal5 = v3{0.0f, 1.0f, 0.0f};  //up
+    const v3 Normal0 = v3{0.0f, 0.0f, -1.0f}; //front
+    const v3 Normal1 = v3{1.0f, 0.0f, 0.0f};  //right
+    const v3 Normal2 = v3{0.0f, 0.0f, 1.0f};  //back
+    const v3 Normal3 = v3{-1.0f, 0.0f, 0.0f}; //left
+    const v3 Normal4 = v3{0.0f, -1.0f, 0.0f}; // down
+    const v3 Normal5 = v3{0.0f, 1.0f, 0.0f};  //up
     
-    v4 ColorR = {1.0f, 0.0f, 0.0f, 1.0f};
-    v4 ColorG = {0.0f, 1.0f, 0.0f, 1.0f};
-    v4 ColorB = {0.0f, 0.0f, 1.0f, 1.0f};
+    const v4 ColorR = {1.0f, 0.0f, 0.0f, 1.0f};
+    const v4 ColorG = {0.0f, 1.0f, 0.0f, 1.0f};
+    const v4 ColorB = {0.0f, 0.0f, 1.0f, 1.0f};
     
     GameState->Cube.Vertices[0] = Vertex(Corner0, Normal0, ColorB);
     GameState->Cube.Vertices[1] = Vertex(Corner1, Normal0, ColorB);
@@ -362,6 +363,29 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
                     
                 BlockHash = WriteHash(World->BlockHash, BlockP, World->DensityBlockCount++);
                 Assert(World->DensityBlockCount < ArrayCount(World->DensityBlocks));
+                
+                // NOTE: Delete neighbouring render blocks
+                const uint32 NeighbourCount = 27;
+                world_block_pos NeighbourBlockPositions[NeighbourCount];
+                GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
+                
+                for(uint32 NeighbourIndex = 0;
+                    NeighbourIndex < NeighbourCount;
+                    NeighbourIndex++)
+                {
+                    world_block_pos NeighbourBP = NeighbourBlockPositions[NeighbourIndex];
+                    block_hash *NRenderHash = GetHash(World->RenderHash, NeighbourBP);
+                    if(!HashIsEmpty(NRenderHash))
+                    {
+                        DeleteRenderBlock(World, NRenderHash->Index);
+                    }
+                    block_hash *NZeroHash = GetZeroHash(World, NeighbourBP);
+                    if(!HashIsEmpty(NZeroHash))
+                    {
+                        NZeroHash->Index = HASH_DELETED;
+                        World->ZeroBlockCount--;
+                    }
+                }
             }
         }
     }
@@ -468,8 +492,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
     // If all the lower blocks of a block are generated, then the lower blocks can be mix rendered
     // If a mix rendered blocks neigbours are done generating their lower blocks, then they can be generated normally
     
-    // Rerender pass? When generated a density, just tell it to the neighbours, to rerender themselves
-    // TODO: Delete neighbour from render/zero hash after generate density
+    // When generated a density, just tell it to the neighbours, to rerender themselves
     
     win32_clock AvgClock;
     for(uint32 ResolutionIndex = 0;
@@ -594,6 +617,26 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
     real64 TimeGenerateRender = Clock.GetSecondsElapsed();
     Clock.Reset();
     
+#if TEREPGEN_DEBUG
+    for(uint32 DebugIndex = 0;
+        DebugIndex < World->PoligonisedBlockCount;
+        DebugIndex++)
+    {
+        uint32 DebCounter = 0;
+        for(uint32 DebugIndex2 = 0;
+            DebugIndex2 < World->PoligonisedBlockCount;
+            DebugIndex2++)
+        {
+            terrain_render_block *Block1 = World->PoligonisedBlocks + DebugIndex;
+            terrain_render_block *Block2 = World->PoligonisedBlocks + DebugIndex2;
+            bool32 Equ = (Block1->Pos == Block2->Pos) && (Block1->Resolution == Block2->Resolution);
+            if(Equ)
+                DebCounter++;
+        }
+        Assert(DebCounter < 2);
+    }
+#endif
+    
     GameState->RenderBlockCount = 0;
     for(uint32 ResolutionIndex = 0;
         ResolutionIndex < ResolutionCount;
@@ -612,7 +655,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
                 
                 if(!HashIsEmpty(Hash))
                 {
-                    AddToRenderBlocks(GameState, World->PoligonisedBlocks + Hash->Index, FixedResolution);
+                    AddToRenderBlocks(GameState, World->PoligonisedBlocks + Hash->Index);
                 }
             }
         }

@@ -54,7 +54,7 @@ struct terrain_render_block
     vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];
 };//280'016 B
 
-#define DENSITY_BLOCK_COUNT 4500
+#define DENSITY_BLOCK_COUNT 6000
 #define RENDER_BLOCK_COUNT 1500
 #define BLOCK_HASH_SIZE 8192
 #define ZERO_HASH_SIZE 32768
