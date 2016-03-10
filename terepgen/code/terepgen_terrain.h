@@ -49,6 +49,7 @@ struct terrain_render_block
 {
     // TODO: Put block resolution here?
     v3 Pos;
+    uint32 Resolution;
     uint32 VertexCount;
     vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];
 };//280'016 B
