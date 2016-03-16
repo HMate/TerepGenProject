@@ -220,6 +220,18 @@ DidRenderBlocksLoaded(world_density *World, world_block_pos *Positions, uint32 C
     return Result;
 }
 
+internal void 
+CalcualteAvarageTime(game_state *GameState, win32_clock Clock)
+{
+    real64 CurrentPoligoniseTime = Clock.GetSecondsElapsed();
+    //win32_printer::Print("poligonise: %f", CurrentPoligoniseTime * 1000.0);
+    real64 LastMeasure = GameState->PoligoniseTimeMeasured;
+    GameState->PoligoniseTimeMeasured += 1.0f;
+    GameState->AvgPoligoniseTime = 
+        (LastMeasure/GameState->PoligoniseTimeMeasured)*GameState->AvgPoligoniseTime + 
+        (CurrentPoligoniseTime / GameState->PoligoniseTimeMeasured);
+}
+
 internal void
 UpdateGameState(game_state *GameState, v3 WorldMousePos)
 {
@@ -509,12 +521,6 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
             block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
             // NOTE: This can give back a deleted hash, if it had the same key as this block,
             // and it was already deleted once, and wasn't overwritten since.
-            
-            if(BlockP->Resolution == 4 &&
-               BlockP->BlockX == -1 && BlockP->BlockY == 0 && BlockP->BlockZ == -1)
-            {
-                int Def = 56;
-            }
             if(HashIsEmpty(ZeroHash) && HashIsEmpty(RenderHash))
             {                  
                 // NOTE: Check if lower resolution blocks are available
@@ -524,6 +530,11 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
                 bool32 LowerBlocksLoaded = DidDensityBlocksLoaded(World, LowerBlockPositions, 8);
                 if(!LowerBlocksLoaded)
                 {
+                    world_block_pos BiggerBP = GetBiggerResBlockPosition(BlockP);
+                    // NOTE: Check if same resolution blocks are available
+                    world_block_pos SameResBlockPositions[8];
+                    GetLowerResBlockPositions(SameResBlockPositions, &BiggerBP);
+                    
                     // NOTE: Neighbours include this block too
                     const uint32 NeighbourCount = 27;
                     world_block_pos NeighbourBlockPositions[NeighbourCount];
@@ -532,25 +543,6 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
                     
                     if(NeighboursGenerated)
                     {
-                        // if(BlockP->Resolution == 4 &&
-                           // BlockP->BlockX == -1 && BlockP->BlockY == 0 && BlockP->BlockZ == -1)
-                        {
-                            world_block_pos *Fault = nullptr;
-                            for(uint32 FaultIndex = 0;
-                                FaultIndex < 8;
-                                ++FaultIndex)
-                            {
-                                world_block_pos *Pos = LowerBlockPositions + FaultIndex;
-                                block_hash *FaultRenderHash = GetHash(World->RenderHash, Pos);
-                                block_hash *FaultZeroHash = GetZeroHash(World, Pos);
-                                if(HashIsEmpty(FaultRenderHash) && HashIsEmpty(FaultZeroHash))
-                                {
-                                    Fault = Pos;
-                                }
-                            }
-                            Assert(Fault != nullptr);
-                            int Def = 56;
-                        }
                         // NOTE: Initialize block
                         MaxRenderBlocksToGenerateInFrame--;
                         // NOTE: DensityHash has been checked among neighbours to be valid
@@ -560,17 +552,10 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
                         AvgClock.Reset();
                         PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
                             DensityBlock);
+                        CalcualteAvarageTime(GameState, AvgClock);
                         
                         if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
                         {
-                            real64 CurrentPoligoniseTime = AvgClock.GetSecondsElapsed();
-                            //win32_printer::Print("poligonise: %f", CurrentPoligoniseTime * 1000.0);
-                            real64 LastMeasure = GameState->PoligoniseTimeMeasured;
-                            GameState->PoligoniseTimeMeasured += 1.0f;
-                            GameState->AvgPoligoniseTime = 
-                                (LastMeasure/GameState->PoligoniseTimeMeasured)*GameState->AvgPoligoniseTime + 
-                                (CurrentPoligoniseTime / GameState->PoligoniseTimeMeasured);
-                            
                             RenderHash = WriteHash(World->RenderHash, BlockP, World->PoligonisedBlockCount++);
                             Assert(World->PoligonisedBlockCount < ArrayCount(World->PoligonisedBlocks));
                         }
@@ -579,32 +564,38 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
                             ZeroHash = WriteZeroHash(World, BlockP);
                             World->ZeroBlockCount++;
                         }
+                        
+                        bool32 SameResBlocksLoaded = DidRenderBlocksLoaded(World, SameResBlockPositions, 8);                                
+                        if(SameResBlocksLoaded)
+                        {
+                            // NOTE: Delete bigger block from renderblocks, because lower blocks have loaded
+                            block_hash *BiggerRenderHash = GetHash(World->RenderHash, &BiggerBP);
+                            if(!HashIsEmpty(BiggerRenderHash))
+                            {
+                                DeleteRenderBlock(World, BiggerRenderHash->Index);
+                            }
+                            block_hash *BiggerZeroHash = GetZeroHash(World, &BiggerBP);
+                            if(!HashIsEmpty(BiggerZeroHash))
+                            {
+                                BiggerZeroHash->Index = HASH_DELETED;
+                                World->ZeroBlockCount--;
+                            }
+                        }
                     }
                     else if(BlockP->Resolution < FixedResolution)
                     {   // NOTE: Neighbours not generated, but maybe the block can be mixed rendered, if all
                         // its neighbours inside the its bigger block are generated
                         // If yes, then its bigger block can be deleted, and dont generate it again!
-                        
-                        world_block_pos BiggerBP = GetBiggerResBlockPosition(BlockP);
-                        
-                        // NOTE: Check if same resolution blocks are available
-                        world_block_pos SameResBlockPositions[8];
-                        GetLowerResBlockPositions(SameResBlockPositions, &BiggerBP);
-                        
+                                                
                         bool32 SameResBlocksLoaded = DidDensityBlocksLoaded(World, SameResBlockPositions, 8);
                         
                         if(SameResBlocksLoaded)
-                        {        
-                            if(BiggerBP.Resolution == 4 &&
-                               BiggerBP.BlockX == -1 && BiggerBP.BlockY == 0 && BiggerBP.BlockZ == -1)
-                            {
-                                int Def = 56;
-                            } 
+                        {
                             MaxRenderBlocksToGenerateInFrame--;
                             // NOTE: DensityHash has been checked among neighbours to be valid
                             block_hash *DensityHash = GetHash(World->BlockHash, BlockP);
                             terrain_density_block *DensityBlock = World->DensityBlocks + DensityHash->Index;
-                            // NOTE: Mixed render these blocks
+                            
                             MixedPoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
                                 DensityBlock);
                             
@@ -622,11 +613,6 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
                             SameResBlocksLoaded = DidRenderBlocksLoaded(World, SameResBlockPositions, 8);                                
                             if(SameResBlocksLoaded)
                             {
-                                if(BiggerBP.Resolution == 4 &&
-                                   BiggerBP.BlockX == -1 && BiggerBP.BlockY == 0 && BiggerBP.BlockZ == -1)
-                                {
-                                    int Def = 56;
-                                }
                                 // NOTE: Delete bigger block from renderblocks, because lower blocks have loaded
                                 block_hash *BiggerRenderHash = GetHash(World->RenderHash, &BiggerBP);
                                 if(!HashIsEmpty(BiggerRenderHash))
