@@ -11,9 +11,9 @@ HashIsEmpty(block_hash *BlockHash)
     return Result;
 }
 
-inline uint32 GetHashValue(world_block_pos P)
+inline uint32 GetHashValue(world_block_pos *P)
 {
-    uint32 Result = 5*P.Resolution + 2557*P.BlockX + 151*P.BlockY + 37*P.BlockZ;
+    uint32 Result = 5*P->Resolution + 2557*P->BlockX + 151*P->BlockY + 37*P->BlockZ;
     return Result;
 }
     
@@ -21,7 +21,7 @@ inline uint32 GetHashValue(world_block_pos P)
 // NOTE: This can give back a deleted hash, if it had the same key as this block,
 // and it was already deleted once, and wasn't overwritten since.
 internal block_hash *
-GetHash(block_hash *HashArray, world_block_pos P)
+GetHash(block_hash *HashArray, world_block_pos *P)
 {
     block_hash *Result = 0;
 
@@ -37,10 +37,10 @@ GetHash(block_hash *HashArray, world_block_pos P)
         block_hash *Hash = HashArray + HashIndex;
         
         if(Hash->Index == HASH_UNINITIALIZED || 
-           ((P.BlockX == Hash->Key.BlockX) && 
-            (P.BlockY == Hash->Key.BlockY) && 
-            (P.BlockZ == Hash->Key.BlockZ) && 
-            (P.Resolution == Hash->Key.Resolution)))
+           ((P->BlockX == Hash->Key.BlockX) && 
+            (P->BlockY == Hash->Key.BlockY) && 
+            (P->BlockZ == Hash->Key.BlockZ) && 
+            (P->Resolution == Hash->Key.Resolution)))
         {
             Result = Hash;
             break;
@@ -52,7 +52,7 @@ GetHash(block_hash *HashArray, world_block_pos P)
 }
     
 internal block_hash *
-WriteHash(block_hash *HashArray, world_block_pos P, int32 NewBlockIndex)
+WriteHash(block_hash *HashArray, world_block_pos *P, int32 NewBlockIndex)
 {
     block_hash *Result = 0;
 
@@ -68,10 +68,10 @@ WriteHash(block_hash *HashArray, world_block_pos P, int32 NewBlockIndex)
         block_hash *Hash = HashArray + HashIndex;
         
         if(Hash->Index == HASH_UNINITIALIZED || Hash->Index == HASH_DELETED ||
-           ((P.BlockX == Hash->Key.BlockX) && 
-            (P.BlockY == Hash->Key.BlockY) && 
-            (P.BlockZ == Hash->Key.BlockZ) && 
-            (P.Resolution == Hash->Key.Resolution)))
+           ((P->BlockX == Hash->Key.BlockX) && 
+            (P->BlockY == Hash->Key.BlockY) && 
+            (P->BlockZ == Hash->Key.BlockZ) && 
+            (P->Resolution == Hash->Key.Resolution)))
         {
             Result = Hash;
             break;
@@ -80,22 +80,22 @@ WriteHash(block_hash *HashArray, world_block_pos P, int32 NewBlockIndex)
     Assert(Result);
     Assert(Result->Index == HASH_UNINITIALIZED || Result->Index == HASH_DELETED);
         
-    Result->Key = P;
+    Result->Key = *P;
     Result->Index = NewBlockIndex;
     
     return Result;
 }
 
-inline uint32 GetZeroHashValue(world_block_pos P)
+inline uint32 GetZeroHashValue(world_block_pos *P)
 {
-    uint32 Result = 2579*P.Resolution + 757*P.BlockX + 89*P.BlockY + 5*P.BlockZ;
+    uint32 Result = 2579*P->Resolution + 757*P->BlockX + 89*P->BlockY + 5*P->BlockZ;
     return Result;
 }
 
 // NOTE: This can give back a deleted hash, if it had the same key as this block,
 // and it was already deleted once, and wasn't overwritten since.
 internal block_hash *
-GetZeroHash(world_density *World, world_block_pos P)
+GetZeroHash(world_density *World, world_block_pos *P)
 {
     block_hash *Result = 0;
 
@@ -112,10 +112,10 @@ GetZeroHash(world_density *World, world_block_pos P)
         
         // NOTE: return hash, if its uninited, or it has the position we are looking for
         if(Hash->Index == HASH_UNINITIALIZED || 
-           ((P.BlockX == Hash->Key.BlockX) && 
-            (P.BlockY == Hash->Key.BlockY) && 
-            (P.BlockZ == Hash->Key.BlockZ) && 
-            (P.Resolution == Hash->Key.Resolution)))
+           ((P->BlockX == Hash->Key.BlockX) && 
+            (P->BlockY == Hash->Key.BlockY) && 
+            (P->BlockZ == Hash->Key.BlockZ) && 
+            (P->Resolution == Hash->Key.Resolution)))
         {
             Result = Hash;
             break;
@@ -127,7 +127,7 @@ GetZeroHash(world_density *World, world_block_pos P)
 }
 
 internal block_hash *
-WriteZeroHash(world_density *World, world_block_pos P)
+WriteZeroHash(world_density *World, world_block_pos *P)
 {
     block_hash *Result = 0;
 
@@ -144,10 +144,10 @@ WriteZeroHash(world_density *World, world_block_pos P)
         
         // NOTE: return hash, if its uninited, or it has the position we are looking for
         if(Hash->Index == HASH_UNINITIALIZED || Hash->Index == HASH_DELETED ||
-           ((P.BlockX == Hash->Key.BlockX) && 
-            (P.BlockY == Hash->Key.BlockY) && 
-            (P.BlockZ == Hash->Key.BlockZ) && 
-            (P.Resolution == Hash->Key.Resolution)))
+           ((P->BlockX == Hash->Key.BlockX) && 
+            (P->BlockY == Hash->Key.BlockY) && 
+            (P->BlockZ == Hash->Key.BlockZ) && 
+            (P->Resolution == Hash->Key.Resolution)))
         {
             Result = Hash;
             break;
@@ -156,7 +156,7 @@ WriteZeroHash(world_density *World, world_block_pos P)
     Assert(Result);
     Assert(Result->Index == HASH_UNINITIALIZED || Result->Index == HASH_DELETED);
     
-    Result->Key = P;
+    Result->Key = *P;
     Result->Index = HASH_ZERO_BLOCK;
     
     return Result;
@@ -235,12 +235,12 @@ V3FromWorldPos(world_block_pos Pos)
 // if at rendering we only use every BlockResolution'th value too.
 internal void 
 GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNArray, 
-                    world_block_pos WorldP)
+                    world_block_pos *WorldP)
 {
-    DensityBlock->Pos = WorldP;
-    real32 BlockResolution = (real32)WorldP.Resolution * RENDER_SPACE_UNIT;
+    DensityBlock->Pos = *WorldP;
+    real32 BlockResolution = (real32)WorldP->Resolution * RENDER_SPACE_UNIT;
     
-    v3 BlockPos = V3FromWorldPos(WorldP);
+    v3 BlockPos = V3FromWorldPos(*WorldP);
     
     uint32 TerrainDimension = DensityBlock->Grid.Dimension;
     for(uint32 Plane = 0;
@@ -344,7 +344,7 @@ GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, in
 {
     block_node Node = GetActualBlockNode(BlockP, X, Y, Z);
     
-    block_hash *BlockHash = GetHash(World->BlockHash, Node.BlockP);
+    block_hash *BlockHash = GetHash(World->BlockHash, &Node.BlockP);
     // TODO: What if this block wasnt generated? 
     // maybe create an IsBlockValid(world_block_pos)->bool32 ?
     real32 Result = 0.0f; 
@@ -411,7 +411,7 @@ GetWorldGridValueFromV3(world_density *World, v3 Pos, uint32 Resolution)
 }
 
 internal void
-GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_block_pos CenterBlockP)
+GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_block_pos *CenterBlockP)
 {
     uint32 Index = 0;
     for(int32 DiffX = -1; DiffX < 2; ++DiffX)
@@ -420,7 +420,7 @@ GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_bl
         {
             for(int32 DiffZ = -1; DiffZ < 2; ++DiffZ)
             {
-                world_block_pos NeighbourP = CenterBlockP;
+                world_block_pos NeighbourP = *CenterBlockP;
                 NeighbourP.BlockX += DiffX;
                 NeighbourP.BlockY += DiffY;
                 NeighbourP.BlockZ += DiffZ;
@@ -663,19 +663,18 @@ _PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrai
 internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
 {
-    
     world_block_pos *BlockP = &DensityBlock->Pos;
     
     const uint32 NeighbourCount = 27;
     world_block_pos NeighbourBlockPositions[NeighbourCount];
-    GetNeighbourBlockPositions(NeighbourBlockPositions, *BlockP);
+    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
     terrain_density_block *Neighbours[NeighbourCount];
     
     for(uint32 NeighbourIndex = 0;
         NeighbourIndex < NeighbourCount;
         NeighbourIndex++)
     {
-        world_block_pos NeighbourBlockP = NeighbourBlockPositions[NeighbourIndex];
+        world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
         block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
         Assert(!HashIsEmpty(NeighbourHash));
         Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
@@ -744,19 +743,19 @@ MixedPoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, te
     
     const uint32 NeighbourCount = 27;
     world_block_pos NeighbourBlockPositions[NeighbourCount];
-    GetNeighbourBlockPositions(NeighbourBlockPositions, *BlockP);
+    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
     terrain_density_block *Neighbours[NeighbourCount];
     
     for(uint32 NeighbourIndex = 0;
         NeighbourIndex < NeighbourCount;
         NeighbourIndex++)
     {
-        world_block_pos NeighbourBlockP = NeighbourBlockPositions[NeighbourIndex];
+        world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
         block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
         if(HashIsEmpty(NeighbourHash))
         {
-            world_block_pos BiggerBP = GetBiggerResBlockPosition(&NeighbourBlockP);
-            NeighbourHash = GetHash(World->BlockHash, BiggerBP);
+            world_block_pos BiggerBP = GetBiggerResBlockPosition(NeighbourBlockP);
+            NeighbourHash = GetHash(World->BlockHash, &BiggerBP);
             Assert(!HashIsEmpty(NeighbourHash));
         }
         Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;

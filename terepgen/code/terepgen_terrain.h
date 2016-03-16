@@ -69,10 +69,6 @@ struct world_density
     terrain_density_block DensityBlocks[DENSITY_BLOCK_COUNT];
     uint32 PoligonisedBlockCount;
     terrain_render_block PoligonisedBlocks[RENDER_BLOCK_COUNT];
-    // uint32 PoligonisedBlock1Count;
-    // uint32 PoligonisedBlock2Count;
-    // terrain_render_block PoligonisedBlocks1[RENDER_BLOCK_COUNT];
-    // terrain_render_block PoligonisedBlocks2[RENDER_BLOCK_COUNT];
     
     // NOTE: This must be a power of two for now!
     block_hash BlockHash[BLOCK_HASH_SIZE];
