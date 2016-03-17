@@ -118,6 +118,17 @@ struct win32_clock
     }
 };
 
+internal void 
+CalculateAvarageTime(win32_clock Clock, avarage_time *Avarage)
+{
+    real64 CurrentTime = Clock.GetSecondsElapsed();
+    //win32_printer::Print("poligonise: %f", CurrentTime * 1000.0);
+    real64 LastMeasure = Avarage->MeasureCount;
+    Avarage->MeasureCount += 1.0f;
+    Avarage->AvgTime = 
+        (LastMeasure/Avarage->MeasureCount)*Avarage->AvgTime + (CurrentTime / Avarage->MeasureCount);
+}
+
 inline LARGE_INTEGER
 Win32GetWallClock(void)
 {
@@ -410,11 +421,17 @@ WinMain(HINSTANCE Instance,
                 GameState->Seed = GlobalSeed;
                 GameState->RenderMode = GlobalInput.RenderMode;
                 
-                UpdateGameState(GameState, WorldMouse);
-                RenderGame(GameState, &Camera);
+                UpdateAndRenderGame(GameState, &Camera, WorldMouse);
                 
-                FrameClock.PrintMiliSeconds("Frame time:");
-                win32_printer::Print("---------------------------");
+                // FrameClock.PrintMiliSeconds("Frame time:");
+                // win32_printer::Print("---------------------------");
+                CalculateAvarageTime(FrameClock, &GameState->FrameAvg);
+                if(GameState->FrameAvg.MeasureCount > 50.0f)
+                {
+                    win32_printer::Print("Avg frame time: %f", GameState->FrameAvg.AvgTime * 1000.0);
+                    GameState->FrameAvg.MeasureCount = 0.0f;
+                    GameState->FrameAvg.AvgTime = 0.0f;
+                }
                 FrameClock.Reset();
             }
             

@@ -660,29 +660,6 @@ _PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrai
 #endif
 }
 
-internal void
-PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
-{
-    world_block_pos *BlockP = &DensityBlock->Pos;
-    
-    const uint32 NeighbourCount = 27;
-    world_block_pos NeighbourBlockPositions[NeighbourCount];
-    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
-    terrain_density_block *Neighbours[NeighbourCount];
-    
-    for(uint32 NeighbourIndex = 0;
-        NeighbourIndex < NeighbourCount;
-        NeighbourIndex++)
-    {
-        world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
-        block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
-        Assert(!HashIsEmpty(NeighbourHash));
-        Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
-    }
-    
-    _PoligoniseBlock(World, RenderBlock, DensityBlock, Neighbours);
-}
-
 internal world_block_pos
 GetBiggerResBlockPosition(world_block_pos *BlockP)
 {
@@ -734,6 +711,29 @@ GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos 
     LowerBlockPositions[7].BlockX = BlockP->BlockX * 2 + 1;
     LowerBlockPositions[7].BlockY = BlockP->BlockY * 2 + 1;
     LowerBlockPositions[7].BlockZ = BlockP->BlockZ * 2 + 1;
+}
+
+internal void
+PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
+{
+    world_block_pos *BlockP = &DensityBlock->Pos;
+    
+    const uint32 NeighbourCount = 27;
+    world_block_pos NeighbourBlockPositions[NeighbourCount];
+    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
+    terrain_density_block *Neighbours[NeighbourCount];
+    
+    for(uint32 NeighbourIndex = 0;
+        NeighbourIndex < NeighbourCount;
+        NeighbourIndex++)
+    {
+        world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
+        block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
+        Assert(!HashIsEmpty(NeighbourHash));
+        Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
+    }
+    
+    _PoligoniseBlock(World, RenderBlock, DensityBlock, Neighbours);
 }
 
 internal void

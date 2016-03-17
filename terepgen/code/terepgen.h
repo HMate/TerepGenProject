@@ -57,6 +57,12 @@ struct block_pos_array
     world_block_pos Pos[BLOCK_POS_COUNT];
 };
 
+struct avarage_time
+{
+    real64 AvgTime = 0.0f;
+    real64 MeasureCount = 0.0f;
+};
+
 struct game_state 
 {
     bool32 Initialized;
@@ -79,12 +85,11 @@ struct game_state
     
     cube Cube;
     
-    real64 AvgPoligoniseTime = 0.0f;
-    real64 PoligoniseTimeMeasured = 0.0f;
+    avarage_time AvgPoligoniseTime;
+    avarage_time FrameAvg;
 };
 
-internal void UpdateGameState(game_state, v3);
-internal void RenderGame(game_state *GameState, camera *Camera);
+internal void UpdateAndRenderGame(game_state*, camera*, v3);
 
 #define TEREPGEN_H
 #endif

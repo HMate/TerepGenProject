@@ -220,20 +220,8 @@ DidRenderBlocksLoaded(world_density *World, world_block_pos *Positions, uint32 C
     return Result;
 }
 
-internal void 
-CalcualteAvarageTime(game_state *GameState, win32_clock Clock)
-{
-    real64 CurrentPoligoniseTime = Clock.GetSecondsElapsed();
-    //win32_printer::Print("poligonise: %f", CurrentPoligoniseTime * 1000.0);
-    real64 LastMeasure = GameState->PoligoniseTimeMeasured;
-    GameState->PoligoniseTimeMeasured += 1.0f;
-    GameState->AvgPoligoniseTime = 
-        (LastMeasure/GameState->PoligoniseTimeMeasured)*GameState->AvgPoligoniseTime + 
-        (CurrentPoligoniseTime / GameState->PoligoniseTimeMeasured);
-}
-
 internal void
-UpdateGameState(game_state *GameState, v3 WorldMousePos)
+UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
 {
     const uint32 ResolutionCount = 2;
     const uint32 FixedResolution = 4;
@@ -505,7 +493,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
     // If a mix rendered blocks neigbours are done generating their lower blocks, then they can be generated normally
     
     // When generated a density, just tell it to the neighbours, to rerender themselves
-    
+
     win32_clock AvgClock;
     for(uint32 ResolutionIndex = 0;
         ResolutionIndex < ResolutionCount;
@@ -522,7 +510,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
             // NOTE: This can give back a deleted hash, if it had the same key as this block,
             // and it was already deleted once, and wasn't overwritten since.
             if(HashIsEmpty(ZeroHash) && HashIsEmpty(RenderHash))
-            {                  
+            {
                 // NOTE: Check if lower resolution blocks are available
                 world_block_pos LowerBlockPositions[8];
                 GetLowerResBlockPositions(LowerBlockPositions, BlockP);
@@ -552,7 +540,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
                         AvgClock.Reset();
                         PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
                             DensityBlock);
-                        CalcualteAvarageTime(GameState, AvgClock);
+                        CalculateAvarageTime(AvgClock, &GameState->AvgPoligoniseTime);
                         
                         if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
                         {
@@ -586,7 +574,7 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
                     {   // NOTE: Neighbours not generated, but maybe the block can be mixed rendered, if all
                         // its neighbours inside the its bigger block are generated
                         // If yes, then its bigger block can be deleted, and dont generate it again!
-                                                
+                        
                         bool32 SameResBlocksLoaded = DidDensityBlocksLoaded(World, SameResBlockPositions, 8);
                         
                         if(SameResBlocksLoaded)
@@ -632,28 +620,9 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
             }
         }
     }
+    
     real64 TimeGenerateRender = Clock.GetSecondsElapsed();
     Clock.Reset();
-    
-#if TEREPGEN_DEBUG
-    for(uint32 DebugIndex = 0;
-        DebugIndex < World->PoligonisedBlockCount;
-        DebugIndex++)
-    {
-        uint32 DebCounter = 0;
-        for(uint32 DebugIndex2 = 0;
-            DebugIndex2 < World->PoligonisedBlockCount;
-            DebugIndex2++)
-        {
-            terrain_render_block *Block1 = World->PoligonisedBlocks + DebugIndex;
-            terrain_render_block *Block2 = World->PoligonisedBlocks + DebugIndex2;
-            bool32 Equ = (Block1->Pos == Block2->Pos) && (Block1->Resolution == Block2->Resolution);
-            if(Equ)
-                DebCounter++;
-        }
-        Assert(DebCounter < 2);
-    }
-#endif
     
     GameState->RenderBlockCount = 0;
     for(uint32 ResolutionIndex = 0;
@@ -680,19 +649,12 @@ UpdateGameState(game_state *GameState, v3 WorldMousePos)
     }
     real64 TimeAddToRender = Clock.GetSecondsElapsed();
     
-    // win32_printer::Print("Avg poligonise: %f", GameState->AvgPoligoniseTime * 1000.0);
+    //
+    // RENDER
+    //
     
-    win32_printer::Print("Generate density time: %f", TimeGenerateDensity * 1000.0);
-    win32_printer::Print("Right click time: %f", TimeRightClick * 1000.0);
-    win32_printer::Print("Generate render: %f", TimeGenerateRender * 1000.0);
-    win32_printer::Print("Add to render time: %f", TimeAddToRender * 1000.0);
+    Clock.Reset();
     
-}
-
-internal void
-RenderGame(game_state *GameState, camera *Camera)
-{
-    win32_clock RenderClock;
     dx_resource *DXResources = GameState->DXResources;
     DXResources->LoadResource(Camera->SceneConstantBuffer,
                   &Camera->SceneConstants, sizeof(Camera->SceneConstants));
@@ -771,5 +733,25 @@ RenderGame(game_state *GameState, camera *Camera)
     DXResources->SetTransformations(v3{});
     
     DXResources->SwapChain->Present(0, 0);
-    RenderClock.PrintMiliSeconds("Render time:");
+    
+    
+    real64 TimeToRender = Clock.GetSecondsElapsed();
+    
+    
+    // win32_printer::Print("Avg poligonise: %f", GameState->AvgPoligoniseTime * 1000.0);
+    
+    // win32_printer::Print("Generate density time: %f", TimeGenerateDensity * 1000.0);
+    // win32_printer::Print("Right click time: %f", TimeRightClick * 1000.0);
+    // win32_printer::Print("Generate render: %f", TimeGenerateRender * 1000.0);
+    // win32_printer::Print("Add to render time: %f", TimeAddToRender * 1000.0);
+    // win32_printer::Print("Render time: %f", TimeToRender * 1000.0);
+    
 }
+
+
+
+
+
+
+
+
