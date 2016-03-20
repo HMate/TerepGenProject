@@ -156,9 +156,9 @@ DeleteRenderBlock(world_density *World, int32 StoreIndex)
     
     block_hash *RemovedHash = GetHash(World->RenderHash, &BlockP);
     Assert(StoreIndex == RemovedHash->Index);
-    Assert(RemovedHash->Index != HASH_UNINITIALIZED && RemovedHash->Index != HASH_DELETED);
+    Assert(!HashIsEmpty(RemovedHash));
     block_hash *LastHash = GetHash(World->RenderHash, &LastP);
-    Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
+    Assert(!HashIsEmpty(LastHash));
     
     LastHash->Index = StoreIndex;
     RemovedHash->Index = HASH_DELETED;
@@ -284,11 +284,10 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
                 terrain_density_block *Last = World->DensityBlocks + (--World->DensityBlockCount);
                 world_block_pos *LastP = &Last->Pos;
                 
-                // NOTE: This is from stored blocks, so it cant be a zero block!
                 block_hash *RemovedHash = GetHash(World->BlockHash, BlockP);
-                Assert(RemovedHash->Index != HASH_UNINITIALIZED && RemovedHash->Index != HASH_DELETED);
+                Assert(!HashIsEmpty(RemovedHash));
                 block_hash *LastHash = GetHash(World->BlockHash, LastP);
-                Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
+                Assert(!HashIsEmpty(LastHash));
                 
                 LastHash->Index = StoreIndex;
                 RemovedHash->Index = HASH_DELETED;
@@ -599,15 +598,16 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
             if(HashIsEmpty(ZeroHash) && HashIsEmpty(RenderHash))
             {
                 // NOTE: Check if lower resolution blocks are available
-                world_block_pos LowerBlockPositions[8];
+                const uint32 SameResBlockCount = 8;
+                world_block_pos LowerBlockPositions[SameResBlockCount];
                 GetLowerResBlockPositions(LowerBlockPositions, BlockP);
                 
-                bool32 LowerBlocksLoaded = DidDensityBlocksLoaded(World, LowerBlockPositions, 8);
+                bool32 LowerBlocksLoaded = DidDensityBlocksLoaded(World, LowerBlockPositions, SameResBlockCount);
                 bool32 LowerBlocksAreInRange = true;
                 if(LowerBlocksLoaded)
                 {
                     for(uint32 PosIndex = 0;
-                        (PosIndex < 8) && LowerBlocksAreInRange;
+                        (PosIndex < SameResBlockCount) && LowerBlocksAreInRange;
                         ++PosIndex)
                     {
                         Assert(ResolutionIndex < ResolutionCount-1);
@@ -634,14 +634,14 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
                 {
                     world_block_pos BiggerBP = GetBiggerResBlockPosition(BlockP);
                     // NOTE: Check if same resolution blocks are available
-                    world_block_pos SameResBlockPositions[8];
+                    world_block_pos SameResBlockPositions[SameResBlockCount];
                     GetLowerResBlockPositions(SameResBlockPositions, &BiggerBP);
                     
                     // NOTE: Neighbours include this block too
                     const uint32 NeighbourCount = 27;
                     world_block_pos NeighbourBlockPositions[NeighbourCount];
                     GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
-                    bool32 NeighboursGenerated = DidDensityBlocksLoaded(World, NeighbourBlockPositions, 27);
+                    bool32 NeighboursGenerated = DidDensityBlocksLoaded(World, NeighbourBlockPositions, NeighbourCount);
                     
                     if(NeighboursGenerated)
                     {
@@ -669,7 +669,7 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
                             World->ZeroBlockCount++;
                         }
                         
-                        bool32 SameResBlocksLoaded = DidRenderBlocksLoaded(World, SameResBlockPositions, 8);                                
+                        bool32 SameResBlocksLoaded = DidRenderBlocksLoaded(World, SameResBlockPositions, SameResBlockCount);                                
                         if(SameResBlocksLoaded)
                         {
                             // NOTE: Delete bigger block from renderblocks, because lower blocks have loaded
@@ -694,6 +694,11 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
     real64 TimeGenerateRender = Clock.GetSecondsElapsed();
     Clock.Reset();
     
+    // TODO: Only render those renderblocks, that are continous with their neighbours
+    // Consistnet render blocks? - how to find them?
+    // it could happen, that a density have been loaded, and its neighbours too,
+    // but a neghbour's neghbour havent loaded yet, so the neghbours render block is not generated,
+    // but our first blocks render block is complete with its future geometry -> for now its uncompatible
     GameState->RenderBlockCount = 0;
     for(uint32 ResolutionIndex = 0;
         ResolutionIndex < ResolutionCount;
@@ -709,8 +714,32 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
             if(HashIsEmpty(ZeroHash))
             {
                 block_hash *Hash = GetHash(World->RenderHash, BlockP);
-                
-                if(!HashIsEmpty(Hash))
+                const uint32 NeighbourCount = 27;
+                world_block_pos NeighbourBlockPositions[NeighbourCount];
+                GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
+                bool32 NeighboursGenerated = true;
+                //DidRenderBlocksLoaded(World, NeighbourBlockPositions, NeighbourCount);
+                for(uint32 NeighbourIndex = 0;
+                    NeighbourIndex < NeighbourCount;
+                    NeighbourIndex++)
+                {
+                    world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
+                    block_hash *NeighbourHash = GetHash(World->RenderHash, NeighbourBlockP);
+                    block_hash *NeighbourZeroHash = GetZeroHash(World, NeighbourBlockP);
+                    // NOTE: If a neghbour isn't loaded on the smae res, we just
+                    if(HashIsEmpty(NeighbourHash) && HashIsEmpty(NeighbourZeroHash))
+                    {
+                        world_block_pos BiggerBP = GetBiggerResBlockPosition(NeighbourBlockP);
+                        NeighbourHash = GetHash(World->RenderHash, &BiggerBP);
+                        NeighbourZeroHash = GetZeroHash(World, &BiggerBP);
+                        if(HashIsEmpty(NeighbourHash) && HashIsEmpty(NeighbourZeroHash))
+                        {
+                            NeighboursGenerated = false;
+                        }
+                    }
+                }
+                // TODO: Check neighbours somehow!!
+                if(!HashIsEmpty(Hash) && (ResolutionIndex == 0 || NeighboursGenerated))
                 {
                     AddToRenderBlocks(GameState, World->PoligonisedBlocks + Hash->Index);
                 }
