@@ -222,9 +222,18 @@ DidRenderBlocksLoaded(world_density *World, world_block_pos *Positions, uint32 C
 }
 
 internal uint32
-GetResolutionIndex()
+GetResolutionIndex(uint32 Resolution)
 {
-    return 0;
+    uint32 Result;
+    if(Resolution==4)
+    {
+        Result = 0;
+    }
+    else
+    {
+        Result = 2;
+    }
+    return Result;
 }
 
 internal void
@@ -260,7 +269,6 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
     // NOTE: Delete blocks that are too far from the camera
     //
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
-    // TODO: Delete from other resolutions too!
     if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) * 7 / 8))
     {
         int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
@@ -270,7 +278,8 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
         {
             terrain_density_block *Block = World->DensityBlocks + StoreIndex;
             world_block_pos *BlockP = &Block->Pos;
-            if(DoRectangleContains(WorldCameraP, LoadSpaceRadius, BlockP))
+            uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
+            if(DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, BlockP))
             {
                 terrain_density_block *Last = World->DensityBlocks + (--World->DensityBlockCount);
                 world_block_pos *LastP = &Last->Pos;
@@ -303,7 +312,8 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
         {
             terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
             world_block_pos BlockP = WorldPosFromV3(Block->Pos, FixedResolution[0]);
-            if(DoRectangleContains(WorldCameraP, LoadSpaceRadius, &BlockP))
+            uint32 ResIndex = GetResolutionIndex(BlockP.Resolution);
+            if(DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, &BlockP))
             {
                 DeleteRenderBlock(World, StoreIndex);
             }
@@ -332,8 +342,9 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
         {
             block_hash *Entry = NewZeroHash + ZeroIndex;
             world_block_pos *ZeroP = &Entry->Key;
+            uint32 ResIndex = GetResolutionIndex(ZeroP->Resolution);
             if((Entry->Index == HASH_ZERO_BLOCK) && 
-               DoRectangleContains(WorldCameraP, ZeroSpaceRadius, ZeroP))
+               DoRectangleContains(WorldCameraP + ResIndex, ZeroSpaceRadius, ZeroP))
             {
                 block_hash *ZeroHash = WriteZeroHash(World, ZeroP);
                 World->ZeroBlockCount++;
