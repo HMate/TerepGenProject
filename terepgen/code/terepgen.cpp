@@ -220,12 +220,17 @@ DidRenderBlocksLoaded(world_density *World, world_block_pos *Positions, uint32 C
     return Result;
 }
 
+internal uint32
+GetResolutionIndex()
+{
+    return 0;
+}
+
 internal void
 UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
 {
     const uint32 ResolutionCount = 2;
-    const uint32 FixedResolution = 4;
-    const uint32 FixedResolution2 = FixedResolution / 2;
+    const uint32 FixedResolution[ResolutionCount] = {4, 2};
 
     world_density *World = &GameState->WorldDensity;
     if(GameState->Initialized == false)
@@ -242,8 +247,8 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
     
     v3 CameraP = GameState->CameraPos;
     world_block_pos WorldCameraP[ResolutionCount] = {
-        WorldPosFromV3(CameraP, FixedResolution),
-        WorldPosFromV3(CameraP, FixedResolution2)
+        WorldPosFromV3(CameraP, FixedResolution[0]),
+        WorldPosFromV3(CameraP, FixedResolution[1])
     };
     block_pos_array BlockPositionStore[ResolutionCount];
     CalculateBlockPositions(BlockPositionStore, WorldCameraP, RENDERED_BLOCK_RADIUS);
@@ -296,7 +301,7 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
             ++StoreIndex)
         {
             terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
-            world_block_pos BlockP = WorldPosFromV3(Block->Pos, FixedResolution);
+            world_block_pos BlockP = WorldPosFromV3(Block->Pos, FixedResolution[0]);
             if(DoRectangleContains(WorldCameraP, LoadSpaceRadius, &BlockP))
             {
                 DeleteRenderBlock(World, StoreIndex);
@@ -500,11 +505,11 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
         ResolutionIndex++)
     {
         block_pos_array *BlockPositions = BlockPositionStore + ResolutionIndex;
-        for(size_t PosIndex = 0; 
-            (PosIndex < BlockPositions->Count) && (MaxRenderBlocksToGenerateInFrame > 0) ;
-            ++PosIndex)
+        for(size_t BlockPosIndex = 0; 
+            (BlockPosIndex < BlockPositions->Count) && (MaxRenderBlocksToGenerateInFrame > 0) ;
+            ++BlockPosIndex)
         {
-            world_block_pos *BlockP = BlockPositions->Pos + PosIndex;
+            world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;
             block_hash *ZeroHash = GetZeroHash(World, BlockP);
             block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
             // NOTE: This can give back a deleted hash, if it had the same key as this block,
@@ -516,7 +521,36 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
                 GetLowerResBlockPositions(LowerBlockPositions, BlockP);
                 
                 bool32 LowerBlocksLoaded = DidDensityBlocksLoaded(World, LowerBlockPositions, 8);
-                if(!LowerBlocksLoaded)
+                bool32 LowerBlocksAreInRange = true;
+                if(LowerBlocksLoaded)
+                {
+                    for(uint32 PosIndex = 0;
+                        (PosIndex < 8) && LowerBlocksAreInRange;
+                        ++PosIndex)
+                    {
+                        Assert(ResolutionIndex < ResolutionCount-1);
+                        block_pos_array *LowerBlockPosArray = BlockPositionStore + ResolutionIndex + 1;
+                        world_block_pos *P = LowerBlockPositions + PosIndex;
+                        bool32 IsInRange = false;
+                        for(uint32 LowerBlockIndex = 0;
+                            LowerBlockIndex < LowerBlockPosArray->Count;
+                            LowerBlockIndex++)
+                        {
+                            world_block_pos *LP = LowerBlockPosArray->Pos + LowerBlockIndex;
+                            if(LP->BlockX == P->BlockX && 
+                               LP->BlockY == P->BlockY && 
+                               LP->BlockZ == P->BlockZ)
+                            {
+                                IsInRange = true;
+                            }
+                        }
+                        if(!IsInRange)
+                        {
+                            LowerBlocksAreInRange = false;
+                        }
+                    }
+                }
+                if(!(LowerBlocksLoaded && LowerBlocksAreInRange))
                 {
                     world_block_pos BiggerBP = GetBiggerResBlockPosition(BlockP);
                     // NOTE: Check if same resolution blocks are available
@@ -532,15 +566,17 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
                     if(NeighboursGenerated)
                     {
                         // NOTE: Initialize block
-                        MaxRenderBlocksToGenerateInFrame--;
                         // NOTE: DensityHash has been checked among neighbours to be valid
                         block_hash *DensityHash = GetHash(World->BlockHash, BlockP);
+                        Assert(!HashIsEmpty(DensityHash));
                         terrain_density_block *DensityBlock = World->DensityBlocks + DensityHash->Index;
                         
                         AvgClock.Reset();
                         PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
                             DensityBlock);
                         CalculateAvarageTime(AvgClock, &GameState->AvgPoligoniseTime);
+                        
+                        MaxRenderBlocksToGenerateInFrame--;
                         
                         if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
                         {
@@ -567,52 +603,6 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
                             {
                                 BiggerZeroHash->Index = HASH_DELETED;
                                 World->ZeroBlockCount--;
-                            }
-                        }
-                    }
-                    else if(BlockP->Resolution < FixedResolution)
-                    {   // NOTE: Neighbours not generated, but maybe the block can be mixed rendered, if all
-                        // its neighbours inside the its bigger block are generated
-                        // If yes, then its bigger block can be deleted, and dont generate it again!
-                        
-                        bool32 SameResBlocksLoaded = DidDensityBlocksLoaded(World, SameResBlockPositions, 8);
-                        
-                        if(SameResBlocksLoaded)
-                        {
-                            MaxRenderBlocksToGenerateInFrame--;
-                            // NOTE: DensityHash has been checked among neighbours to be valid
-                            block_hash *DensityHash = GetHash(World->BlockHash, BlockP);
-                            terrain_density_block *DensityBlock = World->DensityBlocks + DensityHash->Index;
-                            
-                            MixedPoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
-                                DensityBlock);
-                            
-                            if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
-                            {
-                                RenderHash = WriteHash(World->RenderHash, BlockP, World->PoligonisedBlockCount++);
-                                Assert(World->PoligonisedBlockCount < ArrayCount(World->PoligonisedBlocks));
-                            }
-                            else
-                            {
-                                ZeroHash = WriteZeroHash(World, BlockP);
-                                World->ZeroBlockCount++;
-                            }
-                            
-                            SameResBlocksLoaded = DidRenderBlocksLoaded(World, SameResBlockPositions, 8);                                
-                            if(SameResBlocksLoaded)
-                            {
-                                // NOTE: Delete bigger block from renderblocks, because lower blocks have loaded
-                                block_hash *BiggerRenderHash = GetHash(World->RenderHash, &BiggerBP);
-                                if(!HashIsEmpty(BiggerRenderHash))
-                                {
-                                    DeleteRenderBlock(World, BiggerRenderHash->Index);
-                                }
-                                block_hash *BiggerZeroHash = GetZeroHash(World, &BiggerBP);
-                                if(!HashIsEmpty(BiggerZeroHash))
-                                {
-                                    BiggerZeroHash->Index = HASH_DELETED;
-                                    World->ZeroBlockCount--;
-                                }
                             }
                         }
                     }

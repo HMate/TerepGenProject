@@ -729,29 +729,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain
     {
         world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
         block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
-        Assert(!HashIsEmpty(NeighbourHash));
-        Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
-    }
-    
-    _PoligoniseBlock(World, RenderBlock, DensityBlock, Neighbours);
-}
-
-internal void
-MixedPoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
-{
-    world_block_pos *BlockP = &DensityBlock->Pos;
-    
-    const uint32 NeighbourCount = 27;
-    world_block_pos NeighbourBlockPositions[NeighbourCount];
-    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
-    terrain_density_block *Neighbours[NeighbourCount];
-    
-    for(uint32 NeighbourIndex = 0;
-        NeighbourIndex < NeighbourCount;
-        NeighbourIndex++)
-    {
-        world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
-        block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
+        // NOTE: If a neghbour isn't loaded on the smae res, we just
         if(HashIsEmpty(NeighbourHash))
         {
             world_block_pos BiggerBP = GetBiggerResBlockPosition(NeighbourBlockP);
