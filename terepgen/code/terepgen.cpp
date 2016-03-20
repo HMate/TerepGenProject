@@ -155,6 +155,7 @@ DeleteRenderBlock(world_density *World, int32 StoreIndex)
     world_block_pos LastP = WorldPosFromV3(Last->Pos, Last->Resolution);
     
     block_hash *RemovedHash = GetHash(World->RenderHash, &BlockP);
+    Assert(StoreIndex == RemovedHash->Index);
     Assert(RemovedHash->Index != HASH_UNINITIALIZED && RemovedHash->Index != HASH_DELETED);
     block_hash *LastHash = GetHash(World->RenderHash, &LastP);
     Assert(LastHash->Index != HASH_UNINITIALIZED && LastHash->Index != HASH_DELETED);
@@ -342,6 +343,10 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
     //real64 DeleteZeroTime = Clock.GetSecondsElapsed();
     Clock.Reset();
     
+    const uint32 BlockRerenderMaxCount = 1000;
+    world_block_pos *BlocksToRerender[BlockRerenderMaxCount];
+    uint32 RerenderCount = 0;
+    
     // NOTE: Generate density blocks
     uint32 MaxBlocksToGenerateInFrame = 3;
     for(uint32 ResolutionIndex = 0;
@@ -369,7 +374,7 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
                 BlockHash = WriteHash(World->BlockHash, BlockP, World->DensityBlockCount++);
                 Assert(World->DensityBlockCount < ArrayCount(World->DensityBlocks));
                 
-                // NOTE: Delete neighbouring render blocks
+                // NOTE: delete old render blocks, and mark them for rerender.
                 const uint32 NeighbourCount = 27;
                 world_block_pos NeighbourBlockPositions[NeighbourCount];
                 GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
@@ -380,21 +385,22 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
                 {
                     world_block_pos *NeighbourBP = NeighbourBlockPositions + NeighbourIndex;
                     block_hash *NRenderHash = GetHash(World->RenderHash, NeighbourBP);
+                    block_hash *NZeroHash = GetZeroHash(World, NeighbourBP);
                     if(!HashIsEmpty(NRenderHash))
                     {
                         DeleteRenderBlock(World, NRenderHash->Index);
+                        BlocksToRerender[RerenderCount++] = NeighbourBP;
                     }
-                    block_hash *NZeroHash = GetZeroHash(World, NeighbourBP);
                     if(!HashIsEmpty(NZeroHash))
                     {
                         NZeroHash->Index = HASH_DELETED;
                         World->ZeroBlockCount--;
+                        BlocksToRerender[RerenderCount++] = NeighbourBP;
                     }
                 }
             }
         }
     }
-    
     real64 TimeGenerateDensity = Clock.GetSecondsElapsed();
     Clock.Reset();
     
@@ -499,7 +505,72 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
     
     // When generated a density, just tell it to the neighbours, to rerender themselves
 
+    for(uint32 RerenderIndex = 0;
+        RerenderIndex < RerenderCount;
+        RerenderIndex++)
+    {
+        world_block_pos *BlockP = BlocksToRerender[RerenderIndex];
+        for(uint32 RerenderInnerIndex = 0;
+            RerenderInnerIndex < RerenderCount;
+            RerenderInnerIndex++)
+        {
+            if(RerenderIndex == RerenderInnerIndex) 
+            {
+                continue;
+            }
+            world_block_pos *InnerBlockP = BlocksToRerender[RerenderInnerIndex];
+            if(WorldPosEquals(BlockP, InnerBlockP))
+            {
+                world_block_pos *LastP = BlocksToRerender[--RerenderCount];
+                BlocksToRerender[RerenderInnerIndex] = LastP;
+                --RerenderInnerIndex;
+            }
+        }
+    }
+    
     win32_clock AvgClock;
+    // NOTE: These blocks have been rendered once, but now they have to be generated again
+    for(uint32 RerenderIndex = 0;
+        RerenderIndex < RerenderCount;
+        RerenderIndex++)
+    {
+        world_block_pos *BlockP = BlocksToRerender[RerenderIndex];
+        
+        Assert(HashIsEmpty(GetHash(World->RenderHash, BlockP)));
+        Assert(HashIsEmpty(GetZeroHash(World, BlockP)));
+        
+        // NOTE: Neighbours include this block too
+        const uint32 NeighbourCount = 27;
+        world_block_pos NeighbourBlockPositions[NeighbourCount];
+        GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
+        bool32 NeighboursGenerated = DidDensityBlocksLoaded(World, NeighbourBlockPositions, 27);
+        
+        if(NeighboursGenerated)
+        {
+            block_hash *DensityHash = GetHash(World->BlockHash, BlockP);
+            Assert(!HashIsEmpty(DensityHash));
+            terrain_density_block *DensityBlock = World->DensityBlocks + DensityHash->Index;
+            
+            AvgClock.Reset();
+            PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, 
+                DensityBlock);
+            CalculateAvarageTime(AvgClock, &GameState->AvgPoligoniseTime);
+            
+            MaxRenderBlocksToGenerateInFrame--;
+            
+            if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
+            {
+                block_hash *RenderHash = WriteHash(World->RenderHash, BlockP, World->PoligonisedBlockCount++);
+                Assert(World->PoligonisedBlockCount < ArrayCount(World->PoligonisedBlocks));
+            }
+            else
+            {
+                block_hash *ZeroHash = WriteZeroHash(World, BlockP);
+                World->ZeroBlockCount++;
+            }
+        }
+    }
+    
     for(uint32 ResolutionIndex = 0;
         ResolutionIndex < ResolutionCount;
         ResolutionIndex++)
@@ -537,9 +608,7 @@ UpdateAndRenderGame(game_state *GameState, camera *Camera, v3 WorldMousePos)
                             LowerBlockIndex++)
                         {
                             world_block_pos *LP = LowerBlockPosArray->Pos + LowerBlockIndex;
-                            if(LP->BlockX == P->BlockX && 
-                               LP->BlockY == P->BlockY && 
-                               LP->BlockZ == P->BlockZ)
+                            if(WorldPosEquals(P, LP))
                             {
                                 IsInRange = true;
                             }

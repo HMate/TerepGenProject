@@ -3,6 +3,15 @@
 
 */
 
+bool32 WorldPosEquals(world_block_pos *A, world_block_pos *B)
+{
+    bool32 Result = (A->BlockX == B->BlockX) && 
+                    (A->BlockY == B->BlockY) && 
+                    (A->BlockZ == B->BlockZ) && 
+                    (A->Resolution == B->Resolution);
+    return Result;
+}
+
 inline bool32
 HashIsEmpty(block_hash *BlockHash)
 {
@@ -37,10 +46,7 @@ GetHash(block_hash *HashArray, world_block_pos *P)
         block_hash *Hash = HashArray + HashIndex;
         
         if(Hash->Index == HASH_UNINITIALIZED || 
-           ((P->BlockX == Hash->Key.BlockX) && 
-            (P->BlockY == Hash->Key.BlockY) && 
-            (P->BlockZ == Hash->Key.BlockZ) && 
-            (P->Resolution == Hash->Key.Resolution)))
+           WorldPosEquals(P, &Hash->Key))
         {
             Result = Hash;
             break;
@@ -68,10 +74,7 @@ WriteHash(block_hash *HashArray, world_block_pos *P, int32 NewBlockIndex)
         block_hash *Hash = HashArray + HashIndex;
         
         if(Hash->Index == HASH_UNINITIALIZED || Hash->Index == HASH_DELETED ||
-           ((P->BlockX == Hash->Key.BlockX) && 
-            (P->BlockY == Hash->Key.BlockY) && 
-            (P->BlockZ == Hash->Key.BlockZ) && 
-            (P->Resolution == Hash->Key.Resolution)))
+           WorldPosEquals(P, &Hash->Key))
         {
             Result = Hash;
             break;
@@ -111,11 +114,7 @@ GetZeroHash(world_density *World, world_block_pos *P)
         block_hash *Hash = World->ZeroHash + HashIndex;
         
         // NOTE: return hash, if its uninited, or it has the position we are looking for
-        if(Hash->Index == HASH_UNINITIALIZED || 
-           ((P->BlockX == Hash->Key.BlockX) && 
-            (P->BlockY == Hash->Key.BlockY) && 
-            (P->BlockZ == Hash->Key.BlockZ) && 
-            (P->Resolution == Hash->Key.Resolution)))
+        if(Hash->Index == HASH_UNINITIALIZED || WorldPosEquals(P, &Hash->Key))
         {
             Result = Hash;
             break;
@@ -144,10 +143,7 @@ WriteZeroHash(world_density *World, world_block_pos *P)
         
         // NOTE: return hash, if its uninited, or it has the position we are looking for
         if(Hash->Index == HASH_UNINITIALIZED || Hash->Index == HASH_DELETED ||
-           ((P->BlockX == Hash->Key.BlockX) && 
-            (P->BlockY == Hash->Key.BlockY) && 
-            (P->BlockZ == Hash->Key.BlockZ) && 
-            (P->Resolution == Hash->Key.Resolution)))
+           WorldPosEquals(P, &Hash->Key))
         {
             Result = Hash;
             break;
@@ -168,8 +164,6 @@ InitBlockHash(world_density *World)
     // TODO: Does zeroing out stored block count belong here?
     World->DensityBlockCount = 0;
     World->PoligonisedBlockCount = 0;
-    // GameState->PoligonisedBlock2Count = 0;
-    // GameState->PoligonisedBlock4Count = 0;
     World->DeletedDensityBlockCount = 0;
     World->DeletedRenderBlockCount = 0;
     
