@@ -46,7 +46,7 @@ struct screen_info
     int32 Height;
 };
 
-struct input
+struct game_input
 {
     bool32 MoveLeft;
     bool32 MoveRight;
@@ -59,11 +59,39 @@ struct input
     
     uint32 RenderMode;
     
+    bool32 MouseLeftButton;
+    bool32 MouseRightButton;
+    
     int32 MouseX;
     int32 MouseY;
     int32 OldMouseX;
     int32 OldMouseY;
 };
+
+internal game_input 
+DefaultGameInput()
+{
+    game_input Result;
+    Result.MoveLeft = false;
+    Result.MoveRight = false;
+    Result.MoveForward = false;
+    Result.MoveBack = false;
+    Result.MoveUp = false;
+    Result.MoveDown = false;
+    Result.SpeedUp = false;
+    Result.SpeedDown = false;
+    
+    Result.RenderMode = 0;
+    
+    Result.MouseLeftButton = false;
+    Result.MouseRightButton = false;
+    
+    Result.MouseX = 0;
+    Result.MouseY = 0;
+    Result.OldMouseX = 0;
+    Result.OldMouseY = 0;
+    return Result;
+}
 
 inline int32
 Abs(int32 Val)

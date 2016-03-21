@@ -103,13 +103,14 @@ struct camera
     ID3D11Buffer *SceneConstantBuffer;
     scene_constants SceneConstants;
     
+    // NOTE: Camera pos is the screen rectangles position in renderspace
     v3 GetPos();
     v3 GetLookDirection();
     v3 GetUpDirection();
     void Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 ScreenHeight, real32 CamSpeed);
     void Release();
     
-    void Update(input *Input, real64 TimeDelta);
+    void Update(game_input *Input, real64 TimeDelta);
     void Resize(uint32 ScreenWidth, uint32 ScreenHeight);
 };
 

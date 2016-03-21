@@ -69,8 +69,8 @@ struct game_state
     dx_resource *DXResources;
     uint32 Seed;
     
-    // NOTE: Camera pos is the screen rectangles position in renderspace
-    v3 CameraPos;
+    real64 dtForFrame;
+    
     v3 CameraDir;
     // NOTE: Camera origo is from where the origin of the camera ray casts that hit the screen
     v3 CameraOrigo;
@@ -89,7 +89,7 @@ struct game_state
     avarage_time FrameAvg;
 };
 
-internal void UpdateAndRenderGame(game_state*, camera*, v3);
+internal void UpdateAndRenderGame(game_state*, game_input*, camera*, screen_info);
 
 #define TEREPGEN_H
 #endif

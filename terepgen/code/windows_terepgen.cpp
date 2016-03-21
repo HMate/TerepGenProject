@@ -17,12 +17,7 @@
 #include "terepgen.h"
 
 global_variable bool32 GlobalRunning = true;
-global_variable input GlobalInput;
 global_variable bool32 Resize;
-global_variable bool32 DrawTerrain1;   
-global_variable bool32 DrawTerrain2;   
-global_variable uint32 GlobalSeed;  
-global_variable real32 Persistence;
 global_variable LARGE_INTEGER GlobalPerfCountFrequency;  
 
 struct win32_printer
@@ -30,17 +25,37 @@ struct win32_printer
     static void Print(char *Text)
     {
         char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+        sprintf_s(DebugBuffer, "[TEREPGEN] %s\n", Text);
         OutputDebugStringA(DebugBuffer);
     }
     
     static void Print(char *Text, real64 Arg1)
     {
         char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+        sprintf_s(DebugBuffer, "[TEREPGEN] %s\n", Text);
         char DebugBuffer2[256];
         sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
         OutputDebugStringA(DebugBuffer2);
+    }
+    
+    static void Print(char *Text, uint32 Arg1)
+    {
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN] %s\n", Text);
+        char DebugBuffer2[256];
+        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+        OutputDebugStringA(DebugBuffer2);
+    }
+    
+    static void PerfPrint(char *Text, real64 Arg1)
+    {
+#if TEREPGEN_PERF
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s\n", Text);
+        char DebugBuffer2[256];
+        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+        OutputDebugStringA(DebugBuffer2);
+#endif
     }
     
     static void DebugPrint(char *Text)
@@ -52,7 +67,29 @@ struct win32_printer
 #endif
     }
     
+    static void DebugPrint(char *Text, char *Arg1)
+    {
+#if TEREPGEN_DEBUG
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+        char DebugBuffer2[256];
+        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+        OutputDebugStringA(DebugBuffer2);
+#endif
+    }
+    
     static void DebugPrint(char *Text, uint32 Arg1)
+    {
+#if TEREPGEN_DEBUG
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+        char DebugBuffer2[256];
+        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+        OutputDebugStringA(DebugBuffer2);
+#endif
+    }
+    
+    static void DebugPrint(char *Text, real32 Arg1)
     {
 #if TEREPGEN_DEBUG
         char DebugBuffer[256];
@@ -173,109 +210,27 @@ WindowProc(HWND Window,
     {
         case WM_DESTROY:
         {
-#if TEREPGEN_DEBUG
-        OutputDebugStringA("[TEREPGEN_DEBUG] message arrived: WM_DESTROY \n");
-#endif    
+            win32_printer::DebugPrint("message arrived: WM_DESTROY");
             GlobalRunning = false;
         } break;
 
         case WM_CLOSE:
         {
-            //TODO: Handle with message to the user?
-#if TEREPGEN_DEBUG
-        OutputDebugStringA("[TEREPGEN_DEBUG] message arrived: WM_CLOSE \n");
-#endif        
+            win32_printer::DebugPrint("message arrived: WM_CLOSE");
             GlobalRunning = false;
         } break;
         
         case WM_SIZE:
         {
-#if TEREPGEN_DEBUG
-        OutputDebugStringA("[TEREPGEN_DEBUG] message arrived: WM_SIZE \n");
-#endif    
+            win32_printer::DebugPrint("message arrived: WM_SIZE");
             Resize = true;
         } break;
         
         case WM_KEYDOWN:
         case WM_KEYUP:
         {
-            uint32 KeyCode = (uint32)WParam;
-            bool32 KeyIsUp = (LParam >> 31) & 1;
-            bool32 KeyWasDown = (LParam >> 30) & 1;
-            
-            if(KeyIsUp == KeyWasDown)
-            {
-                if(KeyCode == 'W')
-                {
-                    GlobalInput.MoveForward = !GlobalInput.MoveForward;
-                }
-                else if(KeyCode == 'A')
-                {
-                    GlobalInput.MoveLeft = !GlobalInput.MoveLeft;
-                }
-                else if(KeyCode == 'S')
-                {
-                    GlobalInput.MoveBack = !GlobalInput.MoveBack;
-                }
-                else if(KeyCode == 'D')
-                {
-                    GlobalInput.MoveRight = !GlobalInput.MoveRight;
-                }
-                else if(KeyCode == 'E' || KeyCode == VK_SPACE)
-                {
-                    GlobalInput.MoveUp = !GlobalInput.MoveUp;
-                }
-                else if(KeyCode == 'Q')
-                {
-                    GlobalInput.MoveDown = !GlobalInput.MoveDown;
-                }
-                else if(KeyCode == VK_ADD)
-                {
-                    GlobalInput.SpeedUp = !GlobalInput.SpeedUp;
-                }
-                else if(KeyCode == VK_SUBTRACT)
-                {
-                    GlobalInput.SpeedDown = !GlobalInput.SpeedDown;
-                }
-                else if(KeyCode == VK_NUMPAD1 && !KeyIsUp)
-                {
-                   DrawTerrain1 = !DrawTerrain1;
-                }
-                else if((KeyCode == VK_NUMPAD2 || KeyCode == 'T') && !KeyIsUp)
-                {
-                   DrawTerrain2 = !DrawTerrain2;
-                }
-                else if(KeyCode == 'R' && !KeyIsUp)
-                {
-                    GlobalInput.RenderMode++;
-                    if(GlobalInput.RenderMode > 1) 
-                    {
-                        GlobalInput.RenderMode = 0;
-                    }
-                }
-                else if(KeyCode == VK_ESCAPE && !KeyIsUp)
-                {
-                   GlobalRunning = false;
-                }
-                else if(KeyCode == VK_UP && !KeyIsUp)
-                {
-                   GlobalSeed++;
-                }
-                else if(KeyCode == VK_DOWN && !KeyIsUp)
-                {
-                   GlobalSeed--;
-                }
-                else if(KeyCode == VK_LEFT && !KeyIsUp)
-                {
-                   Persistence -= 0.05f;
-                }
-                else if(KeyCode == VK_RIGHT && !KeyIsUp)
-                {
-                   Persistence += 0.05f;
-                }
-                
-            }
-        } break;
+            Assert(!"Keyboard message arrived outside of loop!");
+        }break;
         
         default:
         {
@@ -284,6 +239,85 @@ WindowProc(HWND Window,
     }
 
     return Result;
+}
+
+internal void
+Win32HandleMessages(game_input *Input)
+{
+    MSG Message;
+    while(PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
+    {
+        switch(Message.message)
+        {
+            case WM_KEYDOWN:
+            case WM_KEYUP:
+            case WM_SYSKEYUP:
+            case WM_SYSKEYDOWN:
+            {
+                uint32 KeyCode = (uint32)Message.wParam;
+                bool32 KeyWasDown = ((Message.lParam >> 30) & 1) == 1;
+                bool32 KeyIsDown = ((Message.lParam >> 31) & 1) == 0;
+                
+                bool32 InLongState = (KeyIsDown == KeyWasDown);
+                bool32 HadTransition = (KeyIsDown != KeyWasDown);
+                
+                if(HadTransition)
+                {
+                    if(KeyCode == 'W')
+                    {
+                        Input->MoveForward = KeyIsDown;
+                    }
+                    else if(KeyCode == 'A')
+                    {
+                        Input->MoveLeft = KeyIsDown;
+                    }
+                    else if(KeyCode == 'S')
+                    {
+                        Input->MoveBack = KeyIsDown;
+                    }
+                    else if(KeyCode == 'D')
+                    {
+                        Input->MoveRight = KeyIsDown;
+                    }
+                    else if(KeyCode == 'E' || KeyCode == VK_SPACE)
+                    {
+                        Input->MoveUp = KeyIsDown;
+                    }
+                    else if(KeyCode == 'Q')
+                    {
+                        Input->MoveDown = KeyIsDown;
+                    }
+                    else if(KeyCode == VK_ADD)
+                    {
+                        Input->SpeedUp = KeyIsDown;
+                    }
+                    else if(KeyCode == VK_SUBTRACT)
+                    {
+                        Input->SpeedDown = KeyIsDown;
+                    }
+                    else if(KeyCode == 'R' && KeyIsDown)
+                    {
+                        Input->RenderMode++;
+                        if(Input->RenderMode > 1) 
+                        {
+                            Input->RenderMode = 0;
+                        }
+                    }
+                    else if(KeyCode == VK_ESCAPE && KeyIsDown)
+                    {
+                       GlobalRunning = false;
+                    }
+                    
+                }
+            } break;
+        
+            default:
+            {
+                TranslateMessage(&Message);
+                DispatchMessageA(&Message);
+            }break;
+        }
+    }
 }
 
 int CALLBACK 
@@ -324,17 +358,15 @@ WinMain(HINSTANCE Instance,
         
         if(Window)
         {
-            DrawTerrain1 = true;
-            GlobalSeed = 1000;
             dx_resource DXResources;
             HRESULT HResult = DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height);
             if(FAILED(HResult))
             {
                 char* ErrMsg = DXResources.GetDebugMessage(HResult);
+                win32_printer::DebugPrint("Initialize error: %s", ErrMsg);
 #if TEREPGEN_DEBUG
                 char DebugBuffer[256];
                 sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Initialize error: %s\n", ErrMsg);
-                OutputDebugStringA(DebugBuffer);
                 MessageBox(NULL, DebugBuffer, NULL, MB_OK);
 #endif
                 DXResources.Release();
@@ -344,7 +376,9 @@ WinMain(HINSTANCE Instance,
             camera Camera;
             Camera.Initialize(&DXResources, ScreenInfo.Width, ScreenInfo.Height, 20.0f);
             
-            Persistence = 0.4f;
+            game_input Inputs[2] = {DefaultGameInput(), DefaultGameInput()};
+            game_input *NewInput = &Inputs[0];
+            game_input *OldInput = &Inputs[1];
             
             game_state *GameState = new game_state;
             GameState->Initialized = false;
@@ -358,12 +392,18 @@ WinMain(HINSTANCE Instance,
             
             while(GlobalRunning)
             {
-                MSG Message;
-                while(PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
-                {
-                    TranslateMessage(&Message);
-                    DispatchMessageA(&Message);
-                }
+                
+                NewInput->MoveLeft = OldInput->MoveLeft ;
+                NewInput->MoveRight = OldInput->MoveRight;
+                NewInput->MoveForward = OldInput->MoveForward;
+                NewInput->MoveBack = OldInput->MoveBack;
+                NewInput->MoveUp = OldInput->MoveUp ;
+                NewInput->MoveDown = OldInput->MoveDown;
+                NewInput->SpeedUp = OldInput->SpeedUp;
+                NewInput->SpeedDown = OldInput->SpeedDown;
+                NewInput->RenderMode = OldInput->RenderMode;
+                
+                Win32HandleMessages(NewInput);
                 
                 if(Resize)
                 {
@@ -372,11 +412,7 @@ WinMain(HINSTANCE Instance,
                     if(FAILED(HResult)) 
                     {
                         char* ErrMsg = DXResources.GetDebugMessage(HResult);
-#if TEREPGEN_DEBUG
-                        char DebugBuffer[256];
-                        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Resize error: %s\n", ErrMsg);
-                        OutputDebugStringA(DebugBuffer);
-#endif
+                        win32_printer::DebugPrint("Resize error: %s", ErrMsg);
                         break;
                     }
                     Camera.Resize(ScreenInfo.Width, ScreenInfo.Height);
@@ -384,51 +420,35 @@ WinMain(HINSTANCE Instance,
                 }
         
                 // NOTE: Update
-                GlobalInput.OldMouseX = GlobalInput.MouseX;
-                GlobalInput.OldMouseY = GlobalInput.MouseY;
+                NewInput->OldMouseX = OldInput->MouseX;
+                NewInput->OldMouseY = OldInput->MouseY;
                 
                 POINT MouseP;
                 GetCursorPos(&MouseP);
                 ScreenToClient(Window, &MouseP);
                 if(GetActiveWindow() == Window)
                 {
-                    GlobalInput.MouseX = MouseP.x;
-                    GlobalInput.MouseY = -MouseP.y;
+                    NewInput->MouseX = MouseP.x;
+                    NewInput->MouseY = MouseP.y;
+                    NewInput->MouseLeftButton = GetKeyState(VK_LBUTTON) & (1 << 15);
+                    NewInput->MouseRightButton = GetKeyState(VK_RBUTTON) & (1 << 15);
                 }
                 
-                real64 TimePassed = WorldClock.GetSecondsElapsed();
+                GameState->dtForFrame = WorldClock.GetSecondsElapsed();
                 WorldClock.Reset();
                 
-                Camera.Update(&GlobalInput, TimePassed);
+                UpdateAndRenderGame(GameState, NewInput, &Camera, ScreenInfo);
                 
-                GameState->CameraPos = Camera.GetPos();
-                GameState->CameraDir = Camera.GetLookDirection();
-                
-                v2 MouseInPixel = v2{(real32)MouseP.x, (real32)MouseP.y};
-                real32 WorldScreenSizeY = 2.0f*Tan(Camera.Fov/2.0f);
-                real32 WorldScreenSizeX = WorldScreenSizeY*(real32)ScreenInfo.Width/ScreenInfo.Height;
-                v3 UpDir = Camera.GetUpDirection();
-                v3 RightDir = Normalize(Cross(UpDir, GameState->CameraDir));
-                v2 NormalizedMouse = MouseInPixel - v2{(real32)ScreenInfo.Width/2, (real32)ScreenInfo.Height/2};
-                NormalizedMouse.X = NormalizedMouse.X / ScreenInfo.Width;
-                NormalizedMouse.Y = -NormalizedMouse.Y / ScreenInfo.Height;
-                
-                v3 WorldMouse = GameState->CameraPos + (UpDir*NormalizedMouse.Y*WorldScreenSizeY) 
-                    + (RightDir*NormalizedMouse.X*WorldScreenSizeX);
-                    
-                GameState->CameraOrigo = GameState->CameraPos + Normalize(Cross(UpDir, RightDir));
-                
-                GameState->Seed = GlobalSeed;
-                GameState->RenderMode = GlobalInput.RenderMode;
-                
-                UpdateAndRenderGame(GameState, &Camera, WorldMouse);
+                game_input *Temp = NewInput;
+                NewInput = OldInput;
+                OldInput = Temp;
                 
                 // FrameClock.PrintMiliSeconds("Frame time:");
-                // win32_printer::Print("---------------------------");
+                // win32_printer::PerfPrint("---------------------------");
                 CalculateAvarageTime(FrameClock, &GameState->FrameAvg);
                 if(GameState->FrameAvg.MeasureCount > 50.0f)
                 {
-                    win32_printer::Print("Avg frame time: %f", GameState->FrameAvg.AvgTime * 1000.0);
+                    win32_printer::PerfPrint("Avg frame time: %f", GameState->FrameAvg.AvgTime * 1000.0);
                     GameState->FrameAvg.MeasureCount = 0.0f;
                     GameState->FrameAvg.AvgTime = 0.0f;
                 }

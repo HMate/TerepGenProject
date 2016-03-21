@@ -950,7 +950,7 @@ void camera::Release()
     SceneConstantBuffer->Release();
 }
 
-void camera::Update(input *Input, real64 TimeDelta)
+void camera::Update(game_input *Input, real64 TimeDelta)
 {
     using namespace DirectX;
     XMFLOAT3 dCameraPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -1006,21 +1006,13 @@ void camera::Update(input *Input, real64 TimeDelta)
     XMStoreFloat3(&TargetPos,
         XMLoadFloat3(&TargetPos) + XMLoadFloat3(&dCameraPos));
     
-    bool32 MouseLeftIsDown = GetKeyState(VK_LBUTTON) & (1 << 15);
-    //bool32 MouseRightIsDown = GetKeyState(VK_RBUTTON) & (1 << 15);
-    
     // NOTE: rotate camera
     real32 dMouseX = (real32)(Input->MouseX - Input->OldMouseX);
     real32 dMouseY = (real32)(Input->MouseY - Input->OldMouseY);
-    if(MouseLeftIsDown)
+    if(Input->MouseLeftButton)
     {
-#if 0
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Mouse dX: %d, dY: %d Time: %f\n", dMouseX, dMouseY, (real32)TimeDelta);
-        OutputDebugStringA(DebugBuffer);
-#endif
         YawRadian += dMouseX/100.0f;
-        PitchRadian -= dMouseY/100.0f;
+        PitchRadian += dMouseY/100.0f;
         
         //win32_printer::DebugPrint("Yaw: %f Pitch: %f", YawRadian, PitchRadian);
 
@@ -1055,15 +1047,10 @@ void camera::Resize(uint32 ScreenWidth, uint32 ScreenHeight)
     using namespace DirectX;
     if(ScreenWidth && ScreenHeight)
     {
-#if TEREPGEN_DEBUG
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera Width: %d\n", ScreenWidth);
-        OutputDebugStringA(DebugBuffer);
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera Height: %d\n", ScreenHeight);
-        OutputDebugStringA(DebugBuffer);
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera ApectRatio: %f\n", (real32)ScreenWidth/ScreenHeight);
-        OutputDebugStringA(DebugBuffer);
-#endif        
+        win32_printer::DebugPrint("Camera Width: %d", ScreenWidth);
+        win32_printer::DebugPrint("Camera Height: %d", ScreenHeight);
+        win32_printer::DebugPrint("Camera ApectRatio: %f", (real32)ScreenWidth/ScreenHeight);
+        
         XMStoreFloat4x4(&ProjMx, 
             XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearZ, FarZ));
         XMStoreFloat4x4(&ViewProjMx,

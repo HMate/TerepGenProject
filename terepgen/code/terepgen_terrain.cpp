@@ -459,7 +459,6 @@ GetFromNeighbours(terrain_density_block **Neighbours,
            
     terrain_density_block *ActDensityBlock = Neighbours[NIndex];
     
-    // TODO: Inline this if ConvertToRes is not used anywhere else
     world_block_pos NewPos = ConvertToResolution(BlockP, ActDensityBlock->Pos.Resolution);
     
     int32 GridStep = (int32)TERRAIN_BLOCK_SIZE;
@@ -646,12 +645,7 @@ _PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrai
         }
     }
     RenderBlock->VertexCount = VertexCount;
-    
-#if 0
-    char DebugBuffer[256];
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Current Vertex Count: %d\n", VertexCount);
-    OutputDebugStringA(DebugBuffer);
-#endif
+    //win32_printer::DebugPrint("Current Vertex Count: %d", VertexCount);
 }
 
 internal world_block_pos
@@ -723,12 +717,41 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain
     {
         world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
         block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
-        // NOTE: If a neghbour isn't loaded on the smae res, we just
-        if(HashIsEmpty(NeighbourHash))
+        Assert(!HashIsEmpty(NeighbourHash));
+        Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
+    }
+    
+    _PoligoniseBlock(World, RenderBlock, DensityBlock, Neighbours);
+}
+
+internal void
+MixedPoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
+{
+    world_block_pos *BlockP = &DensityBlock->Pos;
+    
+    const uint32 NeighbourCount = 27;
+    world_block_pos NeighbourBlockPositions[NeighbourCount];
+    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
+    terrain_density_block *Neighbours[NeighbourCount];
+    
+    for(uint32 NeighbourIndex = 0;
+        NeighbourIndex < NeighbourCount;
+        NeighbourIndex++)
+    {
+        world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
+        block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
+        if(NeighbourIndex != 13)
         {
-            world_block_pos BiggerBP = GetBiggerResBlockPosition(NeighbourBlockP);
-            NeighbourHash = GetHash(World->BlockHash, &BiggerBP);
-            Assert(!HashIsEmpty(NeighbourHash));
+            block_hash *NeighbourRenderHash = GetHash(World->RenderHash, NeighbourBlockP);
+            block_hash *NeighbourZeroHash = GetZeroHash(World, NeighbourBlockP);
+            if(HashIsEmpty(NeighbourHash) ||
+              (HashIsEmpty(NeighbourRenderHash) && HashIsEmpty(NeighbourZeroHash)))
+            {
+                world_block_pos BiggerBP = GetBiggerResBlockPosition(NeighbourBlockP);
+                NeighbourHash = GetHash(World->BlockHash, &BiggerBP);
+                Assert(!HashIsEmpty(NeighbourHash));
+                // NOTE: Doesn't matter at bigger block if its render block was generated or not
+            }
         }
         Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
     }
