@@ -1,6 +1,4 @@
 
-#include "terepgen_dx_renderer.h"
-
 internal HRESULT 
 LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceView **ShaderResView)
 {
@@ -184,7 +182,7 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     // NOTE: Should use UpdateSubresource, if the resource isnt loaded every frame
     // uint32 RowPitch = ImgWidth * 4;
     // uint32 DepthPitch = RowPitch * ImgHeight;
-    // DXResources->DeviceContext->UpdateSubresource(Tex, 0, NULL, Image, RowPitch, DepthPitch);
+    // DXResources->DeviceContext->UpdateSubresource(Tex, 0, ???, Image, RowPitch, DepthPitch);
     
     D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc;
     SrvDesc.Format = TextureDesc.Format;
@@ -603,26 +601,6 @@ void dx_resource::ClearViews()
     DeviceContext->ClearRenderTargetView(BackBuffer, BackgroundColor.C);
 }
 
-void dx_resource::LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize)
-{
-    // NOTE: This kind of resource mapping is optimized for per frame updating 
-    //      for resources with D3D11_USAGE_DYNAMIC
-    // SOURCE: https://msdn.microsoft.com/en-us/library/windows/desktop/ff476259%28v=vs.85%29.aspx
-    // TODO: Conscutive calls for vertex buffers should use this: D3D11_MAP_WRITE_NO_OVERWRITE
-    HRESULT HResult;
-    D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-    HResult = DeviceContext->Map(Buffer, NULL,
-                    D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
-    if(FAILED(HResult))
-    {
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Load Resource failed: %s\n", GetDebugMessage(HResult));
-        OutputDebugStringA(DebugBuffer);
-    }
-    memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
-    DeviceContext->Unmap(Buffer, NULL);
-}
-
 void dx_resource::Release()
 {     
     if(SwapChain) 
@@ -863,6 +841,24 @@ void dx_resource::DrawDebugTriangle()
                                       Get3DVertex(v3{-0.8f, -0.7f, 1.0f}, Normal, Color),
                                       Get3DVertex(v3{-1.0f, 0.0f , 1.0f}, Normal, Color)};
     Assert(!"Curently not implemented!");
+}
+
+void dx_resource::LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize)
+{
+    // NOTE: This kind of resource mapping is optimized for per frame updating 
+    //      for resources with D3D11_USAGE_DYNAMIC
+    // SOURCE: https://msdn.microsoft.com/en-us/library/windows/desktop/ff476259%28v=vs.85%29.aspx
+    // TODO: Conscutive calls for vertex buffers should use this: D3D11_MAP_WRITE_NO_OVERWRITE
+    HRESULT HResult;
+    D3D11_MAPPED_SUBRESOURCE MappedSubresource;
+    HResult = DeviceContext->Map(Buffer, NULL,
+                    D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
+    if(FAILED(HResult))
+    {
+        win32_printer::DebugPrint("Load Resource failed: %s", GetDebugMessage(HResult));
+    }
+    memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
+    DeviceContext->Unmap(Buffer, NULL);
 }
 
 
