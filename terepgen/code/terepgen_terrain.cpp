@@ -168,10 +168,10 @@ InitBlockHash(world_density *World)
     World->DeletedRenderBlockCount = 0;
     
     for(uint32 HashIndex = 0;
-        HashIndex < ArrayCount(World->BlockHash);
+        HashIndex < ArrayCount(World->DensityHash);
         ++HashIndex)
     {
-        block_hash *Hash = World->BlockHash + HashIndex;
+        block_hash *Hash = World->DensityHash + HashIndex;
         Hash->Index = HASH_UNINITIALIZED;
     }
     
@@ -180,6 +180,14 @@ InitBlockHash(world_density *World)
         ++HashIndex)
     {
         block_hash *Hash = World->RenderHash + HashIndex;
+        Hash->Index = HASH_UNINITIALIZED;
+    }
+    
+    for(uint32 HashIndex = 0;
+        HashIndex < ArrayCount(World->ResolutionMapping);
+        ++HashIndex)
+    {
+        block_hash *Hash = World->ResolutionMapping + HashIndex;
         Hash->Index = HASH_UNINITIALIZED;
     }
 }
@@ -338,13 +346,13 @@ GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, in
 {
     block_node Node = GetActualBlockNode(BlockP, X, Y, Z);
     
-    block_hash *BlockHash = GetHash(World->BlockHash, &Node.BlockP);
+    block_hash *DensityHash = GetHash(World->DensityHash, &Node.BlockP);
     // TODO: What if this block wasnt generated? 
     // maybe create an IsBlockValid(world_block_pos)->bool32 ?
     real32 Result = 0.0f; 
-    if(!HashIsEmpty(BlockHash))
+    if(!HashIsEmpty(DensityHash))
     {
-        terrain_density_block *ActDensityBlock = World->DensityBlocks + BlockHash->Index;
+        terrain_density_block *ActDensityBlock = World->DensityBlocks + DensityHash->Index;
         Result = GetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z);
     }
     
@@ -405,7 +413,7 @@ GetWorldGridValueFromV3(world_density *World, v3 Pos, uint32 Resolution)
 }
 
 internal void
-GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_block_pos *CenterBlockP)
+GetNeighbourBlockPositions(block_neighbours *NPositions, world_block_pos *CenterBlockP)
 {
     uint32 Index = 0;
     for(int32 DiffX = -1; DiffX < 2; ++DiffX)
@@ -418,7 +426,7 @@ GetNeighbourBlockPositions(world_block_pos *NeighbouringBlockPositions, world_bl
                 NeighbourP.BlockX += DiffX;
                 NeighbourP.BlockY += DiffY;
                 NeighbourP.BlockZ += DiffZ;
-                NeighbouringBlockPositions[Index++] = NeighbourP;
+                NPositions->Pos[Index++] = NeighbourP;
             }
         }
     }
@@ -450,6 +458,8 @@ GetFromNeighbours(terrain_density_block **Neighbours,
     int32 DiffY = FloorInt32(Y / BlockSize);
     int32 DiffZ = FloorInt32(Z / BlockSize);
     
+    // NOTE: Neighbours are stored in X,Y,Z order, where Z is the least significant dimension
+    // 13 is the current/center block
     uint32 NIndex = 13 + DiffX*9 + DiffY*3 + DiffZ;
     Assert(NIndex < 27);
     
@@ -544,25 +554,98 @@ GetPointNormal(terrain_density_block **Neighbours, world_block_pos *BlockP, v3 P
     return Result;
 }
 
-#define DENSITY_ISO_LEVEL 0.0f
-/*
-    NOTE: The dimension of the grids required to be 5 units bigger
-        than the size of the final terrain
-        +1 in each dimension for marching cubes
-        +2 at each side to calculate proper normals
-*/
-internal void
-_PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock,
-                 terrain_density_block **Neighbours)
+internal world_block_pos
+GetBiggerResBlockPosition(world_block_pos *BlockP)
 {
-    Assert(DensityBlock->Pos.Resolution > 0);
-    world_block_pos *BlockP = &DensityBlock->Pos;
-    real32 CellDiff = (real32)DensityBlock->Pos.Resolution  * RENDER_SPACE_UNIT;
+    world_block_pos Result = ConvertToResolution(BlockP, BlockP->Resolution*2);
+    return Result;
+}
+
+internal void
+GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos *BlockP)
+{
+    // TODO: Be more concise
+    // TODO: Give Resolution in param
+    LowerBlockPositions[0].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[0].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[0].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[0].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[1].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[1].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[1].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[1].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[2].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[2].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[2].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[2].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[3].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[3].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[3].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[3].BlockZ = BlockP->BlockZ * 2;
+    
+    LowerBlockPositions[4].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[4].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[4].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[4].BlockZ = BlockP->BlockZ * 2 + 1;
+    
+    LowerBlockPositions[5].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[5].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[5].BlockY = BlockP->BlockY * 2;
+    LowerBlockPositions[5].BlockZ = BlockP->BlockZ * 2 + 1;
+    
+    LowerBlockPositions[6].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[6].BlockX = BlockP->BlockX * 2;
+    LowerBlockPositions[6].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[6].BlockZ = BlockP->BlockZ * 2 + 1;
+    
+    LowerBlockPositions[7].Resolution = BlockP->Resolution/2;
+    LowerBlockPositions[7].BlockX = BlockP->BlockX * 2 + 1;
+    LowerBlockPositions[7].BlockY = BlockP->BlockY * 2 + 1;
+    LowerBlockPositions[7].BlockZ = BlockP->BlockZ * 2 + 1;
+}
+
+#define DENSITY_ISO_LEVEL 0.0f
+internal void
+PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
+//  terrain_density_block *DensityBlock)
+{
+    //world_block_pos *BlockP = &DensityBlock->Pos;
+    
+    // TODO: Should get positions from outside, because locally its hard to decide, which
+    // neighbour should have what resolution. This should be based on how that neighbour is already rendered.
+    // But they way it is rendered can change in this frame too, and that would cause visual bugs.
+    // So we should overwatch somehow how should the neighbour blocks currently be rendered, and pass them here.
+    
+    // const uint32 NeighbourCount = ArrayCount(RenderBlock->NeighbourPositions);
+    // world_block_pos *NeighbourPositions = RenderBlock->NeighbourPositions;
+    block_neighbours NPositions;
+    GetNeighbourBlockPositions(&NPositions, BlockP);
+    terrain_density_block *Neighbours[ArrayCount(NPositions.Pos)];
+    
+    for(uint32 NeighbourIndex = 0;
+        NeighbourIndex < ArrayCount(NPositions.Pos);
+        NeighbourIndex++)
+    {
+        world_block_pos *NeighbourP = NPositions.Pos + NeighbourIndex;
+        block_hash *NeighbourRes = GetHash(World->ResolutionMapping, NeighbourP);
+        Assert(!HashIsEmpty(NeighbourRes));
+        NeighbourP->Resolution = NeighbourRes->Index;
+        
+        block_hash *NeighbourHash = GetHash(World->DensityHash, NeighbourP);
+        Assert(!HashIsEmpty(NeighbourHash));
+        Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
+    }
+    
+    Assert(BlockP->Resolution > 0);
+    real32 CellDiff = (real32)BlockP->Resolution  * RENDER_SPACE_UNIT;
     v4 GreenColor = v4{0.0, 1.0f, 0.0f, 1.0f};
     
-    RenderBlock->Pos = V3FromWorldPos(DensityBlock->Pos);
-    RenderBlock->Resolution = DensityBlock->Pos.Resolution;
-    uint32 TerrainDimension = DensityBlock->Grid.Dimension;
+    RenderBlock->Pos = V3FromWorldPos(*BlockP);
+    RenderBlock->Resolution = BlockP->Resolution;
+    uint32 TerrainDimension = GRID_DIMENSION;
     
     uint32 VertexCount = 0;
     for(uint32 Plane = 0;
@@ -646,117 +729,6 @@ _PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrai
     }
     RenderBlock->VertexCount = VertexCount;
     //win32_printer::DebugPrint("Current Vertex Count: %d", VertexCount);
-}
-
-internal world_block_pos
-GetBiggerResBlockPosition(world_block_pos *BlockP)
-{
-    world_block_pos Result = ConvertToResolution(BlockP, BlockP->Resolution*2);
-    return Result;
-}
-
-internal void
-GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos *BlockP)
-{
-    // TODO: Be more concise
-    // TODO: Give Resolution in param
-    LowerBlockPositions[0].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[0].BlockX = BlockP->BlockX * 2;
-    LowerBlockPositions[0].BlockY = BlockP->BlockY * 2;
-    LowerBlockPositions[0].BlockZ = BlockP->BlockZ * 2;
-    
-    LowerBlockPositions[1].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[1].BlockX = BlockP->BlockX * 2 + 1;
-    LowerBlockPositions[1].BlockY = BlockP->BlockY * 2;
-    LowerBlockPositions[1].BlockZ = BlockP->BlockZ * 2;
-    
-    LowerBlockPositions[2].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[2].BlockX = BlockP->BlockX * 2;
-    LowerBlockPositions[2].BlockY = BlockP->BlockY * 2 + 1;
-    LowerBlockPositions[2].BlockZ = BlockP->BlockZ * 2;
-    
-    LowerBlockPositions[3].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[3].BlockX = BlockP->BlockX * 2 + 1;
-    LowerBlockPositions[3].BlockY = BlockP->BlockY * 2 + 1;
-    LowerBlockPositions[3].BlockZ = BlockP->BlockZ * 2;
-    
-    LowerBlockPositions[4].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[4].BlockX = BlockP->BlockX * 2;
-    LowerBlockPositions[4].BlockY = BlockP->BlockY * 2;
-    LowerBlockPositions[4].BlockZ = BlockP->BlockZ * 2 + 1;
-    
-    LowerBlockPositions[5].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[5].BlockX = BlockP->BlockX * 2 + 1;
-    LowerBlockPositions[5].BlockY = BlockP->BlockY * 2;
-    LowerBlockPositions[5].BlockZ = BlockP->BlockZ * 2 + 1;
-    
-    LowerBlockPositions[6].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[6].BlockX = BlockP->BlockX * 2;
-    LowerBlockPositions[6].BlockY = BlockP->BlockY * 2 + 1;
-    LowerBlockPositions[6].BlockZ = BlockP->BlockZ * 2 + 1;
-    
-    LowerBlockPositions[7].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[7].BlockX = BlockP->BlockX * 2 + 1;
-    LowerBlockPositions[7].BlockY = BlockP->BlockY * 2 + 1;
-    LowerBlockPositions[7].BlockZ = BlockP->BlockZ * 2 + 1;
-}
-
-internal void
-PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
-{
-    world_block_pos *BlockP = &DensityBlock->Pos;
-    
-    const uint32 NeighbourCount = 27;
-    world_block_pos NeighbourBlockPositions[NeighbourCount];
-    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
-    terrain_density_block *Neighbours[NeighbourCount];
-    
-    for(uint32 NeighbourIndex = 0;
-        NeighbourIndex < NeighbourCount;
-        NeighbourIndex++)
-    {
-        world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
-        block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
-        Assert(!HashIsEmpty(NeighbourHash));
-        Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
-    }
-    
-    _PoligoniseBlock(World, RenderBlock, DensityBlock, Neighbours);
-}
-
-internal void
-MixedPoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, terrain_density_block *DensityBlock)
-{
-    world_block_pos *BlockP = &DensityBlock->Pos;
-    
-    const uint32 NeighbourCount = 27;
-    world_block_pos NeighbourBlockPositions[NeighbourCount];
-    GetNeighbourBlockPositions(NeighbourBlockPositions, BlockP);
-    terrain_density_block *Neighbours[NeighbourCount];
-    
-    for(uint32 NeighbourIndex = 0;
-        NeighbourIndex < NeighbourCount;
-        NeighbourIndex++)
-    {
-        world_block_pos *NeighbourBlockP = NeighbourBlockPositions + NeighbourIndex;
-        block_hash *NeighbourHash = GetHash(World->BlockHash, NeighbourBlockP);
-        if(NeighbourIndex != 13)
-        {
-            block_hash *NeighbourRenderHash = GetHash(World->RenderHash, NeighbourBlockP);
-            block_hash *NeighbourZeroHash = GetZeroHash(World, NeighbourBlockP);
-            if(HashIsEmpty(NeighbourHash) ||
-              (HashIsEmpty(NeighbourRenderHash) && HashIsEmpty(NeighbourZeroHash)))
-            {
-                world_block_pos BiggerBP = GetBiggerResBlockPosition(NeighbourBlockP);
-                NeighbourHash = GetHash(World->BlockHash, &BiggerBP);
-                Assert(!HashIsEmpty(NeighbourHash));
-                // NOTE: Doesn't matter at bigger block if its render block was generated or not
-            }
-        }
-        Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
-    }
-    
-    _PoligoniseBlock(World, RenderBlock, DensityBlock, Neighbours);
 }
 
 

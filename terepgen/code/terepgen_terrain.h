@@ -4,8 +4,6 @@
 
 */
 
-#include "terepgen_marching_cubes.cpp"
-
 struct world_block_pos
 {
     int32 BlockX;
@@ -40,6 +38,11 @@ struct block_hash
     int32 Index;
 };
 
+struct block_neighbours
+{
+    world_block_pos Pos[27];
+};
+
 #define TERRAIN_BLOCK_SIZE GRID_DIMENSION
 #define RENDER_BLOCK_VERTEX_COUNT 7000
 
@@ -47,10 +50,10 @@ struct block_hash
 
 struct terrain_render_block
 {
-    // TODO: Put block resolution here?
     v3 Pos;
     uint32 Resolution;
     uint32 VertexCount;
+    world_block_pos NeighbourPositions[27];
     vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];
 };//280'016 B
 
@@ -71,7 +74,8 @@ struct world_density
     terrain_render_block PoligonisedBlocks[RENDER_BLOCK_COUNT];
     
     // NOTE: This must be a power of two for now!
-    block_hash BlockHash[BLOCK_HASH_SIZE];
+    block_hash DensityHash[BLOCK_HASH_SIZE];
+    block_hash ResolutionMapping[BLOCK_HASH_SIZE];
     block_hash RenderHash[BLOCK_HASH_SIZE];
     uint32 ZeroBlockCount;
     block_hash ZeroHash[ZERO_HASH_SIZE];

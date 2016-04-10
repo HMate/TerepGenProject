@@ -28,6 +28,9 @@ set CommonLinkerFlags= -incremental:no -opt:ref^
  
 ) else (
 echo profile build
+rem FAsc ?generates asesmbly sources
+rem /d1reportSingleClassLayoutClassName prints ClassName's layout
+rem linker /map for checking the alignment of memory structs
 set CommonCompilerFlags= -MT -nologo -O2 -Z7 -EHsc -DTEREPGEN_DEBUG=0 -DTEREPGEN_PERF=1 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189 
 set CommonLinkerFlags= -incremental:no -opt:ref^
  user32.lib d3d11.lib dxgi.lib d3dcompiler.lib 

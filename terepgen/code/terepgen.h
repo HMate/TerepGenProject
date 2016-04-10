@@ -35,6 +35,7 @@ vertex Vertex(v3 Pos, v3 Norm, v4 Color)
 }
 
 #include "terepgen_dx_renderer.h"
+#include "terepgen_marching_cubes.cpp"
 #include "terepgen_terrain.h"
 
 
