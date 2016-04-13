@@ -632,7 +632,14 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
         world_block_pos *NeighbourP = NPositions.Pos + NeighbourIndex;
         block_hash *NeighbourRes = GetHash(World->ResolutionMapping, NeighbourP);
         Assert(!HashIsEmpty(NeighbourRes));
-        NeighbourP->Resolution = NeighbourRes->Index;
+        // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
+        // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
+        // which we doesn't handle currently 
+        while(NeighbourP->Resolution != (uint32)NeighbourRes->Index)
+        {
+            Assert((uint32)NeighbourRes->Index > NeighbourP->Resolution);
+            *NeighbourP = GetBiggerResBlockPosition(NeighbourP);
+        }
         
         block_hash *NeighbourHash = GetHash(World->DensityHash, NeighbourP);
         Assert(!HashIsEmpty(NeighbourHash));

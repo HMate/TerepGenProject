@@ -229,9 +229,37 @@ GetResolutionIndex(uint32 Resolution)
     }
     else
     {
-        Result = 2;
+        Result = 1;
     }
     return Result;
+}
+
+inline bool32 
+BlockWasRendered(world_density *World, world_block_pos *BlockP)
+{
+    bool32 Result = false;
+    
+    block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
+    block_hash *ZeroHash = GetZeroHash(World, BlockP);
+    Result = !(HashIsEmpty(RenderHash) && HashIsEmpty(ZeroHash));
+    
+    return Result;
+}
+
+internal void
+DeleteRenderedBlock(world_density *World, world_block_pos *BlockP)
+{
+    block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
+    block_hash *ZeroHash = GetZeroHash(World, BlockP);
+    if(!HashIsEmpty(RenderHash))
+    {
+        DeleteRenderBlock(World, RenderHash->Index);
+    }
+    if(!HashIsEmpty(ZeroHash))
+    {
+        ZeroHash->Index = HASH_DELETED;
+        World->ZeroBlockCount--;
+    }
 }
 
 internal void
@@ -554,11 +582,12 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                     // NOTE: This block wasnt even counted before
                     
                     // NOTE: check if bigger resolution is generated
+                    // TODO: Check this recursivly for all resolutions?
                     world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
                     block_hash *BiggerPHash = GetHash(World->ResolutionMapping, &BiggerP);
                     if(!HashIsEmpty(BiggerPHash))
                     {
-                        WriteHash(World->ResolutionMapping, BlockP, (int32)BiggerP.Resolution);
+                        WriteHash(World->ResolutionMapping, BlockP, (int32)BiggerPHash->Index);
                     }
                     else
                     {
@@ -578,8 +607,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                                 if(HashIsEmpty(NPosHash))
                                 {
                                     // NOTE: Neighbours density is loaded, so just save its resolution
+                                    Assert(NPos->Resolution == BlockP->Resolution);
                                     WriteHash(World->ResolutionMapping, NPos, NPos->Resolution);
-                                    /////// TODO: Should we gather neighbours here??
                                 }
                                 else
                                 {
@@ -603,39 +632,76 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                     // NOTE: Was already in ResolutionMapping,
                     // maybe it wasnt rendered though, because it didt had its neighbours at the time
                     // decide if we should upgrade it to the next resolution, together with its neighbours
+                    
+                    // NOTE: upgrade, if we want to generate more block in frame, and we find a block
+                    // which was indexed on a bigger resolution ->
+                    // this means that it is time to upgrade one to smaller resolution.
+                    // This should apply to all the smaller res blocks in the parent block
                     if(ResHash->Index > (int32)BlockP->Resolution)
                     {
-                        MaxRenderBlocksToGenerateInFrame--;
-                        ResHash->Index = BlockP->Resolution;
                         // NOTE: Rerender this block + neighbour blocks, to remain consistent
                         
-                        for(uint32 NIndex = 0;
-                            NIndex < ArrayCount(NPositions.Pos);
-                            NIndex++)
+                        uint32 NewResIndex = GetResolutionIndex((uint32)ResHash->Index) + 1;
+                        Assert(NewResIndex < ResolutionCount);
+                        int32 NewResolution = FixedResolution[NewResIndex];
+                        
+                        world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
+                        
+                        int32 OldRes = ResHash->Index;
+                        world_block_pos Siblings[8];
+                        GetLowerResBlockPositions(Siblings, &BiggerP);
+                        for(uint32 SiblingIndex = 0;
+                            SiblingIndex < 8;
+                            SiblingIndex++)
                         {
-                            world_block_pos *NPos = NPositions.Pos + NIndex;
-                            block_hash *NHash = GetHash(World->ResolutionMapping, NPos);
-                            if(HashIsEmpty(NHash))
+                            world_block_pos *SiblingP = Siblings + SiblingIndex;
+                            auto SiblingHash = GetHash(World->ResolutionMapping, SiblingP);
+                            if(HashIsEmpty(SiblingHash))
                             {
-                                // NOTE: Can happen, when a neighbour wasnt mapped yet
-                                auto BiggerP = GetBiggerResBlockPosition(NPos);
-                                NHash = GetHash(World->ResolutionMapping, &BiggerP);
-                                Assert(!HashIsEmpty(NHash));
-                                WriteHash(World->ResolutionMapping, NPos, NHash->Index);
-                                *NPos = BiggerP;
+                                WriteHash(World->ResolutionMapping, SiblingP, NewResolution);
                             }
-                            //TODO: if neighbour wasnt mapped, rendered should we even render it here?? 
-                            // cause its own neighbours might not be mapped,generated etc. - have to check this
-                            // TODO: if(WasRendered(NPos)){
-                            BlocksToRender[RenderCount++] = *NPos;
-                            BlocksToRender[RenderCount++].Resolution = (uint32)NHash->Index;
+                            else
+                            {
+                                Assert(SiblingHash->Index == OldRes);
+                                SiblingHash->Index = NewResolution;
+                            }
+                            
+                            block_neighbours SiblingNeighbours;
+                            GetNeighbourBlockPositions(&SiblingNeighbours, SiblingP);
+                            for(uint32 NIndex = 0;
+                                NIndex < ArrayCount(SiblingNeighbours.Pos);
+                                NIndex++)
+                            {
+                                world_block_pos *NPos = SiblingNeighbours.Pos + NIndex;
+                                block_hash *NHash = GetHash(World->ResolutionMapping, NPos);
+                                if(HashIsEmpty(NHash))
+                                {
+                                    world_block_pos NBiggerP = GetBiggerResBlockPosition(NPos);
+                                    NHash = GetHash(World->ResolutionMapping, &NBiggerP);
+                                    Assert(!HashIsEmpty(NHash));
+                                    WriteHash(World->ResolutionMapping, NPos, NHash->Index);
+                                }
+                                
+                                if(BlockWasRendered(World, NPos) && (NHash->Index == ResHash->Index))
+                                {
+                                    MaxRenderBlocksToGenerateInFrame--;
+                                    BlocksToRender[RenderCount++] = *NPos;
+                                }
+                            }
+                            if(DidDensityBlocksLoaded(World, SiblingNeighbours.Pos, ArrayCount(SiblingNeighbours.Pos)))
+                            {
+                                MaxRenderBlocksToGenerateInFrame--;
+                                BlocksToRender[RenderCount++] = *SiblingP;
+                            }
                         }
+                        
+                        block_hash *BiggerHash = GetHash(World->ResolutionMapping, &BiggerP);
+                        BiggerHash->Index = NewResolution;
+                        DeleteRenderedBlock(World, &BiggerP);
                     }
                     else
                     {
-                        block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
-                        block_hash *ZeroHash = GetZeroHash(World, BlockP);
-                        if(HashIsEmpty(RenderHash) && HashIsEmpty(ZeroHash))
+                        if(!BlockWasRendered(World, BlockP) && (ResHash->Index == (int32)BlockP->Resolution))
                         {
                             // NOTE: Block was never rendered. should we render it now?
                             // TODO: Check if its neighbours mapping is right too!?
@@ -648,24 +714,29 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                                     NIndex++)
                                 {
                                     world_block_pos *NPos = NPositions.Pos + NIndex;
+
+                                    world_block_pos Siblings[8];
+                                    GetLowerResBlockPositions(Siblings, NPos);
                                     block_hash *NPosHash = GetHash(World->ResolutionMapping, NPos);
                                     if(HashIsEmpty(NPosHash))
                                     {
                                         // NOTE: Neighbours density is loaded, so just save its resolution
-                                        WriteHash(World->ResolutionMapping, NPos, NPos->Resolution);
-                                        /////// TODO: Should we gather neighbours here??
+                                        NPosHash = WriteHash(World->ResolutionMapping, NPos, NPos->Resolution);
                                     }
-                                    else
+                                    // TODO: Neighbour is already be on smaller resolution?
+                                    if((NPosHash->Index < (int32)NPos->Resolution))
                                     {
-                                        // TODO: Neighbour is already on different resolution?
-                                        Assert(NPosHash->Index == (int32)NPos->Resolution);
+                                        // NOTE: one neighbour is smaller, so dont render
+                                        NeighboursGenerated = false;
                                     }
                                 }
                                 
-                                // NOTE: Add to render blocks here
-                                MaxRenderBlocksToGenerateInFrame--;
-                                BlocksToRender[RenderCount++] = *BlockP;
-                                BlocksToRender[RenderCount++].Resolution = (uint32)ResHash->Index;
+                                if(NeighboursGenerated)
+                                {
+                                    // NOTE: Add to render blocks here
+                                    MaxRenderBlocksToGenerateInFrame--;
+                                    BlocksToRender[RenderCount++] = *BlockP;
+                                }
                             }
                         }
                     }
@@ -795,7 +866,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         RenderIndex++)
     {
         world_block_pos *BlockP = BlocksToRender + RenderIndex;
-        block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
+        /*block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
         block_hash *ZeroHash = GetZeroHash(World, BlockP);
         if(!HashIsEmpty(RenderHash))
         {
@@ -805,7 +876,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         {
             ZeroHash->Index = HASH_DELETED;
             World->ZeroBlockCount--;
-        }
+        }*/
+        DeleteRenderedBlock(World, BlockP);
         
         Assert(HashIsEmpty(GetHash(World->RenderHash, BlockP)));
         Assert(HashIsEmpty(GetZeroHash(World, BlockP)));
