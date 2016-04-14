@@ -607,6 +607,25 @@ GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos 
     LowerBlockPositions[7].BlockZ = BlockP->BlockZ * 2 + 1;
 }
 
+internal world_block_pos 
+GetMappedPosition(world_density *World, world_block_pos *BlockP)
+{
+    world_block_pos Result = *BlockP;
+
+    block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+    Assert(!HashIsEmpty(ResHash));
+    // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
+    // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
+    // which we doesn't handle currently 
+    while(Result.Resolution != (uint32)ResHash->Index)
+    {
+        Assert((uint32)ResHash->Index > Result.Resolution);
+        Result = GetBiggerResBlockPosition(&Result);
+    }
+    
+    return Result;
+}
+
 #define DENSITY_ISO_LEVEL 0.0f
 internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
@@ -630,18 +649,10 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
         NeighbourIndex++)
     {
         world_block_pos *NeighbourP = NPositions.Pos + NeighbourIndex;
-        block_hash *NeighbourRes = GetHash(World->ResolutionMapping, NeighbourP);
-        Assert(!HashIsEmpty(NeighbourRes));
-        // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
-        // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
-        // which we doesn't handle currently 
-        while(NeighbourP->Resolution != (uint32)NeighbourRes->Index)
-        {
-            Assert((uint32)NeighbourRes->Index > NeighbourP->Resolution);
-            *NeighbourP = GetBiggerResBlockPosition(NeighbourP);
-        }
+        world_block_pos MappedP = GetMappedPosition(World, NeighbourP);
+        Assert(MappedP.Resolution >= BlockP->Resolution);
         
-        block_hash *NeighbourHash = GetHash(World->DensityHash, NeighbourP);
+        block_hash *NeighbourHash = GetHash(World->DensityHash, &MappedP);
         Assert(!HashIsEmpty(NeighbourHash));
         Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
     }
