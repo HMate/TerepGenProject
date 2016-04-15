@@ -469,14 +469,28 @@ GetFromNeighbours(terrain_density_block **Neighbours,
            
     terrain_density_block *ActDensityBlock = Neighbours[NIndex];
     
-    world_block_pos NewPos = ConvertToResolution(BlockP, ActDensityBlock->Pos.Resolution);
+    world_block_pos ParentPos = ConvertToResolution(BlockP, ActDensityBlock->Pos.Resolution);
     
     int32 GridStep = (int32)TERRAIN_BLOCK_SIZE;
     int32 OriginalRes = (int32)BlockP->Resolution;
     int32 NewRes = (int32)ActDensityBlock->Pos.Resolution;
-    uint32 NewX = (uint32)(X - (DiffX * GridStep * OriginalRes / NewRes));
-    uint32 NewY = (uint32)(Y - (DiffY * GridStep * OriginalRes / NewRes));
-    uint32 NewZ = (uint32)(Z - (DiffZ * GridStep * OriginalRes / NewRes));
+    
+    world_block_pos ParentPosInOriginalRes = ConvertToResolution(&ParentPos, BlockP->Resolution);
+    int32 OffsetInParentX = (BlockP->BlockX - ParentPosInOriginalRes.BlockX) * (GridStep * OriginalRes / NewRes);
+    int32 OffsetInParentY = (BlockP->BlockY - ParentPosInOriginalRes.BlockY) * (GridStep * OriginalRes / NewRes);
+    int32 OffsetInParentZ = (BlockP->BlockZ - ParentPosInOriginalRes.BlockZ) * (GridStep * OriginalRes / NewRes);
+    
+    int32 NewResX = OffsetInParentX + FloorInt32((real32)X * OriginalRes / NewRes);
+    int32 NewResY = OffsetInParentY + FloorInt32((real32)Y * OriginalRes / NewRes);
+    int32 NewResZ = OffsetInParentZ + FloorInt32((real32)Z * OriginalRes / NewRes);
+    
+    int32 NewResDiffX = FloorInt32(NewResX / BlockSize);
+    int32 NewResDiffY = FloorInt32(NewResY / BlockSize);
+    int32 NewResDiffZ = FloorInt32(NewResZ / BlockSize);
+    
+    uint32 NewX = (uint32)(NewResX - (NewResDiffX * GridStep));
+    uint32 NewY = (uint32)(NewResY - (NewResDiffY * GridStep));
+    uint32 NewZ = (uint32)(NewResZ - (NewResDiffZ * GridStep));
     
     real32 Result = GetGrid(&ActDensityBlock->Grid, NewX, NewY, NewZ);
     
@@ -632,6 +646,10 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
 //  terrain_density_block *DensityBlock)
 {
     //world_block_pos *BlockP = &DensityBlock->Pos;
+    if(BlockP->Resolution == 2)
+    {
+        int deub = 6;
+    }
     
     // TODO: Should get positions from outside, because locally its hard to decide, which
     // neighbour should have what resolution. This should be based on how that neighbour is already rendered.
