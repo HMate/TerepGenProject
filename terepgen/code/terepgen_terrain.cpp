@@ -25,8 +25,7 @@ inline uint32 GetHashValue(world_block_pos *P)
     uint32 Result = 5*P->Resolution + 2557*P->BlockX + 151*P->BlockY + 37*P->BlockZ;
     return Result;
 }
-    
-// TODO: Take a look at hashes now, that we delete from them too. Do we need DELETED?
+
 // NOTE: This can give back a deleted hash, if it had the same key as this block,
 // and it was already deleted once, and wasn't overwritten since.
 internal block_hash *
@@ -37,7 +36,8 @@ GetHash(block_hash *HashArray, world_block_pos *P)
     uint32 HashValue = GetHashValue(P);
     uint32 HashMask = (BLOCK_HASH_SIZE - 1);
     
-    for(uint32 Offset = 0;
+    uint32 Offset = 0;
+    for(;
         Offset < BLOCK_HASH_SIZE;
         ++Offset)
     {
@@ -159,6 +159,20 @@ WriteZeroHash(world_density *World, world_block_pos *P)
 }
 
 internal void
+InitResolutionMapping(world_density *World)
+{
+    World->BlockMappedCount = 0;
+    
+    for(uint32 HashIndex = 0;
+        HashIndex < ArrayCount(World->ResolutionMapping);
+        ++HashIndex)
+    {
+        block_hash *Hash = World->ResolutionMapping + HashIndex;
+        Hash->Index = HASH_UNINITIALIZED;
+    }
+}
+
+internal void
 InitBlockHash(world_density *World)
 {
     // TODO: Does zeroing out stored block count belong here?
@@ -182,14 +196,7 @@ InitBlockHash(world_density *World)
         block_hash *Hash = World->RenderHash + HashIndex;
         Hash->Index = HASH_UNINITIALIZED;
     }
-    
-    for(uint32 HashIndex = 0;
-        HashIndex < ArrayCount(World->ResolutionMapping);
-        ++HashIndex)
-    {
-        block_hash *Hash = World->ResolutionMapping + HashIndex;
-        Hash->Index = HASH_UNINITIALIZED;
-    }
+    InitResolutionMapping(World);
 }
 
 inline void
@@ -643,21 +650,7 @@ GetMappedPosition(world_density *World, world_block_pos *BlockP)
 #define DENSITY_ISO_LEVEL 0.0f
 internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
-//  terrain_density_block *DensityBlock)
 {
-    //world_block_pos *BlockP = &DensityBlock->Pos;
-    if(BlockP->Resolution == 2)
-    {
-        int deub = 6;
-    }
-    
-    // TODO: Should get positions from outside, because locally its hard to decide, which
-    // neighbour should have what resolution. This should be based on how that neighbour is already rendered.
-    // But they way it is rendered can change in this frame too, and that would cause visual bugs.
-    // So we should overwatch somehow how should the neighbour blocks currently be rendered, and pass them here.
-    
-    // const uint32 NeighbourCount = ArrayCount(RenderBlock->NeighbourPositions);
-    // world_block_pos *NeighbourPositions = RenderBlock->NeighbourPositions;
     block_neighbours NPositions;
     GetNeighbourBlockPositions(&NPositions, BlockP);
     terrain_density_block *Neighbours[ArrayCount(NPositions.Pos)];

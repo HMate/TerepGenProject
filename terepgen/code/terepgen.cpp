@@ -172,12 +172,12 @@ DeleteRenderBlock(world_density *World, int32 StoreIndex)
 internal bool32
 DoRectangleContains(world_block_pos *Center, int32 Radius, world_block_pos *P)
 {
-    bool32 Result = (Center->BlockX + Radius < P->BlockX) ||
-                    (Center->BlockX - Radius > P->BlockX) ||
-                    (Center->BlockY + Radius < P->BlockY) ||
-                    (Center->BlockY - Radius > P->BlockY) ||
-                    (Center->BlockZ + Radius < P->BlockZ) ||
-                    (Center->BlockZ - Radius > P->BlockZ);
+    bool32 Result = (Center->BlockX + Radius > P->BlockX) &&
+                    (Center->BlockX - Radius < P->BlockX) &&
+                    (Center->BlockY + Radius > P->BlockY) &&
+                    (Center->BlockY - Radius < P->BlockY) &&
+                    (Center->BlockZ + Radius > P->BlockZ) &&
+                    (Center->BlockZ - Radius < P->BlockZ);
     return Result;
 }
 
@@ -342,7 +342,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     block_pos_array BlockPositionStore[ResolutionCount];
     CalculateBlockPositions(BlockPositionStore, WorldCameraP, RENDERED_BLOCK_RADIUS);
     CalculateBlockPositions(BlockPositionStore + 1, WorldCameraP + 1, RENDERED_BLOCK_RADIUS);
-    
+        
     win32_clock Clock;
     //
     // NOTE: Delete blocks that are too far from the camera
@@ -358,7 +358,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             terrain_density_block *Block = World->DensityBlocks + StoreIndex;
             world_block_pos *BlockP = &Block->Pos;
             uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
-            if(DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, BlockP))
+            if(!DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, BlockP))
             {
                 terrain_density_block *Last = World->DensityBlocks + (--World->DensityBlockCount);
                 world_block_pos *LastP = &Last->Pos;
@@ -391,7 +391,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
             world_block_pos BlockP = WorldPosFromV3(Block->Pos, FixedResolution[0]);
             uint32 ResIndex = GetResolutionIndex(BlockP.Resolution);
-            if(DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, &BlockP))
+            if(!DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, &BlockP))
             {
                 DeleteRenderBlock(World, StoreIndex);
             }
@@ -399,7 +399,35 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     }
     Clock.Reset();
     
-    // TODO: Clear Resolution mapping too!
+    if(World->BlockMappedCount > (ArrayCount(World->ResolutionMapping) * 7/8))
+    {
+        int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
+        
+        block_hash NewMappingHash[BLOCK_HASH_SIZE];
+        for(uint32 StoreIndex = 0; 
+            StoreIndex < ArrayCount(World->ResolutionMapping); 
+            ++StoreIndex)
+        {
+            NewMappingHash[StoreIndex] = World->ResolutionMapping[StoreIndex];
+        }
+        
+        InitResolutionMapping(World);
+        
+        for(uint32 StoreIndex = 0; 
+            StoreIndex < ArrayCount(World->ResolutionMapping); 
+            ++StoreIndex)
+        {
+            block_hash *Hash = NewMappingHash + StoreIndex;
+            world_block_pos *HashP = &Hash->Key;
+            uint32 ResIndex = GetResolutionIndex(Hash->Key.Resolution);
+            if(DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, HashP))
+            {
+                WriteHash(World->ResolutionMapping, HashP, Hash->Index);
+                World->BlockMappedCount++;
+            }
+        }
+    }
+    Clock.Reset();
     
     int32 ZeroGridTotalSize = POS_GRID_SIZE(ZERO_BLOCK_RADIUS);
     Assert(ZeroGridTotalSize < ZERO_HASH_SIZE);
@@ -424,7 +452,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             world_block_pos *ZeroP = &Entry->Key;
             uint32 ResIndex = GetResolutionIndex(ZeroP->Resolution);
             if((Entry->Index == HASH_ZERO_BLOCK) && 
-               DoRectangleContains(WorldCameraP + ResIndex, ZeroSpaceRadius, ZeroP))
+               !DoRectangleContains(WorldCameraP + ResIndex, ZeroSpaceRadius, ZeroP))
             {
                 block_hash *ZeroHash = WriteZeroHash(World, ZeroP);
                 World->ZeroBlockCount++;
@@ -594,11 +622,13 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                     if(!HashIsEmpty(BiggerPHash))
                     {
                         WriteHash(World->ResolutionMapping, BlockP, (int32)BiggerPHash->Index);
+                        World->BlockMappedCount++;
                     }
                     else
                     {
                         Assert(BlockP->Resolution == FixedResolution[0]);
                         WriteHash(World->ResolutionMapping, BlockP, (int32)BlockP->Resolution);
+                        World->BlockMappedCount++;
                         // NOTE: Generate this block, if all its neighbours are generated
                         bool32 NeighboursGenerated = DidDensityBlocksLoaded(World, 
                                                                             NPositions.Pos, ArrayCount(NPositions.Pos));
@@ -617,6 +647,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                                     // NOTE: Neighbours density is loaded, so just save its resolution
                                     Assert(NPos->Resolution == BlockP->Resolution);
                                     WriteHash(World->ResolutionMapping, NPos, NPos->Resolution);
+                                    World->BlockMappedCount++;
                                 }
                                 else
                                 {
@@ -667,6 +698,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                             if(HashIsEmpty(SiblingHash))
                             {
                                 WriteHash(World->ResolutionMapping, SiblingP, NewResolution);
+                                World->BlockMappedCount++;
                             }
                             else
                             {
@@ -696,6 +728,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                                     // not on the edge of the block position store
                                     Assert(!HashIsEmpty(NHash)); 
                                     NHash = WriteHash(World->ResolutionMapping, NPos, NHash->Index);
+                                    World->BlockMappedCount++;
                                 }
                                 
                                 if(BlockWasRendered(World, NPos) && (NHash->Index == ResHash->Index))
@@ -736,12 +769,14 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                                     if(!HashIsEmpty(BigHash))
                                     {
                                         NPosHash = WriteHash(World->ResolutionMapping, NPos, BigHash->Index);
+                                        World->BlockMappedCount++;
                                     }
                                     else
                                     {
                                         // NOTE: Presume that this can only happen at the biggest resolution
                                         Assert(NPos->Resolution == FixedResolution[0]);
                                         NPosHash = WriteHash(World->ResolutionMapping, NPos, NPos->Resolution);
+                                        World->BlockMappedCount++;
                                     }
                                 }
                             }

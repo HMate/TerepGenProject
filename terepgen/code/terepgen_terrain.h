@@ -76,6 +76,7 @@ struct world_density
     // NOTE: This must be a power of two for now!
     block_hash DensityHash[BLOCK_HASH_SIZE];
     // NOTE: Index in ResolutionMapping means the Resolution that the block should be rendered
+    uint32 BlockMappedCount;
     block_hash ResolutionMapping[BLOCK_HASH_SIZE];
     block_hash RenderHash[BLOCK_HASH_SIZE];
     uint32 ZeroBlockCount;
