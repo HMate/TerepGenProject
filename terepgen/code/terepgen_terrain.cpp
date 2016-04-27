@@ -65,7 +65,8 @@ WriteHash(block_hash *HashArray, world_block_pos *P, int32 NewBlockIndex)
     uint32 HashValue =  GetHashValue(P);
     uint32 HashMask = (BLOCK_HASH_SIZE - 1);
     
-    for(uint32 Offset = 0;
+	uint32 Offset = 0;
+    for(;
         Offset < BLOCK_HASH_SIZE;
         ++Offset)
     {

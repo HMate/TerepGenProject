@@ -144,31 +144,6 @@ AddCube(game_state *GameState, v3 WorldMousePos)
     GameState->Cube.Vertices[35] = Vertex(Corner7, Normal5, ColorG);
 }
 
-internal void
-DeleteRenderBlock(world_density *World, int32 StoreIndex)
-{
-    terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
-    terrain_render_block *Last = World->PoligonisedBlocks + (--World->PoligonisedBlockCount);
-    world_block_pos BlockP = WorldPosFromV3(Block->Pos, Block->Resolution);
-    world_block_pos LastP = WorldPosFromV3(Last->Pos, Last->Resolution);
-    
-    block_hash *RemovedHash = GetHash(World->RenderHash, &BlockP);
-    Assert(StoreIndex == RemovedHash->Index);
-    Assert(!HashIsEmpty(RemovedHash));
-    block_hash *LastHash = GetHash(World->RenderHash, &LastP);
-    Assert(!HashIsEmpty(LastHash));
-    
-    LastHash->Index = StoreIndex;
-    RemovedHash->Index = HASH_DELETED;
-    World->DeletedRenderBlockCount++;
-    
-    // NOTE: If we are not deleting the last block
-    if(StoreIndex != (int32)World->PoligonisedBlockCount)
-    {
-        *Block = *Last;
-    }
-}
-
 internal bool32
 DoRectangleContains(world_block_pos *Center, int32 Radius, world_block_pos *P)
 {
@@ -275,6 +250,31 @@ BlockWasRendered(world_density *World, world_block_pos *BlockP)
     Result = !(HashIsEmpty(RenderHash) && HashIsEmpty(ZeroHash));
     
     return Result;
+}
+
+internal void
+DeleteRenderBlock(world_density *World, int32 StoreIndex)
+{
+    terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
+    terrain_render_block *Last = World->PoligonisedBlocks + (--World->PoligonisedBlockCount);
+    world_block_pos BlockP = WorldPosFromV3(Block->Pos, Block->Resolution);
+    world_block_pos LastP = WorldPosFromV3(Last->Pos, Last->Resolution);
+    
+    block_hash *RemovedHash = GetHash(World->RenderHash, &BlockP);
+    Assert(StoreIndex == RemovedHash->Index);
+    Assert(!HashIsEmpty(RemovedHash));
+    block_hash *LastHash = GetHash(World->RenderHash, &LastP);
+    Assert(!HashIsEmpty(LastHash));
+    
+    LastHash->Index = StoreIndex;
+    RemovedHash->Index = HASH_DELETED;
+    World->DeletedRenderBlockCount++;
+    
+    // NOTE: If we are not deleting the last block
+    if(StoreIndex != (int32)World->PoligonisedBlockCount)
+    {
+        *Block = *Last;
+    }
 }
 
 internal void
@@ -420,7 +420,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             block_hash *Hash = NewMappingHash + StoreIndex;
             world_block_pos *HashP = &Hash->Key;
             uint32 ResIndex = GetResolutionIndex(Hash->Key.Resolution);
-            if(DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, HashP))
+            if(DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, HashP) &&
+               Hash->Index > 0)
             {
                 WriteHash(World->ResolutionMapping, HashP, Hash->Index);
                 World->BlockMappedCount++;
@@ -584,12 +585,59 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     real64 TimeRightClick = Clock.GetSecondsElapsed();
     Clock.Reset();
     
-    // NOTE: Render blocks in full resolution and mixed resolution passes?
-    // for mixed pass, we have to get the blocks that have been rendered, but got a lower res neighbour since then?
-    
+    // NOTE: 
     // If all the lower blocks of a block are generated, then the lower blocks can be mix rendered
     // If a mix rendered blocks neigbours are done generating their lower blocks, then they can be generated normally
     
+    // NOTE: map all the blocks in range, if they arent
+    for(uint32 ResolutionIndex = 0;
+        ResolutionIndex < ResolutionCount;
+        ResolutionIndex++)
+    {
+        block_pos_array *BlockPositions = BlockPositionStore + ResolutionIndex;
+        for(size_t BlockPosIndex = 0; 
+            (BlockPosIndex < BlockPositions->Count) && (MaxRenderBlocksToGenerateInFrame > 0) ;
+            ++BlockPosIndex)
+        {
+            // NOTE: Map this block, and its neighbours
+            world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;
+            block_neighbours NPositions;
+            GetNeighbourBlockPositions(&NPositions, BlockP);
+            
+            for(uint32 NIndex = 0;
+                NIndex < ArrayCount(NPositions.Pos);
+                NIndex++)
+            {
+                world_block_pos *NPos = NPositions.Pos + NIndex;
+                
+                block_hash *ResHash = GetHash(World->ResolutionMapping, NPos);
+                if(HashIsEmpty(ResHash))
+                {
+                    world_block_pos BiggerP = GetBiggerResBlockPosition(NPos);
+                    if(BiggerP.Resolution <= FixedResolution[0])
+                    {
+                        block_hash *BigPResHash = GetHash(World->ResolutionMapping, &BiggerP);
+                        Assert(!HashIsEmpty(BigPResHash));
+                        WriteHash(World->ResolutionMapping, NPos, (int32)BigPResHash->Index);
+                        World->BlockMappedCount++;
+                    }
+                    else
+                    {
+                        WriteHash(World->ResolutionMapping, NPos, FixedResolution[0]);
+                        World->BlockMappedCount++;
+                    }
+                }
+                //TODO: Maybe we want to upgrade its resolution here?
+                // else
+                // {
+                    
+                // }
+            }
+            
+        }
+    }
+    
+    // NOTE: Select the next blocks that we can render.
     const uint32 BlockRenderMaxCount = 1000;
     world_block_pos BlocksToRender[BlockRenderMaxCount];
     uint32 RenderCount = 0;
@@ -604,200 +652,19 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             ++BlockPosIndex)
         {
             world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;
-            block_hash *DensityHash = GetHash(World->DensityHash, BlockP);
-            if(!HashIsEmpty(DensityHash))
-            {                
+            block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+            Assert(!HashIsEmpty(ResHash));
+            bool32 AreOnSameRes = BlockP->Resolution == (uint32)ResHash->Index;
+            
+            if(AreOnSameRes && !BlockWasRendered(World, BlockP))
+            {
                 block_neighbours NPositions;
                 GetNeighbourBlockPositions(&NPositions, BlockP);
-                block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
-                
-                if(HashIsEmpty(ResHash))
-                {
-                    // NOTE: This block wasnt even counted before
-                    
-                    // NOTE: check if bigger resolution is generated
-                    // TODO: Check this recursivly for all resolutions?
-                    world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
-                    block_hash *BiggerPHash = GetHash(World->ResolutionMapping, &BiggerP);
-                    if(!HashIsEmpty(BiggerPHash))
-                    {
-                        WriteHash(World->ResolutionMapping, BlockP, (int32)BiggerPHash->Index);
-                        World->BlockMappedCount++;
-                    }
-                    else
-                    {
-                        Assert(BlockP->Resolution == FixedResolution[0]);
-                        WriteHash(World->ResolutionMapping, BlockP, (int32)BlockP->Resolution);
-                        World->BlockMappedCount++;
-                        // NOTE: Generate this block, if all its neighbours are generated
-                        bool32 NeighboursGenerated = DidDensityBlocksLoaded(World, 
-                                                                            NPositions.Pos, ArrayCount(NPositions.Pos));
-                        
-                        // Neighbours resoltuion should be consistent with this block!
-                        if(NeighboursGenerated)
-                        {
-                            for(uint32 NIndex = 0;
-                                NIndex < ArrayCount(NPositions.Pos);
-                                NIndex++)
-                            {
-                                world_block_pos *NPos = NPositions.Pos + NIndex;
-                                block_hash *NPosHash = GetHash(World->ResolutionMapping, NPos);
-                                if(HashIsEmpty(NPosHash))
-                                {
-                                    // NOTE: Neighbours density is loaded, so just save its resolution
-                                    Assert(NPos->Resolution == BlockP->Resolution);
-                                    WriteHash(World->ResolutionMapping, NPos, NPos->Resolution);
-                                    World->BlockMappedCount++;
-                                }
-                                else
-                                {
-                                    // TODO: Neighbour is already on different resolution?
-                                    Assert(NPosHash->Index == (int32)NPos->Resolution);
-                                }
-                            }
-                            
-                            // NOTE: Add to render blocks here
-                            MaxRenderBlocksToGenerateInFrame--;
-                            BlocksToRender[RenderCount++] = *BlockP;
-                        }
-                    }
-                }
-                else
-                {
-                    // NOTE: Was already in ResolutionMapping,
-                    // maybe it wasnt rendered though, because it didt had its neighbours at the time
-                    // decide if we should upgrade it to the next resolution, together with its neighbours
-                    
-                    // NOTE: upgrade, if we want to generate more block in frame, and we find a block
-                    // which was indexed on a bigger resolution ->
-                    // this means that it is time to upgrade one to smaller resolution.
-                    // This should apply to all the smaller res blocks in the parent block
-                        
-                    world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
-                    const uint32 SiblingCount = 8;
-                    world_block_pos Siblings[SiblingCount];
-                    GetLowerResBlockPositions(Siblings, &BiggerP);
-                    
-                    bool32 SiblingDensitiesLoaded = DidDensityBlocksLoaded(World, Siblings, SiblingCount);
-                    if(ResHash->Index > (int32)BlockP->Resolution && SiblingDensitiesLoaded)
-                    {
-                        // NOTE: Rerender this block + neighbour blocks, to remain consistent
-                        
-                        int32 OldRes = ResHash->Index;
-                        uint32 NewResIndex = GetResolutionIndex((uint32)OldRes) + 1;
-                        Assert(NewResIndex < ResolutionCount);
-                        int32 NewResolution = FixedResolution[NewResIndex];
-                        
-                        for(uint32 SiblingIndex = 0;
-                            SiblingIndex < SiblingCount;
-                            SiblingIndex++)
-                        {
-                            // NOTE: Ensure that every sibling is mapped right
-                            world_block_pos *SiblingP = Siblings + SiblingIndex;
-                            auto SiblingHash = GetHash(World->ResolutionMapping, SiblingP);
-                            if(HashIsEmpty(SiblingHash))
-                            {
-                                WriteHash(World->ResolutionMapping, SiblingP, NewResolution);
-                                World->BlockMappedCount++;
-                            }
-                            else
-                            {
-                                Assert(SiblingHash->Index == OldRes);
-                                SiblingHash->Index = NewResolution;
-                            }
-                        }
-                        
-                        for(uint32 SiblingIndex = 0;
-                            SiblingIndex < SiblingCount;
-                            SiblingIndex++)
-                        {
-                            world_block_pos *SiblingP = Siblings + SiblingIndex;
-                            block_neighbours SiblingNeighbours;
-                            GetNeighbourBlockPositions(&SiblingNeighbours, SiblingP);
-                            for(uint32 NIndex = 0;
-                                NIndex < ArrayCount(SiblingNeighbours.Pos);
-                                NIndex++)
-                            {
-                                world_block_pos *NPos = SiblingNeighbours.Pos + NIndex;
-                                block_hash *NHash = GetHash(World->ResolutionMapping, NPos);
-                                if(HashIsEmpty(NHash))
-                                {
-                                    world_block_pos NBiggerP = GetBiggerResBlockPosition(NPos);
-                                    NHash = GetHash(World->ResolutionMapping, &NBiggerP);
-                                    // NOTE: We can presume that Smaller resolutions are 
-                                    // not on the edge of the block position store
-                                    Assert(!HashIsEmpty(NHash)); 
-                                    NHash = WriteHash(World->ResolutionMapping, NPos, NHash->Index);
-                                    World->BlockMappedCount++;
-                                }
-                                
-                                if(BlockWasRendered(World, NPos) && (NHash->Index == ResHash->Index))
-                                {
-                                    MaxRenderBlocksToGenerateInFrame--;
-                                    BlocksToRender[RenderCount++] = *NPos;
-                                }
-                            }
-                            if(DidBiggerMappedDensitiesLoad(World, SiblingNeighbours.Pos, ArrayCount(SiblingNeighbours.Pos)))
-                            {
-                                MaxRenderBlocksToGenerateInFrame--;
-                                BlocksToRender[RenderCount++] = *SiblingP;
-                            }
-                        }
-                        
-                        block_hash *BiggerHash = GetHash(World->ResolutionMapping, &BiggerP);
-                        Assert(!HashIsEmpty(BiggerHash));
-                        BiggerHash->Index = NewResolution;
-                        DeleteRenderedBlock(World, &BiggerP);
-                    }
-                    else
-                    {
-                        if(!BlockWasRendered(World, BlockP) && (ResHash->Index == (int32)BlockP->Resolution))
-                        {
-                            // NOTE: Block was never rendered. should we render it now?
-                            
-                            // NOTE: Ensure that all neghbours are mapped
-                            for(uint32 NIndex = 0;
-                                NIndex < ArrayCount(NPositions.Pos);
-                                NIndex++)
-                            {
-                                world_block_pos *NPos = NPositions.Pos + NIndex;
-                                block_hash *NPosHash = GetHash(World->ResolutionMapping, NPos);
-                                if(HashIsEmpty(NPosHash))
-                                {
-                                    auto NBiggerP = GetBiggerResBlockPosition(NPos);
-                                    auto BigHash = GetHash(World->ResolutionMapping, &NBiggerP);
-                                    if(!HashIsEmpty(BigHash))
-                                    {
-                                        NPosHash = WriteHash(World->ResolutionMapping, NPos, BigHash->Index);
-                                        World->BlockMappedCount++;
-                                    }
-                                    else
-                                    {
-                                        // NOTE: Presume that this can only happen at the biggest resolution
-                                        Assert(NPos->Resolution == FixedResolution[0]);
-                                        NPosHash = WriteHash(World->ResolutionMapping, NPos, NPos->Resolution);
-                                        World->BlockMappedCount++;
-                                    }
-                                }
-                            }
-                            
-                            // TODO: Check if every neighbours are mapped same or bigger
-                            world_block_pos DebugLowers[8];
-                            GetLowerResBlockPositions(DebugLowers, BlockP);
-                            if(AreNeighboursAreMappedSameOrBigger(World, 
-                                    NPositions.Pos, ArrayCount(NPositions.Pos), ResHash->Index))
-                            {
-                                bool32 NeighboursGenerated = DidBiggerMappedDensitiesLoad(World, 
-                                                                NPositions.Pos, ArrayCount(NPositions.Pos));
-                                if(NeighboursGenerated)
-                                {
-                                    // NOTE: Add to render blocks here
-                                    MaxRenderBlocksToGenerateInFrame--;
-                                    BlocksToRender[RenderCount++] = *BlockP;
-                                }
-                            }
-                        }
-                    }
+                bool32 DidLoad = DidBiggerMappedDensitiesLoad(World, NPositions.Pos, ArrayCount(NPositions.Pos));
+                if(DidLoad)
+                {                    
+                    MaxRenderBlocksToGenerateInFrame--;
+                    BlocksToRender[RenderCount++] = *BlockP;
                 }
             }
         }
