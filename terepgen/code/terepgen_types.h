@@ -192,5 +192,18 @@ ModReal32(real32 Value, real32 Base)
     return Result;
 }
 
+inline int32
+Min(int32 A, int32 B)
+{
+    if(A < B)
+    {
+        return A;
+    }
+    else
+    {
+        return B;
+    }
+}
+
 #define TEREPGEN_TYPES_H
 #endif
