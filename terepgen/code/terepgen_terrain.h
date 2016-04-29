@@ -60,7 +60,7 @@ struct terrain_render_block
 // NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
 #define POS_GRID_SIZE(n) ((uint32)(((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1)
 #define RENDERED_BLOCK_RADIUS 7
-#define DENSITY_BLOCK_RADIUS 10
+#define DENSITY_BLOCK_RADIUS 13
 #define ZERO_BLOCK_RADIUS 23
 #define BLOCK_POS_COUNT POS_GRID_SIZE(RENDERED_BLOCK_RADIUS)
 #define DENSITY_POS_COUNT POS_GRID_SIZE(DENSITY_BLOCK_RADIUS)
@@ -77,9 +77,9 @@ struct density_block_pos_array
     world_block_pos Pos[DENSITY_POS_COUNT];
 };
 
-#define DENSITY_BLOCK_COUNT 6000
+#define DENSITY_BLOCK_COUNT 8000
 #define RENDER_BLOCK_COUNT 1500
-#define BLOCK_HASH_SIZE 8192
+#define BLOCK_HASH_SIZE 16384
 #define ZERO_HASH_SIZE 32768
 
 #define RESOLUTION_COUNT 2
