@@ -6,10 +6,16 @@
 #include "terepgen_random.cpp"
 #include "terepgen_terrain.cpp"
 #include "terepgen_dx_renderer.cpp"
+
+internal int32 
+getGridSize(const int32 n)
+{
+    return ((int32)(((4.0*n*n*n) + n*8.0 )/3.0 ) + (2*n*n) + 1);
+}
     
 // TODO: Should be based on resolution!
 internal void 
-CalculateBlockPositions(block_pos_array *PosArray, world_block_pos *CentralBlockPos, int32 Radius)
+CalculateBlockPositions(block_pos_array *PosArray, uint32 MaxArraySize, world_block_pos *CentralBlockPos, int32 Radius)
 {    
     PosArray->Count = 0;
     for(int32 Dist = 0;
@@ -45,7 +51,7 @@ CalculateBlockPositions(block_pos_array *PosArray, world_block_pos *CentralBlock
         }
     }
     
-    Assert(PosArray->Count <= ArrayCount(PosArray->Pos));
+    Assert(PosArray->Count <= MaxArraySize);
 }
 
 internal void
@@ -180,7 +186,13 @@ DidBiggerMappedDensitiesLoad(world_density *World, world_block_pos *Positions, u
         ++PosIndex)
     {
         world_block_pos *Pos = Positions + PosIndex;
-        world_block_pos MappedPos = GetMappedPosition(World, Pos);
+        block_hash *ResHash = GetHash(World->ResolutionMapping, Pos);
+        if(ResHash->Index < (int32)Pos->Resolution)
+        {
+            // Block in position already mapped on smaller resolution
+            return false;
+        }
+        world_block_pos MappedPos = GetBiggerMappedPosition(World, Pos);
         block_hash *DensityHash = GetHash(World->DensityHash, &MappedPos);
         Result = Result && !HashIsEmpty(DensityHash);
     }
@@ -297,7 +309,7 @@ DeleteRenderedBlock(world_density *World, world_block_pos *BlockP)
 internal void
 UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, screen_info ScreenInfo)
 {
-    const uint32 ResolutionCount = 2;
+    const uint32 ResolutionCount = RESOLUTION_COUNT;
     const uint32 FixedResolution[ResolutionCount] = {8, 4};
 
     world_density *World = &GameState->WorldDensity;
@@ -340,10 +352,21 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         WorldPosFromV3(CameraP, FixedResolution[0]),
         WorldPosFromV3(CameraP, FixedResolution[1])
     };
-    block_pos_array BlockPositionStore[ResolutionCount];
-    CalculateBlockPositions(BlockPositionStore, WorldCameraP, RENDERED_BLOCK_RADIUS);
-    CalculateBlockPositions(BlockPositionStore + 1, WorldCameraP + 1, RENDERED_BLOCK_RADIUS);
-        
+    
+    CalculateBlockPositions(World->RenderPositionStore, 
+                            ArrayCount(World->RenderPositionStore->Pos), 
+                            WorldCameraP, RENDERED_BLOCK_RADIUS);
+    CalculateBlockPositions(World->RenderPositionStore + 1, 
+                            ArrayCount(World->RenderPositionStore->Pos), 
+                            WorldCameraP + 1, RENDERED_BLOCK_RADIUS);
+    
+    CalculateBlockPositions((block_pos_array*)World->DensityPositionStore, 
+                            ArrayCount(World->DensityPositionStore->Pos), 
+                            WorldCameraP, DENSITY_BLOCK_RADIUS);
+    CalculateBlockPositions((block_pos_array*)(World->DensityPositionStore + 1), 
+                            ArrayCount(World->DensityPositionStore->Pos), 
+                            WorldCameraP + 1, DENSITY_BLOCK_RADIUS);
+    
     win32_clock Clock;
     //
     // NOTE: Delete blocks that are too far from the camera
@@ -351,7 +374,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
     if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) * 7 / 8))
     {
-        int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
+        int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS;
         for(uint32 StoreIndex = 0; 
             StoreIndex < World->DensityBlockCount; 
             ++StoreIndex)
@@ -470,7 +493,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         ResolutionIndex < ResolutionCount;
         ResolutionIndex++)
     {
-        block_pos_array *BlockPositions = BlockPositionStore + ResolutionIndex;
+        density_block_pos_array *BlockPositions = World->DensityPositionStore + ResolutionIndex;
         for(size_t PosIndex = 0; 
             (PosIndex < BlockPositions->Count) && (MaxDensityBlocksToGenerateInFrame > 0) ;
             ++PosIndex)
@@ -596,7 +619,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         ResolutionIndex < ResolutionCount;
         ResolutionIndex++)
     {
-        block_pos_array *BlockPositions = BlockPositionStore + ResolutionIndex;
+        density_block_pos_array *BlockPositions = World->DensityPositionStore + ResolutionIndex;
         for(size_t BlockPosIndex = 0; 
             (BlockPosIndex < BlockPositions->Count);
             ++BlockPosIndex)
@@ -629,6 +652,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                         World->BlockMappedCount++;
                     }
                 }
+                // TODO: Could do downgrading here, if block is far away from the camera
                 Assert(!HashIsEmpty(ResHash));
                 LowestResUsed = Min(LowestResUsed, ResHash->Index);
             }
@@ -646,7 +670,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         ResolutionIndex < ResolutionCount;
         ResolutionIndex++)
     {
-        block_pos_array *BlockPositions = BlockPositionStore + ResolutionIndex;
+        block_pos_array *BlockPositions = World->RenderPositionStore + ResolutionIndex;
         for(size_t BlockPosIndex = 0; 
             (BlockPosIndex < BlockPositions->Count) && (MaxRenderBlocksToGenerateInFrame > 0) ;
             ++BlockPosIndex)
@@ -659,12 +683,12 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             
             if(AreOnSameRes && !BlockWasRendered(World, BlockP))
             {
-                EverybodyIsRenderedOnCorrectResolution = false; // TODO: edges are making this wrong
+                EverybodyIsRenderedOnCorrectResolution = false;
                 block_neighbours NPositions;
                 GetNeighbourBlockPositions(&NPositions, BlockP);
                 bool32 DidLoad = DidBiggerMappedDensitiesLoad(World, NPositions.Pos, ArrayCount(NPositions.Pos));
                 if(DidLoad)
-                {                    
+                {
                     MaxRenderBlocksToGenerateInFrame--;
                     Assert(RenderCount < BlockRenderMaxCount);
                     BlocksToRender[RenderCount++] = *BlockP;
@@ -677,7 +701,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         ResolutionIndex < ResolutionCount;
         ResolutionIndex++)
     {
-        block_pos_array *BlockPositions = BlockPositionStore + ResolutionIndex;
+        block_pos_array *BlockPositions = World->RenderPositionStore + ResolutionIndex;
         for(size_t BlockPosIndex = 0; 
             (BlockPosIndex < BlockPositions->Count);
             ++BlockPosIndex)
@@ -687,12 +711,14 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             Assert(!HashIsEmpty(ResHash));
             
             CanUpgradeLowestResolution = CanUpgradeLowestResolution &&
-                ((BlockP->Resolution == (uint32)LowestResUsed) && !BlockWasRendered(World, BlockP));
+                (((BlockP->Resolution == (uint32)LowestResUsed) && BlockWasRendered(World, BlockP)) ||
+                ((BlockP->Resolution != (uint32)LowestResUsed) && !BlockWasRendered(World, BlockP)));
         }
     }
     
     // NOTE: if everbody is rendered on the resolution it should be rendered, 
     // then we can upgrade a block to a new resolution
+    // TODO: Downgrading of resolutions, when we go away from a previously upgraded block
     if(EverybodyIsRenderedOnCorrectResolution && 
        (MaxRenderBlocksToGenerateInFrame >= 4))
     {
@@ -709,7 +735,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             // TODO: Else we are done, so dont upgrade anything for a while
         }
             
-        block_pos_array *BlockPositions = BlockPositionStore + LowestResUsedIndex;
+        block_pos_array *BlockPositions = World->RenderPositionStore + LowestResUsedIndex;
         for(size_t BlockPosIndex = 0; 
             (BlockPosIndex < BlockPositions->Count) && (MaxRenderBlocksToGenerateInFrame > 0) ;
             ++BlockPosIndex)
@@ -735,16 +761,9 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                     // NOTE: Ensure that every sibling is mapped right
                     world_block_pos *SiblingP = Siblings + SiblingIndex;
                     auto SiblingHash = GetHash(World->ResolutionMapping, SiblingP);
-                    if(HashIsEmpty(SiblingHash))
-                    {
-                        WriteHash(World->ResolutionMapping, SiblingP, LowestResUsed);
-                        World->BlockMappedCount++;
-                    }
-                    else
-                    {
-                        Assert(SiblingHash->Index == LowestResUsed*2);
-                        SiblingHash->Index = LowestResUsed;
-                    }
+                    Assert(!HashIsEmpty(SiblingHash));                    
+                    Assert(SiblingHash->Index == LowestResUsed*2 || SiblingHash->Index == LowestResUsed);
+                    SiblingHash->Index = LowestResUsed;
                 }
                 
                 for(uint32 SiblingIndex = 0;
@@ -760,21 +779,14 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                     {
                         world_block_pos *NPos = SiblingNeighbours.Pos + NIndex;
                         block_hash *NHash = GetHash(World->ResolutionMapping, NPos);
-                        // NOTE: Sibling neighbours are not neccesarily in the mapping
-                        if(HashIsEmpty(NHash))
-                        {
-                            world_block_pos NBiggerP = GetBiggerResBlockPosition(NPos);
-                            NHash = GetHash(World->ResolutionMapping, &NBiggerP);
-                            // NOTE: We can presume that Smaller resolutions are 
-                            // not on the edge of the block position store
-                            Assert(!HashIsEmpty(NHash)); 
-                            NHash = WriteHash(World->ResolutionMapping, NPos, NHash->Index);
-                            World->BlockMappedCount++;
-                        }
+                        Assert(!HashIsEmpty(NHash));
                         
-                        // TODO: BlockWas rendered not enough for sinblingneighbours, 
-                        // because it can happen that we already deleted its negihbours densities
-                        if(BlockWasRendered(World, NPos) && (NHash->Index == LowestResUsed))
+                        //NOTE: Have to examine the densities of neighbour's neighbours too
+                        block_neighbours SiblingNeighbourNeighbours;
+                        GetNeighbourBlockPositions(&SiblingNeighbourNeighbours, NPos);
+                        bool32 NNsLoaded = DidBiggerMappedDensitiesLoad(World, 
+                            SiblingNeighbourNeighbours.Pos, ArrayCount(SiblingNeighbourNeighbours.Pos));
+                        if(NNsLoaded && (NHash->Index == LowestResUsed))
                         {
                             MaxRenderBlocksToGenerateInFrame--;
                             Assert(RenderCount < BlockRenderMaxCount);
@@ -866,7 +878,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         ResolutionIndex < ResolutionCount;
         ResolutionIndex++)
     {
-        block_pos_array *BlockPositions = BlockPositionStore + ResolutionIndex;
+        block_pos_array *BlockPositions = World->RenderPositionStore + ResolutionIndex;
         for(size_t PosIndex = 0; 
             (PosIndex < BlockPositions->Count);
             ++PosIndex)

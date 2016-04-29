@@ -630,7 +630,7 @@ GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos 
 }
 
 internal world_block_pos 
-GetMappedPosition(world_density *World, world_block_pos *BlockP)
+GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
 {
     world_block_pos Result = *BlockP;
 
@@ -661,7 +661,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
         NeighbourIndex++)
     {
         world_block_pos *NeighbourP = NPositions.Pos + NeighbourIndex;
-        world_block_pos MappedP = GetMappedPosition(World, NeighbourP);
+        world_block_pos MappedP = GetBiggerMappedPosition(World, NeighbourP);
         Assert(MappedP.Resolution >= BlockP->Resolution);
         
         block_hash *NeighbourHash = GetHash(World->DensityHash, &MappedP);

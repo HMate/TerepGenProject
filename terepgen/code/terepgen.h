@@ -45,19 +45,6 @@ struct cube
     vertex Vertices[36];
 };
 
-// NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
-#define POS_GRID_SIZE(n) ((uint32)(((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1)
-#define RENDERED_BLOCK_RADIUS 8
-#define ZERO_BLOCK_RADIUS 23
-#define BLOCK_POS_COUNT POS_GRID_SIZE(RENDERED_BLOCK_RADIUS)
-
-// TODO: how to implement different blockpos array sizes? do i need it?
-struct block_pos_array
-{
-    uint32 Count;
-    world_block_pos Pos[BLOCK_POS_COUNT];
-};
-
 struct avarage_time
 {
     real64 AvgTime = 0.0f;
