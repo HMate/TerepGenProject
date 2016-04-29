@@ -372,7 +372,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     // NOTE: Delete blocks that are too far from the camera
     //
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
-    if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) * 7 / 8))
+    if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) - 10))
     {
         int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS;
         for(uint32 StoreIndex = 0; 
@@ -427,7 +427,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     {
         int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS;
         
-        block_hash NewMappingHash[BLOCK_HASH_SIZE];
+        block_hash *NewMappingHash = new block_hash[BLOCK_HASH_SIZE];
         for(uint32 StoreIndex = 0; 
             StoreIndex < ArrayCount(World->ResolutionMapping); 
             ++StoreIndex)
@@ -451,6 +451,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 World->BlockMappedCount++;
             }
         }
+        delete[] NewMappingHash;
     }
     Clock.Reset();
     
@@ -626,36 +627,27 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         {
             // NOTE: Map this block, and its neighbours
             world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;
-            block_neighbours NPositions;
-            GetNeighbourBlockPositions(&NPositions, BlockP);
             
-            for(uint32 NIndex = 0;
-                NIndex < ArrayCount(NPositions.Pos);
-                NIndex++)
+            block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+            if(HashIsEmpty(ResHash))
             {
-                world_block_pos *NPos = NPositions.Pos + NIndex;
-                
-                block_hash *ResHash = GetHash(World->ResolutionMapping, NPos);
-                if(HashIsEmpty(ResHash))
+                world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
+                if(BiggerP.Resolution <= FixedResolution[0])
                 {
-                    world_block_pos BiggerP = GetBiggerResBlockPosition(NPos);
-                    if(BiggerP.Resolution <= FixedResolution[0])
-                    {
-                        block_hash *BigPResHash = GetHash(World->ResolutionMapping, &BiggerP);
-                        Assert(!HashIsEmpty(BigPResHash));
-                        ResHash = WriteHash(World->ResolutionMapping, NPos, (int32)BigPResHash->Index);
-                        World->BlockMappedCount++;
-                    }
-                    else
-                    {
-                        ResHash = WriteHash(World->ResolutionMapping, NPos, FixedResolution[0]);
-                        World->BlockMappedCount++;
-                    }
+                    block_hash *BigPResHash = GetHash(World->ResolutionMapping, &BiggerP);
+                    Assert(!HashIsEmpty(BigPResHash));
+                    ResHash = WriteHash(World->ResolutionMapping, BlockP, (int32)BigPResHash->Index);
+                    World->BlockMappedCount++;
                 }
-                // TODO: Could do downgrading here, if block is far away from the camera
-                Assert(!HashIsEmpty(ResHash));
-                LowestResUsed = Min(LowestResUsed, ResHash->Index);
+                else
+                {
+                    ResHash = WriteHash(World->ResolutionMapping, BlockP, FixedResolution[0]);
+                    World->BlockMappedCount++;
+                }
             }
+            // TODO: Could do downgrading here, if block is far away from the camera
+            Assert(!HashIsEmpty(ResHash));
+            LowestResUsed = Min(LowestResUsed, ResHash->Index);
         }
     }
     
