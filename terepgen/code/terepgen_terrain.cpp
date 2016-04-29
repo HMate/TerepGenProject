@@ -584,49 +584,25 @@ GetBiggerResBlockPosition(world_block_pos *BlockP)
 }
 
 internal void
-GetLowerResBlockPositions(world_block_pos *LowerBlockPositions, world_block_pos *BlockP)
+GetLowerResBlockPositions(lower_blocks *LowerBlockPositions, world_block_pos *BlockP)
 {
-    // TODO: Be more concise
     // TODO: Give Resolution in param
-    LowerBlockPositions[0].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[0].BlockX = BlockP->BlockX * 2;
-    LowerBlockPositions[0].BlockY = BlockP->BlockY * 2;
-    LowerBlockPositions[0].BlockZ = BlockP->BlockZ * 2;
     
-    LowerBlockPositions[1].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[1].BlockX = BlockP->BlockX * 2 + 1;
-    LowerBlockPositions[1].BlockY = BlockP->BlockY * 2;
-    LowerBlockPositions[1].BlockZ = BlockP->BlockZ * 2;
-    
-    LowerBlockPositions[2].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[2].BlockX = BlockP->BlockX * 2;
-    LowerBlockPositions[2].BlockY = BlockP->BlockY * 2 + 1;
-    LowerBlockPositions[2].BlockZ = BlockP->BlockZ * 2;
-    
-    LowerBlockPositions[3].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[3].BlockX = BlockP->BlockX * 2 + 1;
-    LowerBlockPositions[3].BlockY = BlockP->BlockY * 2 + 1;
-    LowerBlockPositions[3].BlockZ = BlockP->BlockZ * 2;
-    
-    LowerBlockPositions[4].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[4].BlockX = BlockP->BlockX * 2;
-    LowerBlockPositions[4].BlockY = BlockP->BlockY * 2;
-    LowerBlockPositions[4].BlockZ = BlockP->BlockZ * 2 + 1;
-    
-    LowerBlockPositions[5].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[5].BlockX = BlockP->BlockX * 2 + 1;
-    LowerBlockPositions[5].BlockY = BlockP->BlockY * 2;
-    LowerBlockPositions[5].BlockZ = BlockP->BlockZ * 2 + 1;
-    
-    LowerBlockPositions[6].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[6].BlockX = BlockP->BlockX * 2;
-    LowerBlockPositions[6].BlockY = BlockP->BlockY * 2 + 1;
-    LowerBlockPositions[6].BlockZ = BlockP->BlockZ * 2 + 1;
-    
-    LowerBlockPositions[7].Resolution = BlockP->Resolution/2;
-    LowerBlockPositions[7].BlockX = BlockP->BlockX * 2 + 1;
-    LowerBlockPositions[7].BlockY = BlockP->BlockY * 2 + 1;
-    LowerBlockPositions[7].BlockZ = BlockP->BlockZ * 2 + 1;
+    int32 Coords[LowerBlockCount][3] = {{0, 0, 0},
+                                        {1, 0, 0},
+                                        {0, 1, 0},
+                                        {1, 1, 0},
+                                        {0, 0, 1},
+                                        {1, 0, 1},
+                                        {0, 1, 1},
+                                        {1, 1, 1}};
+    for(int32 i = 0; i < LowerBlockCount; i++)
+    {
+        LowerBlockPositions->Pos[i].Resolution = BlockP->Resolution/2;
+        LowerBlockPositions->Pos[i].BlockX = BlockP->BlockX * 2 + Coords[i][0];
+        LowerBlockPositions->Pos[i].BlockY = BlockP->BlockY * 2 + Coords[i][1];
+        LowerBlockPositions->Pos[i].BlockZ = BlockP->BlockZ * 2 + Coords[i][2];
+    }
 }
 
 internal world_block_pos 

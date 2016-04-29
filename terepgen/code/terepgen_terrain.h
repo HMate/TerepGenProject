@@ -38,9 +38,16 @@ struct block_hash
     int32 Index;
 };
 
+const int32 NeighbourCount = 27;
 struct block_neighbours
 {
-    world_block_pos Pos[27];
+    world_block_pos Pos[NeighbourCount];
+};
+
+const int32 LowerBlockCount = 8;
+struct lower_blocks
+{
+    world_block_pos Pos[LowerBlockCount];
 };
 
 #define TERRAIN_BLOCK_SIZE GRID_DIMENSION
