@@ -68,6 +68,29 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     perlin_noise_generator Perlin;
     SetSeed(&Perlin, 1000);
     
+    real32 PixelWidth = 2.0f/512.0f;
+    // NOTE: order: +X, -X, +Y, -Y, +Z, -Z
+    const uint32 Colors[6] = {0xFFFF0000, 0x00FF0000, 0x0000FF00, 0xFFFFFF00, 0xFF00FF00, 0xFF000000};
+    const v3 StartPositions[6] = {{1.0f, 1.0f, 1.0f}, 
+                                  {-1.0f, 1.0f, -1.0f}, 
+                                  {-1.0f, 1.0f, -1.0f}, 
+                                  {-1.0f, -1.0f, 1.0f}, 
+                                  {-1.0f, 1.0f, 1.0f}, 
+                                  {1.0f, 1.0f, -1.0f}};
+    const v3 ColumnDiffs[6] = {{0.0f, 0.0f, -PixelWidth}, 
+                               {0.0f, 0.0f, PixelWidth}, 
+                               {PixelWidth, 0.0f, 0.0f}, 
+                               {PixelWidth, 0.0f, 0.0f}, 
+                               {PixelWidth, 0.0f, 0.0f}, 
+                               {-PixelWidth, 0.0f, 0.0f}};
+    const v3 RowDiffs[6] = {{0.0f, -PixelWidth, 0.0f}, 
+                            {0.0f, -PixelWidth, 0.0f}, 
+                            {0.0f, 0.0f, PixelWidth}, 
+                            {0.0f, 0.0f, -PixelWidth}, 
+                            {0.0f, -PixelWidth, 0.0f}, 
+                            {0.0f, -PixelWidth, 0.0f}};
+    
+    
     D3D11_SUBRESOURCE_DATA pData[6];
     uint32 *Image = new uint32[ImgHeight*ImgWidth*6];
     uint8* Ptr = (uint8*)Image;
@@ -75,50 +98,10 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
         Side < 6;
         ++Side)
     {
-        uint32 Color = 0;
-        v3 StartPos{0};
-        v3 ColumnDiff{0};
-        v3 RowDiff{0};
-        real32 PixelWidth = 2.0f/512.0f;
-        switch(Side)
-        {
-            case 0: 
-                Color = 0xFFFF0000; //+X
-                StartPos = v3{1.0f, 1.0f, 1.0f};
-                ColumnDiff = v3{0.0f, 0.0f, -PixelWidth};
-                RowDiff = v3{0.0f, -PixelWidth, 0.0f};
-                break;
-            case 1: 
-                Color = 0x00FF0000; //-X
-                StartPos = v3{-1.0f, 1.0f, -1.0f};
-                ColumnDiff = v3{0.0f, 0.0f, PixelWidth};
-                RowDiff = v3{0.0f, -PixelWidth, 0.0f};
-                break;
-            case 2: 
-                Color = 0x0000FF00; //+Y
-                StartPos = v3{-1.0f, 1.0f, -1.0f};
-                ColumnDiff = v3{PixelWidth, 0.0f, 0.0f};
-                RowDiff = v3{0.0f, 0.0f, PixelWidth};
-                break;
-            case 3: 
-                Color = 0xFFFFFF00; //-Y
-                StartPos = v3{-1.0f, -1.0f, 1.0f};
-                ColumnDiff = v3{PixelWidth, 0.0f, 0.0f};
-                RowDiff = v3{0.0f, 0.0f, -PixelWidth};
-                break;
-            case 4: 
-                Color = 0xFF00FF00; //+Z
-                StartPos = v3{-1.0f, 1.0f, 1.0f};
-                ColumnDiff = v3{PixelWidth, 0.0f, 0.0f};
-                RowDiff = v3{0.0f, -PixelWidth, 0.0f};
-                break;
-            case 5: 
-                Color = 0xFF000000; //-Z
-                StartPos = v3{1.0f, 1.0f, -1.0f};
-                ColumnDiff = v3{-PixelWidth, 0.0f, 0.0f};
-                RowDiff = v3{0.0f, -PixelWidth, 0.0f};
-                break;
-        }
+        uint32 Color = Colors[Side];
+        v3 StartPos = StartPositions[Side];
+        v3 ColumnDiff = ColumnDiffs[Side];
+        v3 RowDiff = RowDiffs[Side];
         v3 PixelPos = StartPos;
         for(int32 Y = 0;
             Y < ImgHeight;
