@@ -347,7 +347,9 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
 {
     const uint32 ResolutionCount = RESOLUTION_COUNT;
     const uint32 FixedResolution[ResolutionCount] = {8, 4};
-
+    
+    int32 debugGS = getGridSize(13);
+    
     world_density *World = &GameState->WorldDensity;
     if(GameState->Initialized == false)
     {
@@ -418,6 +420,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             terrain_density_block *Block = World->DensityBlocks + StoreIndex;
             world_block_pos *BlockP = &Block->Pos;
             uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
+            // TODO: Check manhattan distance, or need bigger hash and arrays
             if(!DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, BlockP))
             {
                 terrain_density_block *Last = World->DensityBlocks + (--World->DensityBlockCount);
@@ -547,9 +550,9 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 terrain_density_block *DensityBlock = World->DensityBlocks + BlockIndex;
                 
                 GenerateDensityGrid(DensityBlock, &GameState->PerlinArray, BlockP);
-                    
-                DensityHash = WriteHash(World->DensityHash, BlockP, World->DensityBlockCount++);
+                
                 Assert(World->DensityBlockCount < ArrayCount(World->DensityBlocks));
+                DensityHash = WriteHash(World->DensityHash, BlockP, World->DensityBlockCount++);
             }
         }
     }
@@ -730,12 +733,11 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             Assert(!HashIsEmpty(ResHash));
             bool32 AreOnSameRes = BlockP->Resolution == (uint32)ResHash->Index;
             
-            
             if(AreOnSameRes && !BlockWasRendered(World, BlockP))
             {
                 EverybodyIsRenderedOnCorrectResolution = false;
-                block_neighbours NPositions;
-                GetNeighbourBlockPositions(&NPositions, BlockP);
+                block_same_res_neighbours NPositions;
+                GetNeighbourBlockPositionsOnSameRes(&NPositions, BlockP);
                 bool32 DidLoad = DidBiggerMappedDensitiesLoad(World, NPositions.Pos, ArrayCount(NPositions.Pos));
                 if(DidLoad)
                 {
@@ -820,8 +822,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                     SiblingIndex++)
                 {
                     world_block_pos *SiblingP = Siblings.Pos + SiblingIndex;
-                    block_neighbours SiblingNeighbours;
-                    GetNeighbourBlockPositions(&SiblingNeighbours, SiblingP);
+                    block_same_res_neighbours SiblingNeighbours;
+                    GetNeighbourBlockPositionsOnSameRes(&SiblingNeighbours, SiblingP);
                     for(uint32 NIndex = 0;
                         NIndex < ArrayCount(SiblingNeighbours.Pos);
                         NIndex++)
@@ -831,8 +833,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                         Assert(!HashIsEmpty(NHash));
                         
                         //NOTE: Have to examine the densities of neighbour's neighbours too
-                        block_neighbours SiblingNeighbourNeighbours;
-                        GetNeighbourBlockPositions(&SiblingNeighbourNeighbours, NPos);
+                        block_same_res_neighbours SiblingNeighbourNeighbours;
+                        GetNeighbourBlockPositionsOnSameRes(&SiblingNeighbourNeighbours, NPos);
                         bool32 NNsLoaded = DidBiggerMappedDensitiesLoad(World, 
                             SiblingNeighbourNeighbours.Pos, ArrayCount(SiblingNeighbourNeighbours.Pos));
                         if(NNsLoaded && (NHash->Index == LowestResUsed))

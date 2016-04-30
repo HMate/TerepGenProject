@@ -38,10 +38,16 @@ struct block_hash
     int32 Index;
 };
 
-const int32 NeighbourCount = 27;
-struct block_neighbours
+const int32 NeighbourSameResCount = 27;
+struct block_same_res_neighbours
 {
-    world_block_pos Pos[NeighbourCount];
+    world_block_pos Pos[NeighbourSameResCount];
+};
+
+const int32 NeighbourSmallerCount = 57; // NOTE: 6*4 + 8 + 12*2 + 1;
+struct block_smaller_neighbours
+{
+    world_block_pos Pos[NeighbourSmallerCount];
 };
 
 const int32 LowerBlockCount = 8;

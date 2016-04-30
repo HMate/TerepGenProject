@@ -420,27 +420,6 @@ GetWorldGridValueFromV3(world_density *World, v3 Pos, uint32 Resolution)
     return Result;
 }
 
-internal void
-GetNeighbourBlockPositions(block_neighbours *NPositions, world_block_pos *CenterBlockP)
-{
-    uint32 Index = 0;
-    for(int32 DiffX = -1; DiffX < 2; ++DiffX)
-    {
-        for(int32 DiffY = -1; DiffY < 2; ++DiffY)
-        {
-            for(int32 DiffZ = -1; DiffZ < 2; ++DiffZ)
-            {
-                world_block_pos NeighbourP = *CenterBlockP;
-                NeighbourP.BlockX += DiffX;
-                NeighbourP.BlockY += DiffY;
-                NeighbourP.BlockZ += DiffZ;
-                NPositions->Pos[Index++] = NeighbourP;
-            }
-        }
-    }
-    Assert(Index == 27);
-}
-
 internal world_block_pos
 ConvertToResolution(world_block_pos *P, uint32 NewRes)
 {
@@ -605,6 +584,64 @@ GetLowerResBlockPositions(lower_blocks *LowerBlockPositions, world_block_pos *Bl
     }
 }
 
+internal void
+GetNeighbourBlockPositionsOnSameRes(block_same_res_neighbours *NPositions, world_block_pos *CenterBlockP)
+{
+    uint32 Index = 0;
+    for(int32 DiffX = -1; DiffX < 2; ++DiffX)
+    {
+        for(int32 DiffY = -1; DiffY < 2; ++DiffY)
+        {
+            for(int32 DiffZ = -1; DiffZ < 2; ++DiffZ)
+            {
+                world_block_pos NeighbourP = *CenterBlockP;
+                NeighbourP.BlockX += DiffX;
+                NeighbourP.BlockY += DiffY;
+                NeighbourP.BlockZ += DiffZ;
+                NPositions->Pos[Index++] = NeighbourP;
+            }
+        }
+    }
+    Assert(Index == NeighbourSameResCount);
+}
+
+internal void
+GetNeighbourBlockPositionsOnSmallerRes(block_smaller_neighbours *NPositions, world_block_pos *CenterBlockP)
+{
+    world_block_pos SmallerResCenter = ConvertToResolution(CenterBlockP, CenterBlockP->Resolution/2);
+    uint32 Index = 0;
+    for(int32 DiffX = -1; DiffX < 3; ++DiffX)
+    {
+        for(int32 DiffY = -1; DiffY < 3; ++DiffY)
+        {
+            for(int32 DiffZ = -1; DiffZ < 3; ++DiffZ)
+            {
+                world_block_pos NeighbourP = SmallerResCenter;
+                NeighbourP.BlockX += DiffX;
+                NeighbourP.BlockY += DiffY;
+                NeighbourP.BlockZ += DiffZ;
+                
+                world_block_pos NParent = GetBiggerResBlockPosition(&NeighbourP);
+                if(!WorldPosEquals(&NParent ,CenterBlockP))
+                {
+                    NPositions->Pos[Index++] = NeighbourP;
+                }
+            }
+        }
+    }
+    Assert(Index == NeighbourSmallerCount-1);
+    
+    Index = 28;
+    world_block_pos LastVal = NPositions->Pos[Index];
+    for(; Index < NeighbourSmallerCount-1; Index++)
+    {
+        world_block_pos NextVal = NPositions->Pos[Index+1];
+        NPositions->Pos[Index+1] = LastVal;
+        LastVal = NextVal;
+    }
+    NPositions->Pos[28] = *CenterBlockP;
+}
+
 internal world_block_pos 
 GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
 {
@@ -628,8 +665,8 @@ GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
 internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
 {
-    block_neighbours NPositions;
-    GetNeighbourBlockPositions(&NPositions, BlockP);
+    block_same_res_neighbours NPositions;
+    GetNeighbourBlockPositionsOnSameRes(&NPositions, BlockP);
     terrain_density_block *Neighbours[ArrayCount(NPositions.Pos)];
     
     for(uint32 NeighbourIndex = 0;
