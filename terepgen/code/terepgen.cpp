@@ -57,7 +57,7 @@ CalculateBlockPositions(block_pos_array *PosArray, uint32 MaxArraySize, world_bl
 internal void
 AddToRenderBlocks(game_state *GameState, terrain_render_block *Block, v3 CameraP, v3 CamDir)
 {
-    const uint32 Resolution = Block->Resolution;
+    const int32 Resolution = Block->Resolution;
     const v3 DiffX = V3FromWorldPos(world_block_pos{1,0,0,Resolution});
     const v3 DiffY = V3FromWorldPos(world_block_pos{0,1,0,Resolution});
     const v3 DiffZ = V3FromWorldPos(world_block_pos{0,0,1,Resolution});
@@ -83,18 +83,59 @@ AddToRenderBlocks(game_state *GameState, terrain_render_block *Block, v3 CameraP
 }
 
 internal void
-AddCube(game_state *GameState, v3 WorldMousePos)
+AddCubeWireframe(cube_frame *Cube, v3 Pos, real32 Size, v4 Color)
 {
-    GameState->Cube.Pos = WorldMousePos;
+    const v3 Corner0 = Pos + v3{-0.5f, -0.5f, -0.5f}*Size;
+    const v3 Corner1 = Pos + v3{-0.5f, 0.5f, -0.5f}*Size;
+    const v3 Corner2 = Pos + v3{0.5f, -0.5f, -0.5f}*Size;
+    const v3 Corner3 = Pos + v3{0.5f, 0.5f, -0.5f}*Size;
+    const v3 Corner4 = Pos + v3{-0.5f, -0.5f, 0.5f}*Size;
+    const v3 Corner5 = Pos + v3{-0.5f, 0.5f, 0.5f}*Size;
+    const v3 Corner6 = Pos + v3{0.5f, -0.5f, 0.5f}*Size;
+    const v3 Corner7 = Pos + v3{0.5f, 0.5f, 0.5f}*Size;
+    
+    const v3 Normal = v3{0.0f, 0.0f, 1.0f};
+    
+    Cube->Vertices[0 ] = Vertex(Corner0, Normal, Color);
+    Cube->Vertices[1 ] = Vertex(Corner1, Normal, Color);
+    Cube->Vertices[2 ] = Vertex(Corner0, Normal, Color);
+    Cube->Vertices[3 ] = Vertex(Corner2, Normal, Color);
+    Cube->Vertices[4 ] = Vertex(Corner2, Normal, Color);
+    Cube->Vertices[5 ] = Vertex(Corner3, Normal, Color);
+    Cube->Vertices[6 ] = Vertex(Corner1, Normal, Color);
+    Cube->Vertices[7 ] = Vertex(Corner3, Normal, Color);
+                   
+    Cube->Vertices[8 ] = Vertex(Corner4, Normal, Color);
+    Cube->Vertices[9 ] = Vertex(Corner5, Normal, Color);
+    Cube->Vertices[10] = Vertex(Corner4, Normal, Color);
+    Cube->Vertices[11] = Vertex(Corner6, Normal, Color);
+    Cube->Vertices[12] = Vertex(Corner6, Normal, Color);
+    Cube->Vertices[13] = Vertex(Corner7, Normal, Color);
+    Cube->Vertices[14] = Vertex(Corner5, Normal, Color);
+    Cube->Vertices[15] = Vertex(Corner7, Normal, Color);
+                   
+    Cube->Vertices[16] = Vertex(Corner0, Normal, Color);
+    Cube->Vertices[17] = Vertex(Corner4, Normal, Color);
+    Cube->Vertices[18] = Vertex(Corner1, Normal, Color);
+    Cube->Vertices[19] = Vertex(Corner5, Normal, Color);
+    Cube->Vertices[20] = Vertex(Corner2, Normal, Color);
+    Cube->Vertices[21] = Vertex(Corner6, Normal, Color);
+    Cube->Vertices[22] = Vertex(Corner3, Normal, Color);
+    Cube->Vertices[23] = Vertex(Corner7, Normal, Color);
+}
 
-    const v3 Corner0 ={-0.5f, -0.5f, -0.5f};
-    const v3 Corner1 ={-0.5f, 0.5f, -0.5f};
-    const v3 Corner2 ={0.5f, -0.5f, -0.5f};
-    const v3 Corner3 ={0.5f, 0.5f, -0.5f};
-    const v3 Corner4 ={-0.5f, -0.5f, 0.5f};
-    const v3 Corner5 ={-0.5f, 0.5f, 0.5f};
-    const v3 Corner6 ={0.5f, -0.5f, 0.5f};
-    const v3 Corner7 ={0.5f, 0.5f, 0.5f};
+internal void
+AddCube(cube *Cube, v3 WorldMousePos, real32 Size,
+        v4 ColorR, v4 ColorG, v4 ColorB)
+{
+    const v3 Corner0 = WorldMousePos + v3{-0.5f, -0.5f, -0.5f}*Size;
+    const v3 Corner1 = WorldMousePos + v3{-0.5f, 0.5f, -0.5f}*Size;
+    const v3 Corner2 = WorldMousePos + v3{0.5f, -0.5f, -0.5f}*Size;
+    const v3 Corner3 = WorldMousePos + v3{0.5f, 0.5f, -0.5f}*Size;
+    const v3 Corner4 = WorldMousePos + v3{-0.5f, -0.5f, 0.5f}*Size;
+    const v3 Corner5 = WorldMousePos + v3{-0.5f, 0.5f, 0.5f}*Size;
+    const v3 Corner6 = WorldMousePos + v3{0.5f, -0.5f, 0.5f}*Size;
+    const v3 Corner7 = WorldMousePos + v3{0.5f, 0.5f, 0.5f}*Size;
     
     const v3 Normal0 = v3{0.0f, 0.0f, -1.0f}; //front
     const v3 Normal1 = v3{1.0f, 0.0f, 0.0f};  //right
@@ -103,51 +144,47 @@ AddCube(game_state *GameState, v3 WorldMousePos)
     const v3 Normal4 = v3{0.0f, -1.0f, 0.0f}; // down
     const v3 Normal5 = v3{0.0f, 1.0f, 0.0f};  //up
     
-    const v4 ColorR = {1.0f, 0.0f, 0.0f, 1.0f};
-    const v4 ColorG = {0.0f, 1.0f, 0.0f, 1.0f};
-    const v4 ColorB = {0.0f, 0.0f, 1.0f, 1.0f};
+    Cube->Vertices[0] = Vertex(Corner0, Normal0, ColorB);
+    Cube->Vertices[1] = Vertex(Corner1, Normal0, ColorB);
+    Cube->Vertices[2] = Vertex(Corner2, Normal0, ColorB);
+    Cube->Vertices[3] = Vertex(Corner2, Normal0, ColorB);
+    Cube->Vertices[4] = Vertex(Corner1, Normal0, ColorB);
+    Cube->Vertices[5] = Vertex(Corner3, Normal0, ColorB);
     
-    GameState->Cube.Vertices[0] = Vertex(Corner0, Normal0, ColorB);
-    GameState->Cube.Vertices[1] = Vertex(Corner1, Normal0, ColorB);
-    GameState->Cube.Vertices[2] = Vertex(Corner2, Normal0, ColorB);
-    GameState->Cube.Vertices[3] = Vertex(Corner2, Normal0, ColorB);
-    GameState->Cube.Vertices[4] = Vertex(Corner1, Normal0, ColorB);
-    GameState->Cube.Vertices[5] = Vertex(Corner3, Normal0, ColorB);
+    Cube->Vertices[6] = Vertex(Corner2, Normal1, ColorR);
+    Cube->Vertices[7] = Vertex(Corner3, Normal1, ColorR);
+    Cube->Vertices[8] = Vertex(Corner6, Normal1, ColorR);
+    Cube->Vertices[9] = Vertex(Corner6, Normal1, ColorR);
+    Cube->Vertices[10] = Vertex(Corner3, Normal1, ColorR);
+    Cube->Vertices[11] = Vertex(Corner7, Normal1, ColorR);
     
-    GameState->Cube.Vertices[6] = Vertex(Corner2, Normal1, ColorR);
-    GameState->Cube.Vertices[7] = Vertex(Corner3, Normal1, ColorR);
-    GameState->Cube.Vertices[8] = Vertex(Corner6, Normal1, ColorR);
-    GameState->Cube.Vertices[9] = Vertex(Corner6, Normal1, ColorR);
-    GameState->Cube.Vertices[10] = Vertex(Corner3, Normal1, ColorR);
-    GameState->Cube.Vertices[11] = Vertex(Corner7, Normal1, ColorR);
+    Cube->Vertices[12] = Vertex(Corner6, Normal2, ColorB);
+    Cube->Vertices[13] = Vertex(Corner7, Normal2, ColorB);
+    Cube->Vertices[14] = Vertex(Corner4, Normal2, ColorB);
+    Cube->Vertices[15] = Vertex(Corner4, Normal2, ColorB);
+    Cube->Vertices[16] = Vertex(Corner7, Normal2, ColorB);
+    Cube->Vertices[17] = Vertex(Corner5, Normal2, ColorB);
     
-    GameState->Cube.Vertices[12] = Vertex(Corner6, Normal2, ColorB);
-    GameState->Cube.Vertices[13] = Vertex(Corner7, Normal2, ColorB);
-    GameState->Cube.Vertices[14] = Vertex(Corner4, Normal2, ColorB);
-    GameState->Cube.Vertices[15] = Vertex(Corner4, Normal2, ColorB);
-    GameState->Cube.Vertices[16] = Vertex(Corner7, Normal2, ColorB);
-    GameState->Cube.Vertices[17] = Vertex(Corner5, Normal2, ColorB);
+    Cube->Vertices[18] = Vertex(Corner4, Normal3, ColorR);
+    Cube->Vertices[19] = Vertex(Corner5, Normal3, ColorR);
+    Cube->Vertices[20] = Vertex(Corner0, Normal3, ColorR);
+    Cube->Vertices[21] = Vertex(Corner0, Normal3, ColorR);
+    Cube->Vertices[22] = Vertex(Corner5, Normal3, ColorR);
+    Cube->Vertices[23] = Vertex(Corner1, Normal3, ColorR);
     
-    GameState->Cube.Vertices[18] = Vertex(Corner4, Normal3, ColorR);
-    GameState->Cube.Vertices[19] = Vertex(Corner5, Normal3, ColorR);
-    GameState->Cube.Vertices[20] = Vertex(Corner0, Normal3, ColorR);
-    GameState->Cube.Vertices[21] = Vertex(Corner0, Normal3, ColorR);
-    GameState->Cube.Vertices[22] = Vertex(Corner5, Normal3, ColorR);
-    GameState->Cube.Vertices[23] = Vertex(Corner1, Normal3, ColorR);
+    Cube->Vertices[24] = Vertex(Corner4, Normal4, ColorG);
+    Cube->Vertices[25] = Vertex(Corner0, Normal4, ColorG);
+    Cube->Vertices[26] = Vertex(Corner6, Normal4, ColorG);
+    Cube->Vertices[27] = Vertex(Corner6, Normal4, ColorG);
+    Cube->Vertices[28] = Vertex(Corner0, Normal4, ColorG);
+    Cube->Vertices[29] = Vertex(Corner2, Normal4, ColorG);
     
-    GameState->Cube.Vertices[24] = Vertex(Corner4, Normal4, ColorG);
-    GameState->Cube.Vertices[25] = Vertex(Corner0, Normal4, ColorG);
-    GameState->Cube.Vertices[26] = Vertex(Corner6, Normal4, ColorG);
-    GameState->Cube.Vertices[27] = Vertex(Corner6, Normal4, ColorG);
-    GameState->Cube.Vertices[28] = Vertex(Corner0, Normal4, ColorG);
-    GameState->Cube.Vertices[29] = Vertex(Corner2, Normal4, ColorG);
-    
-    GameState->Cube.Vertices[30] = Vertex(Corner1, Normal5, ColorG);
-    GameState->Cube.Vertices[31] = Vertex(Corner5, Normal5, ColorG);
-    GameState->Cube.Vertices[32] = Vertex(Corner3, Normal5, ColorG);
-    GameState->Cube.Vertices[33] = Vertex(Corner3, Normal5, ColorG);
-    GameState->Cube.Vertices[34] = Vertex(Corner5, Normal5, ColorG);
-    GameState->Cube.Vertices[35] = Vertex(Corner7, Normal5, ColorG);
+    Cube->Vertices[30] = Vertex(Corner1, Normal5, ColorG);
+    Cube->Vertices[31] = Vertex(Corner5, Normal5, ColorG);
+    Cube->Vertices[32] = Vertex(Corner3, Normal5, ColorG);
+    Cube->Vertices[33] = Vertex(Corner3, Normal5, ColorG);
+    Cube->Vertices[34] = Vertex(Corner5, Normal5, ColorG);
+    Cube->Vertices[35] = Vertex(Corner7, Normal5, ColorG);
 }
 
 internal bool32
@@ -346,7 +383,7 @@ internal void
 UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, screen_info ScreenInfo)
 {
     const uint32 ResolutionCount = RESOLUTION_COUNT;
-    const uint32 FixedResolution[ResolutionCount] = {8, 4};
+    const int32 FixedResolution[ResolutionCount] = {8, 4};
     
     int32 debugGS = getGridSize(13);
     
@@ -364,7 +401,6 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         GameState->Initialized = true;
     }
     GameState->RenderMode = Input->RenderMode;
-    
     
     Camera->Update(Input, GameState->dtForFrame);
     
@@ -412,7 +448,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
     if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) - 10))
     {
-        int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS;
+        int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
         for(uint32 StoreIndex = 0; 
             StoreIndex < World->DensityBlockCount; 
             ++StoreIndex)
@@ -421,7 +457,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             world_block_pos *BlockP = &Block->Pos;
             uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
             // TODO: Check manhattan distance, or need bigger hash and arrays
-            if(!DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, BlockP))
+            if(ManhattanDistance(WorldCameraP + ResIndex, BlockP) > LoadSpaceRadius)
+            // if(!DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, BlockP))
             {
                 terrain_density_block *Last = World->DensityBlocks + (--World->DensityBlockCount);
                 world_block_pos *LastP = &Last->Pos;
@@ -731,7 +768,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;
             block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
             Assert(!HashIsEmpty(ResHash));
-            bool32 AreOnSameRes = BlockP->Resolution == (uint32)ResHash->Index;
+            bool32 AreOnSameRes = BlockP->Resolution == ResHash->Index;
             
             if(AreOnSameRes && !BlockWasRendered(World, BlockP))
             {
@@ -763,8 +800,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             Assert(!HashIsEmpty(ResHash));
             
             CanUpgradeLowestResolution = CanUpgradeLowestResolution &&
-                (((BlockP->Resolution == (uint32)LowestResUsed) && BlockWasRendered(World, BlockP)) ||
-                ((BlockP->Resolution != (uint32)LowestResUsed) && !BlockWasRendered(World, BlockP)));
+                (((BlockP->Resolution == LowestResUsed) && BlockWasRendered(World, BlockP)) ||
+                ((BlockP->Resolution != LowestResUsed) && !BlockWasRendered(World, BlockP)));
         }
     }
     
@@ -996,6 +1033,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                                     Get3DVertex(v3{ 0.0f, -1.0f*AxisSize,  0.0f}, Normal, Green),
                                     Get3DVertex(v3{ 0.0f,  0.0f,  1.0f*AxisSize}, Normal, Blue),
                                     Get3DVertex(v3{ 0.0f,  0.0f, -1.0f*AxisSize}, Normal, Blue)};
+    DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     DXResources->DrawLines(AxisVertices, VertCount);
     // DXResources->DrawDebugTriangle();
 
@@ -1023,11 +1061,49 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     }
     DXResources->SetTransformations(v3{});
     
-    // Draw cube
+    // NOTE: Draw cube
     DXResources->DeviceContext->PSSetShader(DXResources->LinePS, 0, 0);
     
-    DXResources->SetTransformations(GameState->Cube.Pos);
-    DXResources->DrawTriangles(GameState->Cube.Vertices, 36);
+    DXResources->SetTransformations(GameState->CubePos);
+    DXResources->DrawTriangles(GameState->Cube.Vertices, CubeVertexCount);
+    DXResources->SetTransformations(v3{});
+    
+    
+    // NOTE: Draw debug resolution blocks
+    GameState->ResCubeCount = 0;
+    DXResources->SetDrawModeWireframe();
+    DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    
+    for(uint32 ResolutionIndex = 0;
+        ResolutionIndex < ResolutionCount;
+        ResolutionIndex++)
+    {
+        density_block_pos_array *BlockPositions = World->DensityPositionStore + ResolutionIndex;
+        for(size_t BlockPosIndex = 0; 
+            (BlockPosIndex < BlockPositions->Count);
+            ++BlockPosIndex)
+        {
+            world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;            
+            block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+            if(ResHash->Index == BlockP->Resolution)
+            {
+                v3 RenderPos = V3FromWorldPos(*BlockP);
+                real32 Size = (RENDER_SPACE_UNIT*TERRAIN_BLOCK_SIZE*BlockP->Resolution);
+                RenderPos += v3{0.5f, 0.5f, 0.5f}*Size;
+                
+                v4 Color{1.0f, 1.0f, 0.0f, 1.0f};
+                if(BlockP->Resolution > 4)
+                {
+                    Color = v4{0.0f, 0.3f, 0.0f, 1.0f};
+                }
+                
+                cube_frame *BlockCube = GameState->ResolutionCubes + GameState->ResCubeCount++;
+                AddCubeWireframe(BlockCube, RenderPos, Size-0.1f, Color);
+            }
+        }
+    }
+    
+    DXResources->DrawTriangles(GameState->ResolutionCubes->Vertices, CubeFrameVertexCount*GameState->ResCubeCount);
     DXResources->SetTransformations(v3{});
     
     DXResources->SwapChain->Present(0, 0);
