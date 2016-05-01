@@ -253,24 +253,24 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
     v3 BlockPos = V3FromWorldPos(*WorldP);
     
     uint32 TerrainDimension = DensityBlock->Grid.Dimension;
-    for(uint32 Plane = 0;
-        Plane < TerrainDimension;
-        ++Plane) 
+    for(uint32 X = 0;
+        X < TerrainDimension;
+        ++X) 
     {
-        for(uint32 Row = 0;
-            Row < TerrainDimension;
-            ++Row)
+        for(uint32 Y = 0;
+            Y < TerrainDimension;
+            ++Y)
         {
-            for(uint32 Column = 0;
-                Column < TerrainDimension;
-                ++Column)
+            for(uint32 Z = 0;
+                Z < TerrainDimension;
+                ++Z)
             {
-                real32 DensityValue = BlockPos.Y + ((Row) * BlockResolution);
+                real32 DensityValue = BlockPos.Y + ((Y) * BlockResolution);
                 // real32 DensityValue = 0;
                 
-                real32 WorldX = BlockPos.X + ((Plane) * BlockResolution);
-                real32 WorldY = BlockPos.Y + ((Row) * BlockResolution);
-                real32 WorldZ = BlockPos.Z + ((Column) * BlockResolution);
+                real32 WorldX = BlockPos.X + ((X) * BlockResolution);
+                real32 WorldY = BlockPos.Y + ((Y) * BlockResolution);
+                real32 WorldZ = BlockPos.Z + ((Z) * BlockResolution);
                 
                 v3 WorldPos = v3{WorldX, WorldY, WorldZ} / 32.0f;
                 real32 Scale = 50.0f;
@@ -293,7 +293,7 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
                 DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 0.023f) * Scale * 4.0f;
                 DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 0.00646f) * Scale * 16.0f;
                 
-                SetGrid(&DensityBlock->Grid, Plane, Row, Column, DensityValue);
+                SetGrid(&DensityBlock->Grid, X, Y, Z, DensityValue);
             }
         }
     }
@@ -353,6 +353,7 @@ internal real32
 GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, int32 Z)
 {
     block_node Node = GetActualBlockNode(BlockP, X, Y, Z);
+    //block_hash *ResHash = GetHash(World->ResolutionMapping, &Node.BlockP);
     
     block_hash *DensityHash = GetHash(World->DensityHash, &Node.BlockP);
     // TODO: What if this block wasnt generated? 
@@ -450,7 +451,7 @@ GetFromNeighbours(terrain_density_block **Neighbours,
     // 21, 22, 25,26, 37,38, 41,42 are the current/center block
     uint32 NIndex = 21 + DiffX*16 + DiffY*4 + DiffZ;
     Assert(NIndex < 64);
-           
+    
     terrain_density_block *ActDensityBlock = Neighbours[NIndex];
     
     world_block_pos ParentPos = ConvertToResolution(BlockP, ActDensityBlock->Pos.Resolution);
@@ -614,6 +615,15 @@ GetNeighbourBlockPositionsOnLowerRes(block_lower_neighbours *NPositions, world_b
     Assert(Index == NeighbourLowerCount);
 }
 
+internal block_hash*
+MapBlockPosition(world_density *World, world_block_pos *BlockP, int32 MappingValue)
+{
+    block_hash *ResHash = WriteHash(World->ResolutionMapping, BlockP, MappingValue);
+    World->BlockMappedCount++;
+    
+    return ResHash;
+}
+
 internal world_block_pos 
 GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
 {
@@ -625,12 +635,11 @@ GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
         world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
         block_hash *BPResHash = GetHash(World->ResolutionMapping, &BiggerP);
         Assert(!HashIsEmpty(BPResHash));
-        ResHash = WriteHash(World->ResolutionMapping, BlockP, (int32)BPResHash->Index);
-        World->BlockMappedCount++;
+        MapBlockPosition(World, BlockP, BPResHash->Index);
     }
     // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
     // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
-    // which we doesn't handle currently 
+    // which we doesn't handle here
     while(Result.Resolution != ResHash->Index)
     {
         Assert(ResHash->Index > Result.Resolution);
@@ -679,38 +688,32 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
     uint32 TerrainDimension = GRID_DIMENSION;
     
     uint32 VertexCount = 0;
-    for(uint32 Plane = 0;
-        Plane < TerrainDimension;
-        Plane += 1)
+    for(uint32 X = 0; X < TerrainDimension; X++)
     {
-        for(uint32 Row = 0;
-            Row < TerrainDimension;
-            Row += 1)
+        for(uint32 Y = 0; Y < TerrainDimension; Y++)
         {
-            for(uint32 Column = 0;
-                Column < TerrainDimension;
-                Column += 1)
+            for(uint32 Z = 0; Z < TerrainDimension; Z++)
             {                
                 GRIDCELL Cell;
-                real32 Planef = (real32)Plane;
-                real32 Rowf = (real32)Row;
-                real32 Columnf = (real32)Column;
-                Cell.p[0] = v3{Planef     , Rowf+1.0f, Columnf     };
-                Cell.p[1] = v3{Planef     , Rowf+1.0f, Columnf+1.0f};
-                Cell.p[2] = v3{Planef     , Rowf     , Columnf+1.0f};
-                Cell.p[3] = v3{Planef     , Rowf     , Columnf     };
-                Cell.p[4] = v3{Planef+1.0f, Rowf+1.0f, Columnf     };
-                Cell.p[5] = v3{Planef+1.0f, Rowf+1.0f, Columnf+1.0f};
-                Cell.p[6] = v3{Planef+1.0f, Rowf     , Columnf+1.0f};
-                Cell.p[7] = v3{Planef+1.0f, Rowf     , Columnf     };
-                Cell.val[0] = GetFromNeighbours(Neighbours, BlockP, Plane  , Row+1, Column  );
-                Cell.val[1] = GetFromNeighbours(Neighbours, BlockP, Plane  , Row+1, Column+1);
-                Cell.val[2] = GetFromNeighbours(Neighbours, BlockP, Plane  , Row  , Column+1);
-                Cell.val[3] = GetFromNeighbours(Neighbours, BlockP, Plane  , Row  , Column  );
-                Cell.val[4] = GetFromNeighbours(Neighbours, BlockP, Plane+1, Row+1, Column  );
-                Cell.val[5] = GetFromNeighbours(Neighbours, BlockP, Plane+1, Row+1, Column+1);
-                Cell.val[6] = GetFromNeighbours(Neighbours, BlockP, Plane+1, Row  , Column+1);
-                Cell.val[7] = GetFromNeighbours(Neighbours, BlockP, Plane+1, Row  , Column  );
+                real32 fX = (real32)X;
+                real32 fY = (real32)Y;
+                real32 fZ = (real32)Z;
+                Cell.p[0] = v3{fX     , fY+1.0f, fZ     };
+                Cell.p[1] = v3{fX     , fY+1.0f, fZ+1.0f};
+                Cell.p[2] = v3{fX     , fY     , fZ+1.0f};
+                Cell.p[3] = v3{fX     , fY     , fZ     };
+                Cell.p[4] = v3{fX+1.0f, fY+1.0f, fZ     };
+                Cell.p[5] = v3{fX+1.0f, fY+1.0f, fZ+1.0f};
+                Cell.p[6] = v3{fX+1.0f, fY     , fZ+1.0f};
+                Cell.p[7] = v3{fX+1.0f, fY     , fZ     };
+                Cell.val[0] = GetFromNeighbours(Neighbours, BlockP, X  , Y+1, Z  );
+                Cell.val[1] = GetFromNeighbours(Neighbours, BlockP, X  , Y+1, Z+1);
+                Cell.val[2] = GetFromNeighbours(Neighbours, BlockP, X  , Y  , Z+1);
+                Cell.val[3] = GetFromNeighbours(Neighbours, BlockP, X  , Y  , Z  );
+                Cell.val[4] = GetFromNeighbours(Neighbours, BlockP, X+1, Y+1, Z  );
+                Cell.val[5] = GetFromNeighbours(Neighbours, BlockP, X+1, Y+1, Z+1);
+                Cell.val[6] = GetFromNeighbours(Neighbours, BlockP, X+1, Y  , Z+1);
+                Cell.val[7] = GetFromNeighbours(Neighbours, BlockP, X+1, Y  , Z  );
                 TRIANGLE Triangles[5];
                 uint32 TriangleCount = Polygonise(Cell, DENSITY_ISO_LEVEL, Triangles);
                 

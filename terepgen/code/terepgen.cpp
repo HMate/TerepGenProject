@@ -384,6 +384,33 @@ DowngradeMapping(world_density *World, world_block_pos *BlockP, int32 MappingVal
 }
 
 internal void
+UpdateLowerBlocksMapping(world_density *World, world_block_pos *BlockP, int32 ResMapping)
+{
+    uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
+    if(ResIndex < RESOLUTION_COUNT)
+    {
+        lower_blocks LowerBlocks;
+        GetLowerResBlockPositions(&LowerBlocks, BlockP);
+        for(int32 LowerIndex = 0;
+            LowerIndex < ArrayCount(LowerBlocks.Pos);
+            LowerIndex++)
+        {
+            world_block_pos *LowerP = LowerBlocks.Pos + LowerIndex;
+            block_hash *ResHash = GetHash(World->ResolutionMapping, LowerP);
+            if(HashIsEmpty(ResHash))
+            {
+                MapBlockPosition(World, LowerP, ResMapping);
+            }
+            else
+            {
+                ResHash->Index = ResMapping;
+            }
+            Assert(ResHash->Index == ResMapping);
+        }
+    }
+}
+
+internal void
 UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, screen_info ScreenInfo)
 {
     const uint32 ResolutionCount = RESOLUTION_COUNT;
@@ -716,13 +743,11 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 {
                     block_hash *BigPResHash = GetHash(World->ResolutionMapping, &BiggerP);
                     Assert(!HashIsEmpty(BigPResHash));
-                    ResHash = WriteHash(World->ResolutionMapping, BlockP, (int32)BigPResHash->Index);
-                    World->BlockMappedCount++;
+                    ResHash = MapBlockPosition(World, BlockP, BigPResHash->Index);
                 }
                 else
                 {
-                    ResHash = WriteHash(World->ResolutionMapping, BlockP, FixedResolution[0]);
-                    World->BlockMappedCount++;
+                    ResHash = MapBlockPosition(World, BlockP, FixedResolution[0]);
                 }
             }
             
@@ -777,6 +802,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             if(AreOnSameRes && !BlockWasRendered(World, BlockP))
             {
                 EverybodyIsRenderedOnCorrectResolution = false;
+                // TODO: change to lower neighbours
                 block_same_res_neighbours NPositions;
                 GetNeighbourBlockPositionsOnSameRes(&NPositions, BlockP);
                 bool32 DidLoad = DidBiggerMappedDensitiesLoad(World, NPositions.Pos, ArrayCount(NPositions.Pos));
@@ -792,7 +818,6 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     
     // NOTE: if everbody is rendered on the resolution it should be rendered, 
     // then we can upgrade a block to a new resolution
-    // TODO: Downgrading of resolutions, when we go away from a previously upgraded block
     if(EverybodyIsRenderedOnCorrectResolution && 
        (MaxRenderBlocksToGenerateInFrame >= 4))
     {    
@@ -826,7 +851,6 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 LowestResUsed = FixedResolution[NewResIndex];
                 LowestResUsedIndex = NewResIndex;
             }
-            // TODO: Else we are done, so dont upgrade anything for a while
         }
             
         block_pos_array *BlockPositions = World->RenderPositionStore + LowestResUsedIndex;
@@ -856,6 +880,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                     Assert(!HashIsEmpty(SiblingHash));                    
                     Assert(SiblingHash->Index == LowestResUsed*2 || SiblingHash->Index == LowestResUsed);
                     SiblingHash->Index = LowestResUsed;
+                    UpdateLowerBlocksMapping(World, SiblingP, LowestResUsed);
                 }
                 
                 for(uint32 SiblingIndex = 0;
@@ -863,6 +888,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                     SiblingIndex++)
                 {
                     world_block_pos *SiblingP = Siblings.Pos + SiblingIndex;
+                    // TODO: change to lower neighbours
                     block_same_res_neighbours SiblingNeighbours;
                     GetNeighbourBlockPositionsOnSameRes(&SiblingNeighbours, SiblingP);
                     for(uint32 NIndex = 0;
@@ -872,8 +898,10 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                         world_block_pos *NPos = SiblingNeighbours.Pos + NIndex;
                         block_hash *NHash = GetHash(World->ResolutionMapping, NPos);
                         Assert(!HashIsEmpty(NHash));
+                        //UpdateLowerBlocksMapping(World, NPos, NHash->Index);
                         
                         //NOTE: Have to examine the densities of neighbour's neighbours too
+                        // TODO: change to lower neighbours
                         block_same_res_neighbours SiblingNeighbourNeighbours;
                         GetNeighbourBlockPositionsOnSameRes(&SiblingNeighbourNeighbours, NPos);
                         bool32 NNsLoaded = DidBiggerMappedDensitiesLoad(World, 
