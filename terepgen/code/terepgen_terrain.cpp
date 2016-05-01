@@ -440,27 +440,25 @@ GetFromNeighbours(terrain_density_block **Neighbours,
                   world_block_pos *BlockP, 
                   int32 X, int32 Y, int32 Z)
 {
-    real32 BlockSize = (real32)TERRAIN_BLOCK_SIZE;
+    real32 BlockSize = (real32)TERRAIN_BLOCK_SIZE/2;
     int32 DiffX = FloorInt32(X / BlockSize);
     int32 DiffY = FloorInt32(Y / BlockSize);
     int32 DiffZ = FloorInt32(Z / BlockSize);
-    
+    if(BlockP->Resolution == 4)
+        int z =7;
     // NOTE: Neighbours are stored in X,Y,Z order, where Z is the least significant dimension
-    // 13 is the current/center block
-    uint32 NIndex = 13 + DiffX*9 + DiffY*3 + DiffZ;
-    Assert(NIndex < 27);
-    
-    // TODO: We could optimize here
-    Assert(NIndex != 0 && NIndex != 1 && NIndex != 2 && NIndex != 3 && NIndex != 6 && 
-           NIndex != 9 && NIndex != 18);
+    // 21, 22, 25,26, 37,38, 41,42 are the current/center block
+    uint32 NIndex = 21 + DiffX*16 + DiffY*4 + DiffZ;
+    Assert(NIndex < 64);
            
     terrain_density_block *ActDensityBlock = Neighbours[NIndex];
     
     world_block_pos ParentPos = ConvertToResolution(BlockP, ActDensityBlock->Pos.Resolution);
     
-    int32 GridStep = (int32)TERRAIN_BLOCK_SIZE;
-    int32 OriginalRes = (int32)BlockP->Resolution;
-    int32 NewRes = (int32)ActDensityBlock->Pos.Resolution;
+    const int32 GridStep = (int32)TERRAIN_BLOCK_SIZE;
+    BlockSize = (real32)TERRAIN_BLOCK_SIZE;
+    const int32 OriginalRes = BlockP->Resolution;
+    const int32 NewRes = ActDensityBlock->Pos.Resolution;
     
     world_block_pos ParentPosInOriginalRes = ConvertToResolution(&ParentPos, BlockP->Resolution);
     int32 OffsetInParentX = (BlockP->BlockX - ParentPosInOriginalRes.BlockX) * (GridStep * OriginalRes / NewRes);
@@ -556,8 +554,6 @@ GetBiggerResBlockPosition(world_block_pos *BlockP)
 internal void
 GetLowerResBlockPositions(lower_blocks *LowerBlockPositions, world_block_pos *BlockP)
 {
-    // TODO: Give Resolution in param
-    
     int32 Coords[LowerBlockCount][3] = {{0, 0, 0},
                                         {1, 0, 0},
                                         {0, 1, 0},
@@ -597,7 +593,7 @@ GetNeighbourBlockPositionsOnSameRes(block_same_res_neighbours *NPositions, world
 }
 
 internal void
-GetNeighbourBlockPositionsOnSmallerRes(block_smaller_neighbours *NPositions, world_block_pos *CenterBlockP)
+GetNeighbourBlockPositionsOnLowerRes(block_lower_neighbours *NPositions, world_block_pos *CenterBlockP)
 {
     world_block_pos SmallerResCenter = ConvertToResolution(CenterBlockP, CenterBlockP->Resolution/2);
     uint32 Index = 0;
@@ -611,26 +607,11 @@ GetNeighbourBlockPositionsOnSmallerRes(block_smaller_neighbours *NPositions, wor
                 NeighbourP.BlockX += DiffX;
                 NeighbourP.BlockY += DiffY;
                 NeighbourP.BlockZ += DiffZ;
-                
-                world_block_pos NParent = GetBiggerResBlockPosition(&NeighbourP);
-                if(!WorldPosEquals(&NParent ,CenterBlockP))
-                {
-                    NPositions->Pos[Index++] = NeighbourP;
-                }
+                NPositions->Pos[Index++] = NeighbourP;
             }
         }
     }
-    Assert(Index == NeighbourSmallerCount-1);
-    
-    Index = 28;
-    world_block_pos LastVal = NPositions->Pos[Index];
-    for(; Index < NeighbourSmallerCount-1; Index++)
-    {
-        world_block_pos NextVal = NPositions->Pos[Index+1];
-        NPositions->Pos[Index+1] = LastVal;
-        LastVal = NextVal;
-    }
-    NPositions->Pos[28] = *CenterBlockP;
+    Assert(Index == NeighbourLowerCount);
 }
 
 internal world_block_pos 
@@ -639,7 +620,14 @@ GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
     world_block_pos Result = *BlockP;
 
     block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
-    Assert(!HashIsEmpty(ResHash));
+    if(HashIsEmpty(ResHash))
+    {
+        world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
+        block_hash *BPResHash = GetHash(World->ResolutionMapping, &BiggerP);
+        Assert(!HashIsEmpty(BPResHash));
+        ResHash = WriteHash(World->ResolutionMapping, BlockP, (int32)BPResHash->Index);
+        World->BlockMappedCount++;
+    }
     // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
     // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
     // which we doesn't handle currently 
@@ -665,17 +653,17 @@ Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
 internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
 {
-    block_same_res_neighbours NPositions;
-    GetNeighbourBlockPositionsOnSameRes(&NPositions, BlockP);
+    block_lower_neighbours NPositions;
+    GetNeighbourBlockPositionsOnLowerRes(&NPositions, BlockP);
     terrain_density_block *Neighbours[ArrayCount(NPositions.Pos)];
-    
     for(uint32 NeighbourIndex = 0;
         NeighbourIndex < ArrayCount(NPositions.Pos);
         NeighbourIndex++)
     {
         world_block_pos *NeighbourP = NPositions.Pos + NeighbourIndex;
         world_block_pos MappedP = GetBiggerMappedPosition(World, NeighbourP);
-        Assert(MappedP.Resolution >= BlockP->Resolution);
+        Assert((MappedP.Resolution >= BlockP->Resolution/2) &&
+               (MappedP.Resolution <= BlockP->Resolution*2));
         
         block_hash *NeighbourHash = GetHash(World->DensityHash, &MappedP);
         Assert(!HashIsEmpty(NeighbourHash));

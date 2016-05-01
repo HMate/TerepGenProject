@@ -376,6 +376,10 @@ DowngradeMapping(world_density *World, world_block_pos *BlockP, int32 MappingVal
             Assert(ResHash->Index < MappingValue);
             ResHash->Index = MappingValue;
         }
+        if(BlockWasRendered(World, BlockP))
+        {
+            DeleteRenderedBlock(World, BlockP);
+        }
     }
 }
 
@@ -721,6 +725,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                     World->BlockMappedCount++;
                 }
             }
+            
             // NOTE: Could do downgrading here, if block is far away from the camera
             if(ResHash->Index < (int32)BlockP->Resolution)
             {
@@ -750,7 +755,6 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     }
     
     bool32 EverybodyIsRenderedOnCorrectResolution = true;
-    bool32 CanUpgradeLowestResolution = true;
     // NOTE: Select the next blocks that we can render.
     const uint32 BlockRenderMaxCount = 1000;
     world_block_pos BlocksToRender[BlockRenderMaxCount];
@@ -786,33 +790,34 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         }
     }
     
-    for(uint32 ResolutionIndex = 0;
-        ResolutionIndex < ResolutionCount;
-        ResolutionIndex++)
-    {
-        block_pos_array *BlockPositions = World->RenderPositionStore + ResolutionIndex;
-        for(size_t BlockPosIndex = 0; 
-            (BlockPosIndex < BlockPositions->Count);
-            ++BlockPosIndex)
-        {
-            world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;
-            block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
-            Assert(!HashIsEmpty(ResHash));
-            
-            CanUpgradeLowestResolution = CanUpgradeLowestResolution &&
-                (((BlockP->Resolution == LowestResUsed) && BlockWasRendered(World, BlockP)) ||
-                ((BlockP->Resolution != LowestResUsed) && !BlockWasRendered(World, BlockP)));
-        }
-    }
-    
     // NOTE: if everbody is rendered on the resolution it should be rendered, 
     // then we can upgrade a block to a new resolution
     // TODO: Downgrading of resolutions, when we go away from a previously upgraded block
     if(EverybodyIsRenderedOnCorrectResolution && 
        (MaxRenderBlocksToGenerateInFrame >= 4))
-    {
-        uint32 LowestResUsedIndex = GetResolutionIndex((uint32)LowestResUsed);
+    {    
         // NOTE: if everybody with a Resolution of LowestResUsed is rendered, we can upgrade LowestResUsed
+        bool32 CanUpgradeLowestResolution = true;
+        for(uint32 ResolutionIndex = 0;
+            ResolutionIndex < ResolutionCount;
+            ResolutionIndex++)
+        {
+            block_pos_array *BlockPositions = World->RenderPositionStore + ResolutionIndex;
+            for(size_t BlockPosIndex = 0; 
+                (BlockPosIndex < BlockPositions->Count);
+                ++BlockPosIndex)
+            {
+                world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;
+                block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+                Assert(!HashIsEmpty(ResHash));
+                
+                CanUpgradeLowestResolution = CanUpgradeLowestResolution &&
+                    (((BlockP->Resolution == LowestResUsed) && BlockWasRendered(World, BlockP)) ||
+                    ((BlockP->Resolution != LowestResUsed) && !BlockWasRendered(World, BlockP)));
+            }
+        }
+        
+        uint32 LowestResUsedIndex = GetResolutionIndex((uint32)LowestResUsed);
         if(CanUpgradeLowestResolution)
         {
             uint32 NewResIndex = LowestResUsedIndex+1;
@@ -841,7 +846,6 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             if(ResHash->Index > LowestResUsed && SiblingDensitiesLoaded)
             {
                 // NOTE: We can upgrade it, and its siblings to a smaller resolution
-                
                 for(uint32 SiblingIndex = 0;
                     SiblingIndex < ArrayCount(Siblings.Pos);
                     SiblingIndex++)
