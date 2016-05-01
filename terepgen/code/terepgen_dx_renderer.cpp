@@ -501,7 +501,11 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     HResult = Device->CreateRasterizerState(&RSDescWireFrame, &RSWireFrame);
     if(FAILED(HResult)) return HResult;
     
+#if TEREPGEN_DEBUG
+    this->MaxVertexCount = 150000;
+#else
     this->MaxVertexCount = RENDER_BLOCK_VERTEX_COUNT;
+#endif
     
     D3D11_BUFFER_DESC BufferDesc;
     ZeroMemory(&BufferDesc, sizeof(BufferDesc));
@@ -809,7 +813,6 @@ void dx_resource::DrawLines(vertex *Vertices, uint32 VertCount)
     LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount);    
     
     DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     DeviceContext->Draw(VertCount, 0);
 }
 

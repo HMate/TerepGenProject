@@ -11,7 +11,7 @@ struct world_block_pos
     int32 BlockZ;
         
     // TODO: Maybe resolution shouldnt be stored here
-    uint32 Resolution;
+    int32 Resolution;
 };
 
 struct block_node
@@ -59,6 +59,7 @@ struct lower_blocks
 #define TERRAIN_BLOCK_SIZE GRID_DIMENSION
 #define RENDER_BLOCK_VERTEX_COUNT 7000
 
+// NOTE: This is the size of a resolution 1 block in render space
 #define RENDER_SPACE_UNIT 1.0f
 
 struct terrain_render_block

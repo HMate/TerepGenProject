@@ -39,11 +39,15 @@ vertex Vertex(v3 Pos, v3 Norm, v4 Color)
 #include "terepgen_marching_cubes.cpp"
 #include "terepgen_terrain.h"
 
-
+#define CubeVertexCount 36
 struct cube
 {
-    v3 Pos;
-    vertex Vertices[36];
+    vertex Vertices[CubeVertexCount];
+};
+#define CubeFrameVertexCount 24
+struct cube_frame
+{
+    vertex Vertices[CubeFrameVertexCount];
 };
 
 struct avarage_time
@@ -73,6 +77,10 @@ struct game_state
     terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
     
     cube Cube;
+    v3 CubePos;
+    
+    cube_frame ResolutionCubes[DENSITY_BLOCK_COUNT];
+    int32 ResCubeCount;
     
     avarage_time AvgPoligoniseTime;
     avarage_time FrameAvg;

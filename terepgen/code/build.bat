@@ -20,7 +20,7 @@ REM -D.. Sets the given variable for preprocessor directives
 REM -EH Exceptions handling. s: only c++ exceptions c: extern "C" functions never throw exceptions
 REM -W4 Turns on warnings -Wall turns on more warnings than -W4
 REM -WX Treat warnings as errors
-set CommonCompilerFlags= -MTd -nologo -Od -Z7 -EHsc -DTEREPGEN_DEBUG=1 -DTEREPGEN_PERF=0 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189
+set CommonCompilerFlags= -MTd -nologo -Od -Z7 -EHsc -DTEREPGEN_DEBUG=1 -DTEREPGEN_PERF=0 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189 -wd4239
 
 REM -opt:ref Eliminates functions and data that are not referenced
 set CommonLinkerFlags= -incremental:no -opt:ref^
@@ -31,7 +31,7 @@ echo profile build
 rem FAsc ?generates asesmbly sources
 rem /d1reportSingleClassLayoutClassName prints ClassName's layout
 rem linker /map for checking the alignment of memory structs
-set CommonCompilerFlags= -MT -nologo -O2 -Z7 -EHsc -DTEREPGEN_DEBUG=0 -DTEREPGEN_PERF=1 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189 
+set CommonCompilerFlags= -MT -nologo -O2 -Z7 -EHsc -DTEREPGEN_DEBUG=0 -DTEREPGEN_PERF=1 -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189 -wd4239
 set CommonLinkerFlags= -incremental:no -opt:ref^
  user32.lib d3d11.lib dxgi.lib d3dcompiler.lib 
 )

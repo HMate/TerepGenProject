@@ -325,7 +325,7 @@ GetActualBlockNode(world_block_pos *Original, int32 X, int32 Y, int32 Z)
 }
 
 internal block_node
-ConvertRenderPosToBlockNode(v3 RenderPos, uint32 Resolution)
+ConvertRenderPosToBlockNode(v3 RenderPos, int32 Resolution)
 {
     world_block_pos WorldOrigo{0, 0, 0, Resolution};
     v3 NodeFromOrigo = RenderPos/((real32)Resolution * RENDER_SPACE_UNIT);
@@ -410,7 +410,7 @@ GetInterpolatedWorldGrid(world_density *World, world_block_pos *BlockP,
 
 // NOTE: V3 contains renderspace values here
 internal real32
-GetWorldGridValueFromV3(world_density *World, v3 Pos, uint32 Resolution)
+GetWorldGridValueFromV3(world_density *World, v3 Pos, int32 Resolution)
 {
     // TODO: Resolution
     world_block_pos WorldOrigo{0, 0, 0, Resolution};
@@ -514,15 +514,6 @@ GetInterpolatedNeighbour(terrain_density_block **Neighbours, world_block_pos *Bl
     real32 Y1 = Z2 + YRemainder *(Z3-Z2);
     
     real32 Result = Y0 + XRemainder * (Y1 - Y0);
-    return Result;
-}
-
-internal vertex
-Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
-{
-    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
-                     Normal.X, Normal.Y, Normal.Z,
-                     Color};
     return Result;
 }
 
@@ -652,12 +643,21 @@ GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
     // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
     // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
     // which we doesn't handle currently 
-    while(Result.Resolution != (uint32)ResHash->Index)
+    while(Result.Resolution != ResHash->Index)
     {
-        Assert((uint32)ResHash->Index > Result.Resolution);
+        Assert(ResHash->Index > Result.Resolution);
         Result = GetBiggerResBlockPosition(&Result);
     }
     
+    return Result;
+}
+
+internal vertex
+Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
+{
+    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
+                     Normal.X, Normal.Y, Normal.Z,
+                     Color};
     return Result;
 }
 
