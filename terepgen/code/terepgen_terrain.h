@@ -65,9 +65,8 @@ struct lower_blocks
 struct terrain_render_block
 {
     v3 Pos;
-    uint32 Resolution;
+    world_block_pos WPos;
     uint32 VertexCount;
-    world_block_pos NeighbourPositions[27];
     vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];
 };//280'016 B
 
@@ -96,7 +95,7 @@ struct density_block_pos_array
 #define BLOCK_HASH_SIZE 16384
 #define ZERO_HASH_SIZE 32768
 
-#define RESOLUTION_COUNT 2
+#define RESOLUTION_COUNT 3
 
 struct world_density
 {

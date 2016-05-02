@@ -436,6 +436,7 @@ ConvertToResolution(world_block_pos *P, uint32 NewRes)
 }
 
 // NOTE: XYZ are relative to the block position
+// Handles bigger resolution neighbours by rounding to smaller index
 internal real32
 GetFromNeighbours(terrain_density_block **Neighbours,
                   world_block_pos *BlockP, 
@@ -445,8 +446,7 @@ GetFromNeighbours(terrain_density_block **Neighbours,
     int32 DiffX = FloorInt32(X / BlockSize);
     int32 DiffY = FloorInt32(Y / BlockSize);
     int32 DiffZ = FloorInt32(Z / BlockSize);
-    if(BlockP->Resolution == 4)
-        int z =7;
+    
     // NOTE: Neighbours are stored in X,Y,Z order, where Z is the least significant dimension
     // 21, 22, 25,26, 37,38, 41,42 are the current/center block
     uint32 NIndex = 21 + DiffX*16 + DiffY*4 + DiffZ;
@@ -513,6 +513,94 @@ GetInterpolatedNeighbour(terrain_density_block **Neighbours, world_block_pos *Bl
     real32 Y1 = Z2 + YRemainder *(Z3-Z2);
     
     real32 Result = Y0 + XRemainder * (Y1 - Y0);
+    return Result;
+}
+
+internal real32
+GetInterpolatedValueByResolution(terrain_density_block **Neighbours, world_block_pos *BlockP,
+                                 int32 NewRes, real32 X, real32 Y, real32 Z, int32 origX, int32 origY, int32 origZ)
+{
+    int32 OldRes = BlockP->Resolution;
+    real32 Ratio = (real32)NewRes/OldRes;
+    
+    int32 XFloor = FloorInt32(X);
+    real32 XRemainder = X - (real32)XFloor;
+    int32 YFloor = FloorInt32(Y);
+    real32 YRemainder = Y - (real32)YFloor;
+    int32 ZFloor = FloorInt32(Z);
+    real32 ZRemainder = Z - (real32)ZFloor;
+    
+    int32 XF0 = origX - (int32)(Ratio*XRemainder);
+    int32 XF1 = origX + (int32)(Ratio*XRemainder);
+    int32 YF0 = origY - (int32)(Ratio*YRemainder);
+    int32 YF1 = origY + (int32)(Ratio*YRemainder);
+    int32 ZF0 = origZ - (int32)(Ratio*ZRemainder);
+    int32 ZF1 = origZ + (int32)(Ratio*ZRemainder);
+    
+    real32 V0 = GetFromNeighbours(Neighbours, BlockP, XF0, YF0, ZF0);
+    real32 V1 = GetFromNeighbours(Neighbours, BlockP, XF0, YF0, ZF1);
+    real32 V2 = GetFromNeighbours(Neighbours, BlockP, XF0, YF1, ZF0);
+    real32 V3 = GetFromNeighbours(Neighbours, BlockP, XF0, YF1, ZF1);
+    real32 V4 = GetFromNeighbours(Neighbours, BlockP, XF1, YF0, ZF0);
+    real32 V5 = GetFromNeighbours(Neighbours, BlockP, XF1, YF0, ZF1);
+    real32 V6 = GetFromNeighbours(Neighbours, BlockP, XF1, YF1, ZF0);
+    real32 V7 = GetFromNeighbours(Neighbours, BlockP, XF1, YF1, ZF1);
+    
+    real32 Z0 = V0 + ZRemainder *(V1-V0);
+    real32 Z1 = V2 + ZRemainder *(V3-V2);
+    real32 Z2 = V4 + ZRemainder *(V5-V4);
+    real32 Z3 = V6 + ZRemainder *(V7-V6);
+    
+    real32 Y0 = Z0 + YRemainder *(Z1-Z0);
+    real32 Y1 = Z2 + YRemainder *(Z3-Z2);
+    
+    real32 Result = Y0 + XRemainder * (Y1 - Y0);
+    return Result;
+}
+
+internal real32
+GetExactFromNeighbours(terrain_density_block **Neighbours,
+                      world_block_pos *BlockP, 
+                      int32 X, int32 Y, int32 Z)
+{
+    real32 BlockSize = (real32)TERRAIN_BLOCK_SIZE/2;
+    int32 DiffX = FloorInt32(X / BlockSize);
+    int32 DiffY = FloorInt32(Y / BlockSize);
+    int32 DiffZ = FloorInt32(Z / BlockSize);
+    
+    // NOTE: Neighbours are stored in X,Y,Z order, where Z is the least significant dimension
+    // 21, 22, 25,26, 37,38, 41,42 are the current/center block
+    uint32 NIndex = 21 + DiffX*16 + DiffY*4 + DiffZ;
+    Assert(NIndex < 64);
+    
+    terrain_density_block *ActDensityBlock = Neighbours[NIndex];
+    
+    world_block_pos ParentPos = ConvertToResolution(BlockP, ActDensityBlock->Pos.Resolution);
+    
+    const int32 GridStep = (int32)TERRAIN_BLOCK_SIZE;
+    BlockSize = (real32)TERRAIN_BLOCK_SIZE;
+    const int32 OriginalRes = BlockP->Resolution;
+    const int32 NewRes = ActDensityBlock->Pos.Resolution;
+    
+    world_block_pos ParentPosInOriginalRes = ConvertToResolution(&ParentPos, BlockP->Resolution);
+    int32 OffsetInParentX = (BlockP->BlockX - ParentPosInOriginalRes.BlockX) * (GridStep * OriginalRes / NewRes);
+    int32 OffsetInParentY = (BlockP->BlockY - ParentPosInOriginalRes.BlockY) * (GridStep * OriginalRes / NewRes);
+    int32 OffsetInParentZ = (BlockP->BlockZ - ParentPosInOriginalRes.BlockZ) * (GridStep * OriginalRes / NewRes);
+    
+    real32 NewResX = OffsetInParentX + ((real32)X * OriginalRes / NewRes);
+    real32 NewResY = OffsetInParentY + ((real32)Y * OriginalRes / NewRes);
+    real32 NewResZ = OffsetInParentZ + ((real32)Z * OriginalRes / NewRes);
+    
+    int32 NewResDiffX = FloorInt32(NewResX / BlockSize);
+    int32 NewResDiffY = FloorInt32(NewResY / BlockSize);
+    int32 NewResDiffZ = FloorInt32(NewResZ / BlockSize);
+    
+    real32 NewX = (NewResX - (NewResDiffX * GridStep));
+    real32 NewY = (NewResY - (NewResDiffY * GridStep));
+    real32 NewZ = (NewResZ - (NewResDiffZ * GridStep));
+    
+    real32 Result = GetInterpolatedValueByResolution(Neighbours, BlockP, NewRes, NewResX, NewResY, NewResZ, X, Y, Z);
+    
     return Result;
 }
 
@@ -624,6 +712,16 @@ MapBlockPosition(world_density *World, world_block_pos *BlockP, int32 MappingVal
     return ResHash;
 }
 
+internal block_hash*
+MapBlockPositionAfterParent(world_density *World, world_block_pos *BlockP)
+{
+    world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
+    block_hash *BPResHash = GetHash(World->ResolutionMapping, &BiggerP);
+    Assert(!HashIsEmpty(BPResHash));
+    block_hash *ResHash = MapBlockPosition(World, BlockP, BPResHash->Index);
+    return ResHash;
+}
+
 internal world_block_pos 
 GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
 {
@@ -632,10 +730,7 @@ GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
     block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
     if(HashIsEmpty(ResHash))
     {
-        world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
-        block_hash *BPResHash = GetHash(World->ResolutionMapping, &BiggerP);
-        Assert(!HashIsEmpty(BPResHash));
-        MapBlockPosition(World, BlockP, BPResHash->Index);
+        ResHash = MapBlockPositionAfterParent(World, BlockP);
     }
     // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
     // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
@@ -684,7 +779,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
     v4 GreenColor = v4{0.0, 1.0f, 0.0f, 1.0f};
     
     RenderBlock->Pos = V3FromWorldPos(*BlockP);
-    RenderBlock->Resolution = BlockP->Resolution;
+    RenderBlock->WPos = *BlockP;
     uint32 TerrainDimension = GRID_DIMENSION;
     
     uint32 VertexCount = 0;
@@ -706,14 +801,14 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
                 Cell.p[5] = v3{fX+1.0f, fY+1.0f, fZ+1.0f};
                 Cell.p[6] = v3{fX+1.0f, fY     , fZ+1.0f};
                 Cell.p[7] = v3{fX+1.0f, fY     , fZ     };
-                Cell.val[0] = GetFromNeighbours(Neighbours, BlockP, X  , Y+1, Z  );
-                Cell.val[1] = GetFromNeighbours(Neighbours, BlockP, X  , Y+1, Z+1);
-                Cell.val[2] = GetFromNeighbours(Neighbours, BlockP, X  , Y  , Z+1);
-                Cell.val[3] = GetFromNeighbours(Neighbours, BlockP, X  , Y  , Z  );
-                Cell.val[4] = GetFromNeighbours(Neighbours, BlockP, X+1, Y+1, Z  );
-                Cell.val[5] = GetFromNeighbours(Neighbours, BlockP, X+1, Y+1, Z+1);
-                Cell.val[6] = GetFromNeighbours(Neighbours, BlockP, X+1, Y  , Z+1);
-                Cell.val[7] = GetFromNeighbours(Neighbours, BlockP, X+1, Y  , Z  );
+                Cell.val[0] = GetExactFromNeighbours(Neighbours, BlockP, X  , Y+1, Z  );
+                Cell.val[1] = GetExactFromNeighbours(Neighbours, BlockP, X  , Y+1, Z+1);
+                Cell.val[2] = GetExactFromNeighbours(Neighbours, BlockP, X  , Y  , Z+1);
+                Cell.val[3] = GetExactFromNeighbours(Neighbours, BlockP, X  , Y  , Z  );
+                Cell.val[4] = GetExactFromNeighbours(Neighbours, BlockP, X+1, Y+1, Z  );
+                Cell.val[5] = GetExactFromNeighbours(Neighbours, BlockP, X+1, Y+1, Z+1);
+                Cell.val[6] = GetExactFromNeighbours(Neighbours, BlockP, X+1, Y  , Z+1);
+                Cell.val[7] = GetExactFromNeighbours(Neighbours, BlockP, X+1, Y  , Z  );
                 TRIANGLE Triangles[5];
                 uint32 TriangleCount = Polygonise(Cell, DENSITY_ISO_LEVEL, Triangles);
                 
