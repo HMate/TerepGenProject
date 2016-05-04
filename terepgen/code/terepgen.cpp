@@ -432,12 +432,14 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
 {
     const uint32 ResolutionCount = RESOLUTION_COUNT;
     const int32 FixedResolution[ResolutionCount] = {8, 4, 2};
+    const int32 StoreResolutionCount = ResolutionCount-1;
     
     int32 debugGS = getGridSize(13);
     
     world_density *World = &GameState->WorldDensity;
     if(GameState->Initialized == false)
     {
+        GameState->MaxResolutionToRender = ResolutionCount-2;
         GameState->Seed = 1000;
         GameState->WorldDensity.BlockSize = real32(TERRAIN_BLOCK_SIZE);
         SetSeed(&GameState->PerlinArray.Noise[0], GameState->Seed);
@@ -489,7 +491,6 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     CalculateBlockPositions((block_pos_array*)(World->DensityPositionStore + 1), 
                             ArrayCount(World->DensityPositionStore->Pos), 
                             WorldCameraP + 1, DENSITY_BLOCK_RADIUS);
-    const int32 StoreResolutionCount = ResolutionCount-1;
     
     win32_clock Clock;
     //
@@ -863,7 +864,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         if(CanUpgradeLowestResolution)
         {
             uint32 NewResIndex = LowestResUsedIndex+1;
-            if(NewResIndex < StoreResolutionCount)
+            if(NewResIndex < GameState->MaxResolutionToRender)
             {
                 LowestResUsed = FixedResolution[NewResIndex];
                 LowestResUsedIndex = NewResIndex;

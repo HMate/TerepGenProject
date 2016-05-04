@@ -28,9 +28,9 @@ SkyVOut BackgroundVShader(SkyVIn input)
 {
     SkyVOut output;
     output.screenPos = float4(input.position, 1);
+    output.screenPos.z = 0.999999;
     float4x4 TVM = transpose(ViewMx);
-    output.worldPos = mul(float4(input.position, 1.0), TVM);
-    // output.worldPos = float3(input.position);
+    output.worldPos = mul(TVM, float4(input.position, 1.0));
     
     return output;
 }

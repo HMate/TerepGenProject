@@ -29,17 +29,16 @@ VOut VShader(VIn input)
 {
     VOut output;
 
-    output.worldPos = mul(float4(input.position, 1.0), WorldMx);
-    output.screenPos = mul(output.worldPos, ViewProjMx);
+    float4 wp = mul(WorldMx, float4(input.position, 1.0));
+    output.worldPos = float4(wp.x/wp.w, wp.y/wp.w, wp.z/wp.w, 1.0);
+    output.screenPos = mul(ViewProjMx, output.worldPos);
     
     // NOTE: normal transformation needs the transpose of the inverse of WorldMX
     // HLSL dont have inverse, but if WorldMX is orthogonal, we dont need it.
     // just use the worldmx and normalize the vector.
     // WorldMX is orthogonal, if scaling is uniform.
     // SOURCE: http://www.lighthouse3d.com/tutorials/glsl-12-tutorial/the-normal-matrix/
-    // output.normal = normalize(input.normal.xyz);
-    output.normal = normalize(mul(float4(input.normal.xyz, 0.0), WorldMx).xyz);
-    // output.normal = input.normal.xyz;
+    output.normal = normalize(mul(WorldMx, float4(input.normal.xyz, 0.0)).xyz);
     output.color = input.color;
 
     return output;

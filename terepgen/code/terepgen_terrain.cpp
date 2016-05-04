@@ -591,14 +591,6 @@ GetExactFromNeighbours(terrain_density_block **Neighbours,
     real32 NewResY = OffsetInParentY + ((real32)Y * OriginalRes / NewRes);
     real32 NewResZ = OffsetInParentZ + ((real32)Z * OriginalRes / NewRes);
     
-    int32 NewResDiffX = FloorInt32(NewResX / BlockSize);
-    int32 NewResDiffY = FloorInt32(NewResY / BlockSize);
-    int32 NewResDiffZ = FloorInt32(NewResZ / BlockSize);
-    
-    real32 NewX = (NewResX - (NewResDiffX * GridStep));
-    real32 NewY = (NewResY - (NewResDiffY * GridStep));
-    real32 NewZ = (NewResZ - (NewResDiffZ * GridStep));
-    
     real32 Result = GetInterpolatedValueByResolution(Neighbours, BlockP, NewRes, NewResX, NewResY, NewResZ, X, Y, Z);
     
     return Result;

@@ -91,7 +91,7 @@ struct camera
     // NOTE: Regardless of nearZ, the screen always 
     // have a distance of 1.0 from the eye with PerspectiveFovLH
     real32 NearZ = 3.0f;
-    real32 FarZ = 10000.0f;
+    real32 FarZ = 1000.0f;
     
     real32 YawRadian = 0.0f; // Turnning left-right
     real32 PitchRadian = 0.0f; // Turning up-down
@@ -112,6 +112,11 @@ struct camera
     
     void Update(game_input *Input, real64 TimeDelta);
     void Resize(uint32 ScreenWidth, uint32 ScreenHeight);
+private:
+    void SetViewMatrix();
+    void SetProjMatrix(uint32, uint32);
+    void SetViewProjMatrix();
+    void SetSceneConstants();
 };
 
 #define TEREPGEN_DX_RENDERER_H

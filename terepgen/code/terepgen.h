@@ -61,6 +61,7 @@ struct game_state
     bool32 Initialized;
     dx_resource *DXResources;
     uint32 Seed;
+    uint32 MaxResolutionToRender;
     
     real64 dtForFrame;
     

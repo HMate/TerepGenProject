@@ -491,6 +491,7 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     ZeroMemory(&RSDescDefault, sizeof(D3D11_RASTERIZER_DESC));
     RSDescDefault.FillMode = D3D11_FILL_SOLID;
     RSDescDefault.CullMode = D3D11_CULL_BACK;
+    RSDescDefault.DepthClipEnable = true;
     HResult = Device->CreateRasterizerState(&RSDescDefault, &RSDefault);
     if(FAILED(HResult)) return HResult;
     
@@ -759,10 +760,10 @@ char* dx_resource::GetDebugMessage(DWORD dwErrorMsgId)
 
 void dx_resource::SetTransformations(v3 Translation)
 {
-    ObjectConstants.WorldMatrix = DirectX::XMFLOAT4X4(1, 0, 0, Translation.X,
-                                                      0, 1, 0, Translation.Y,
-                                                      0, 0, 1, Translation.Z,
-                                                      0, 0, 0, 1);
+    ObjectConstants.WorldMatrix = DirectX::XMFLOAT4X4(1, 0, 0, 0,
+                                                      0, 1, 0, 0,
+                                                      0, 0, 1, 0,
+                                                      Translation.X, Translation.Y, Translation.Z, 1);
 }
 
 void dx_resource::SetDrawModeDefault(void)
@@ -882,32 +883,46 @@ v3 camera::GetUpDirection()
     return Result;
 }
 
+void camera::SetViewMatrix()
+{
+    using namespace DirectX;
+    XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
+                    XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));
+}
+void camera::SetProjMatrix(uint32 ScreenWidth, uint32 ScreenHeight)
+{
+    using namespace DirectX;
+    XMStoreFloat4x4(&ProjMx, 
+        XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearZ, FarZ));
+}
+void camera::SetViewProjMatrix()
+{
+    using namespace DirectX;
+    XMStoreFloat4x4(&ViewProjMx,
+        XMMatrixMultiply(XMLoadFloat4x4(&ViewMx), XMLoadFloat4x4(&ProjMx)));
+}
+
+void camera::SetSceneConstants()
+{
+    using namespace DirectX;
+    SceneConstants.ViewMx = ViewMx;
+    SceneConstants.ViewProjMx = ViewProjMx;
+}
+
 void camera::Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 ScreenHeight, real32 CamSpeed)
 {   
     using namespace DirectX;
     CameraSpeed = CamSpeed;
     
-    XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
-        XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));            
-#if TEREPGEN_DEBUG
-    char DebugBuffer[256];
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera Width: %d\n", ScreenWidth);
-    OutputDebugStringA(DebugBuffer);
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera Height: %d\n", ScreenHeight);
-    OutputDebugStringA(DebugBuffer);
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Camera ApectRatio: %f\n", (real32)ScreenWidth/ScreenHeight);
-    OutputDebugStringA(DebugBuffer);
-#endif  
-    XMStoreFloat4x4(&ProjMx, 
-        XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearZ, FarZ));
-    XMStoreFloat4x4(&ViewProjMx,
-        XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx),
-                                  XMLoadFloat4x4(&ProjMx)));
+    win32_printer::DebugPrint("Camera Width: %d", ScreenWidth);
+    win32_printer::DebugPrint("Camera Height: %d", ScreenHeight);
+    win32_printer::DebugPrint("Camera ApectRatio: %f", (real32)ScreenWidth/ScreenHeight);
     
-    XMFLOAT4X4 VMxTranspose;
-    XMStoreFloat4x4(&VMxTranspose, XMMatrixTranspose(XMLoadFloat4x4(&ViewMx)));
-    SceneConstants.ViewMx = VMxTranspose;
-    SceneConstants.ViewProjMx = ViewProjMx;
+    SetViewMatrix();
+    SetProjMatrix(ScreenWidth, ScreenHeight);
+    SetViewProjMatrix();
+    
+    SetSceneConstants();
     
     D3D11_BUFFER_DESC SceneCBDesc = {};
     SceneCBDesc.ByteWidth = sizeof( scene_constants );
@@ -1012,16 +1027,10 @@ void camera::Update(game_input *Input, real64 TimeDelta)
             XMVector3Transform(NewTargetDir, HorzRotation) + XMLoadFloat3(&Position));
         XMStoreFloat3(&UpDirection, XMVector3Transform(NewUpDir, HorzRotation));
     }
-              
-    XMStoreFloat4x4(&ViewMx, XMMatrixLookAtLH(XMLoadFloat3(&Position),
-                    XMLoadFloat3(&TargetPos), XMLoadFloat3(&UpDirection)));
-    XMStoreFloat4x4(&ViewProjMx,
-        XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx), XMLoadFloat4x4(&ProjMx)));
-        
-    XMFLOAT4X4 VMxTranspose;
-    XMStoreFloat4x4(&VMxTranspose, XMMatrixTranspose(XMLoadFloat4x4(&ViewMx)));
-    SceneConstants.ViewMx = VMxTranspose;
-    SceneConstants.ViewProjMx = ViewProjMx;
+    
+    SetViewMatrix();
+    SetViewProjMatrix();
+    SetSceneConstants();
 }
     
 void camera::Resize(uint32 ScreenWidth, uint32 ScreenHeight)
@@ -1033,9 +1042,7 @@ void camera::Resize(uint32 ScreenWidth, uint32 ScreenHeight)
         win32_printer::DebugPrint("Camera Height: %d", ScreenHeight);
         win32_printer::DebugPrint("Camera ApectRatio: %f", (real32)ScreenWidth/ScreenHeight);
         
-        XMStoreFloat4x4(&ProjMx, 
-            XMMatrixPerspectiveFovLH(Fov, (real32)ScreenWidth/ScreenHeight, NearZ, FarZ));
-        XMStoreFloat4x4(&ViewProjMx,
-            XMMatrixMultiplyTranspose(XMLoadFloat4x4(&ViewMx), XMLoadFloat4x4(&ProjMx)));
+        SetProjMatrix(ScreenWidth, ScreenHeight);
+        SetViewProjMatrix();
     }
 }
