@@ -31,9 +31,13 @@ typedef double real64;
 #define ArrayCount(Array) (sizeof(Array)/sizeof(*Array))
 
 #if TEREPGEN_DEBUG
-#define Assert(Test) if(!(Test)){_CrtDbgReport(_CRT_ASSERT, __FILE__, __LINE__, "terepgen.exe", "Test");}
+    #if _DEBUG
+        #define Assert(Test) if(!(Test)){_CrtDbgReport(_CRT_ASSERT, __FILE__, __LINE__, "terepgen.exe", "Test");}
+    #else
+        #define Assert(Test) if(!(Test)){*(void*)0 = 2;}
+    #endif
 #else
-#define Assert(Test) 
+    #define Assert(Test) 
 #endif
 
 #define KILOBYTE(Size) (1024LL*(Size))

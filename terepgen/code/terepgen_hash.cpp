@@ -171,6 +171,7 @@ InitBlockHash(world_density *World)
     World->DynamicBlockCount = 0;
     World->PoligonisedBlockCount = 0;
     World->DeletedDensityBlockCount = 0;
+    World->DeletedDynamicBlockCount = 0;
     World->DeletedRenderBlockCount = 0;
     
     for(uint32 HashIndex = 0;

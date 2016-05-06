@@ -11,7 +11,7 @@ call "..\misc\load_msvc.bat"
 
 set debugBuild= 1
 
-if %debugBuild% == 1 (
+if %debugBuild% == 0 (
 echo Debug build
 REM -MTd Multithreaded version of run-time library build and links to LIBCMT.lib in debug mode
 REM -Od Disables optimization and build faster

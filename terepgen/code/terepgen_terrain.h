@@ -101,6 +101,7 @@ struct world_density
 {
     real32 BlockSize;
     uint32 DeletedDensityBlockCount;
+    uint32 DeletedDynamicBlockCount;
     uint32 DeletedRenderBlockCount;
     
     uint32 BlockMappedCount;

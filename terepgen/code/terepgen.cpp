@@ -515,7 +515,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     // NOTE: Delete blocks that are too far from the camera
     //
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
-    if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) - 10))
+    if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) - 100))
     {
         int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
         for(uint32 StoreIndex = 0; 
@@ -525,7 +525,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             terrain_density_block *Block = World->DensityBlocks + StoreIndex;
             world_block_pos *BlockP = &Block->Pos;
             uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
-            // TODO: Check manhattan distance, or need bigger hash and arrays
+            // TODO: Maybe instead of checking manhattan distance, we need bigger hash and arrays
             if(ManhattanDistance(WorldCameraP + ResIndex, BlockP) > LoadSpaceRadius)
             {
                 terrain_density_block *Last = World->DensityBlocks + (--World->DensityBlockCount);
@@ -541,6 +541,40 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 World->DeletedDensityBlockCount++;
                 
                 if(StoreIndex != (int32)World->DensityBlockCount)
+                {
+                    *Block = *Last;
+                }
+            }
+        }
+    }
+    Clock.Reset();
+    
+    if(World->DynamicBlockCount > (ArrayCount(World->DynamicBlocks) - 100))
+    {
+        int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
+        for(uint32 StoreIndex = 0; 
+            StoreIndex < World->DensityBlockCount; 
+            ++StoreIndex)
+        {
+            terrain_density_block *Block = World->DynamicBlocks + StoreIndex;
+            world_block_pos *BlockP = &Block->Pos;
+            uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
+            // NOTE:: Check manhattan distance, or need bigger hash and arrays
+            if(ManhattanDistance(WorldCameraP + ResIndex, BlockP) > LoadSpaceRadius)
+            {
+                terrain_density_block *Last = World->DynamicBlocks + (--World->DynamicBlockCount);
+                world_block_pos *LastP = &Last->Pos;
+                
+                block_hash *RemovedHash = GetHash(World->DynamicHash, BlockP);
+                Assert(!HashIsEmpty(RemovedHash));
+                block_hash *LastHash = GetHash(World->DynamicHash, LastP);
+                Assert(!HashIsEmpty(LastHash));
+                
+                LastHash->Index = StoreIndex;
+                RemovedHash->Index = HASH_DELETED;
+                World->DeletedDynamicBlockCount++;
+                
+                if(StoreIndex != (int32)World->DynamicBlockCount)
                 {
                     *Block = *Last;
                 }
@@ -975,15 +1009,10 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         RenderIndex++)
     {
         world_block_pos *BlockP = BlocksToRender + RenderIndex;
-        for(uint32 RenderInnerIndex = 0;
+        for(uint32 RenderInnerIndex = RenderIndex+1;
             RenderInnerIndex < RenderCount;
             RenderInnerIndex++)
         {
-            // TODO: Start inner loop from RenderIndex
-            if(RenderIndex == RenderInnerIndex) 
-            {
-                continue;
-            }
             world_block_pos *InnerBlockP = BlocksToRender + RenderInnerIndex;
             if(WorldPosEquals(BlockP, InnerBlockP))
             {
@@ -993,6 +1022,9 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             }
         }
     }
+    
+    // TODO: Befiore rendering, check for every blck that their neighbours are mapped right 
+    // and their densities are loaded.
     
     win32_clock AvgClock;
     // NOTE: These blocks may have been rendered once, but now they have to be generated again

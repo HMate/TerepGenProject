@@ -360,6 +360,7 @@ CreateNewDynamicBlock(world_density *World, world_block_pos *BlockP)
 {
     terrain_density_block *DynamicB = World->DynamicBlocks + World->DynamicBlockCount;
     FillDynamic(DynamicB, BlockP, 0.0f);
+    Assert(World->DynamicBlockCount < ArrayCount(World->DynamicBlocks));
     block_hash *DynamicHash = WriteHash(World->DynamicHash, BlockP, World->DynamicBlockCount++);
     
     return DynamicHash;
