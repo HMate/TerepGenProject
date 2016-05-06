@@ -103,16 +103,19 @@ struct world_density
     uint32 DeletedDensityBlockCount;
     uint32 DeletedRenderBlockCount;
     
+    uint32 BlockMappedCount;
     uint32 DensityBlockCount;
     terrain_density_block DensityBlocks[DENSITY_BLOCK_COUNT];
+    uint32 DynamicBlockCount;
+    terrain_density_block DynamicBlocks[DENSITY_BLOCK_COUNT];
     uint32 PoligonisedBlockCount;
     terrain_render_block PoligonisedBlocks[RENDER_BLOCK_COUNT];
     
     // NOTE: This must be a power of two for now!
     block_hash DensityHash[BLOCK_HASH_SIZE];
     // NOTE: Index in ResolutionMapping means the Resolution that the block should be rendered
-    uint32 BlockMappedCount;
     block_hash ResolutionMapping[BLOCK_HASH_SIZE];
+    block_hash DynamicHash[BLOCK_HASH_SIZE];
     block_hash RenderHash[BLOCK_HASH_SIZE];
     uint32 ZeroBlockCount;
     block_hash ZeroHash[ZERO_HASH_SIZE];

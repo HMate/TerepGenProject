@@ -502,7 +502,7 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     HResult = Device->CreateRasterizerState(&RSDescWireFrame, &RSWireFrame);
     if(FAILED(HResult)) return HResult;
     
-#if TEREPGEN_DEBUG
+#if 1
     this->MaxVertexCount = 150000;
 #else
     this->MaxVertexCount = RENDER_BLOCK_VERTEX_COUNT;

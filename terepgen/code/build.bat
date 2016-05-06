@@ -21,7 +21,7 @@ REM -EH Exceptions handling. s: only c++ exceptions c: extern "C" functions neve
 REM -W4 Turns on warnings -Wall turns on more warnings than -W4
 REM -WX Treat warnings as errors
 REM -Fe Name of exe file
-set CommonCompilerFlags= -MTd -nologo -Od -Z7 -EHsc -DTEREPGEN_DEBUG=1 -DTEREPGEN_PERF=0^
+set CommonCompilerFlags= -MTd -nologo -Od -Z7 -EHsc -DTEREPGEN_DEBUG=1 -DTEREPGEN_PERF=1^
  -W4 -WX -wd4201 -wd4100 -wd4505 -wd4189 -wd4239 -Feterepgen.exe
 
 REM -opt:ref Eliminates functions and data that are not referenced

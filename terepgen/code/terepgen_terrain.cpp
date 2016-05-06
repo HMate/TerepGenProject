@@ -178,6 +178,7 @@ InitBlockHash(world_density *World)
 {
     // TODO: Does zeroing out stored block count belong here?
     World->DensityBlockCount = 0;
+    World->DynamicBlockCount = 0;
     World->PoligonisedBlockCount = 0;
     World->DeletedDensityBlockCount = 0;
     World->DeletedRenderBlockCount = 0;
@@ -187,6 +188,14 @@ InitBlockHash(world_density *World)
         ++HashIndex)
     {
         block_hash *Hash = World->DensityHash + HashIndex;
+        Hash->Index = HASH_UNINITIALIZED;
+    }
+    
+    for(uint32 HashIndex = 0;
+        HashIndex < ArrayCount(World->DynamicHash);
+        ++HashIndex)
+    {
+        block_hash *Hash = World->DynamicHash + HashIndex;
         Hash->Index = HASH_UNINITIALIZED;
     }
     
@@ -438,7 +447,7 @@ ConvertToResolution(world_block_pos *P, uint32 NewRes)
 // NOTE: XYZ are relative to the block position
 // Handles bigger resolution neighbours by rounding to smaller index
 internal real32
-GetFromNeighbours(terrain_density_block **Neighbours,
+GetFromNeighbours(terrain_density_block **Neighbours, terrain_density_block **DynNeighbours,
                   world_block_pos *BlockP, 
                   int32 X, int32 Y, int32 Z)
 {
@@ -453,6 +462,7 @@ GetFromNeighbours(terrain_density_block **Neighbours,
     Assert(NIndex < 64);
     
     terrain_density_block *ActDensityBlock = Neighbours[NIndex];
+    terrain_density_block *ActDynamicBlock = DynNeighbours[NIndex];
     
     world_block_pos ParentPos = ConvertToResolution(BlockP, ActDensityBlock->Pos.Resolution);
     
@@ -478,15 +488,17 @@ GetFromNeighbours(terrain_density_block **Neighbours,
     uint32 NewY = (uint32)(NewResY - (NewResDiffY * GridStep));
     uint32 NewZ = (uint32)(NewResZ - (NewResDiffZ * GridStep));
     
-    real32 Result = GetGrid(&ActDensityBlock->Grid, NewX, NewY, NewZ);
+    real32 Density = GetGrid(&ActDensityBlock->Grid, NewX, NewY, NewZ);
+    real32 Dynamic = GetGrid(&ActDynamicBlock->Grid, NewX, NewY, NewZ);
     
+    real32 Result = Density + Dynamic;
     return Result;
 }
 
 // NOTE: floating values here are world grid positions in float, not render space values!
 internal real32
-GetInterpolatedNeighbour(terrain_density_block **Neighbours, world_block_pos *BlockP, 
-                         real32 X, real32 Y, real32 Z)
+GetInterpolatedNeighbour(terrain_density_block **Neighbours, terrain_density_block **DynNeighbours, 
+                         world_block_pos *BlockP, real32 X, real32 Y, real32 Z)
 {
     int32 XFloor = FloorInt32(X);
     real32 XRemainder = X - (real32)XFloor;
@@ -495,14 +507,14 @@ GetInterpolatedNeighbour(terrain_density_block **Neighbours, world_block_pos *Bl
     int32 ZFloor = FloorInt32(Z);
     real32 ZRemainder = Z - (real32)ZFloor;
     
-    real32 V0 = GetFromNeighbours(Neighbours, BlockP, XFloor    , YFloor    , ZFloor    );
-    real32 V1 = GetFromNeighbours(Neighbours, BlockP, XFloor    , YFloor    , ZFloor + 1);
-    real32 V2 = GetFromNeighbours(Neighbours, BlockP, XFloor    , YFloor + 1, ZFloor    );
-    real32 V3 = GetFromNeighbours(Neighbours, BlockP, XFloor    , YFloor + 1, ZFloor + 1);
-    real32 V4 = GetFromNeighbours(Neighbours, BlockP, XFloor + 1, YFloor    , ZFloor    );
-    real32 V5 = GetFromNeighbours(Neighbours, BlockP, XFloor + 1, YFloor    , ZFloor + 1);
-    real32 V6 = GetFromNeighbours(Neighbours, BlockP, XFloor + 1, YFloor + 1, ZFloor    );
-    real32 V7 = GetFromNeighbours(Neighbours, BlockP, XFloor + 1, YFloor + 1, ZFloor + 1);
+    real32 V0 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XFloor    , YFloor    , ZFloor    );
+    real32 V1 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XFloor    , YFloor    , ZFloor + 1);
+    real32 V2 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XFloor    , YFloor + 1, ZFloor    );
+    real32 V3 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XFloor    , YFloor + 1, ZFloor + 1);
+    real32 V4 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XFloor + 1, YFloor    , ZFloor    );
+    real32 V5 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XFloor + 1, YFloor    , ZFloor + 1);
+    real32 V6 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XFloor + 1, YFloor + 1, ZFloor    );
+    real32 V7 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XFloor + 1, YFloor + 1, ZFloor + 1);
     
     real32 Z0 = V0 + ZRemainder *(V1-V0);
     real32 Z1 = V2 + ZRemainder *(V3-V2);
@@ -517,8 +529,9 @@ GetInterpolatedNeighbour(terrain_density_block **Neighbours, world_block_pos *Bl
 }
 
 internal real32
-GetInterpolatedValueByResolution(terrain_density_block **Neighbours, world_block_pos *BlockP,
-                                 int32 NewRes, real32 X, real32 Y, real32 Z, int32 origX, int32 origY, int32 origZ)
+GetInterpolatedValueByResolution(terrain_density_block **Neighbours, terrain_density_block **DynNeighbours, 
+                                 world_block_pos *BlockP, int32 NewRes, 
+                                 real32 X, real32 Y, real32 Z, int32 origX, int32 origY, int32 origZ)
 {
     int32 OldRes = BlockP->Resolution;
     real32 Ratio = (real32)NewRes/OldRes;
@@ -537,14 +550,14 @@ GetInterpolatedValueByResolution(terrain_density_block **Neighbours, world_block
     int32 ZF0 = origZ - (int32)(Ratio*ZRemainder);
     int32 ZF1 = origZ + (int32)(Ratio*ZRemainder);
     
-    real32 V0 = GetFromNeighbours(Neighbours, BlockP, XF0, YF0, ZF0);
-    real32 V1 = GetFromNeighbours(Neighbours, BlockP, XF0, YF0, ZF1);
-    real32 V2 = GetFromNeighbours(Neighbours, BlockP, XF0, YF1, ZF0);
-    real32 V3 = GetFromNeighbours(Neighbours, BlockP, XF0, YF1, ZF1);
-    real32 V4 = GetFromNeighbours(Neighbours, BlockP, XF1, YF0, ZF0);
-    real32 V5 = GetFromNeighbours(Neighbours, BlockP, XF1, YF0, ZF1);
-    real32 V6 = GetFromNeighbours(Neighbours, BlockP, XF1, YF1, ZF0);
-    real32 V7 = GetFromNeighbours(Neighbours, BlockP, XF1, YF1, ZF1);
+    real32 V0 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XF0, YF0, ZF0);
+    real32 V1 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XF0, YF0, ZF1);
+    real32 V2 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XF0, YF1, ZF0);
+    real32 V3 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XF0, YF1, ZF1);
+    real32 V4 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XF1, YF0, ZF0);
+    real32 V5 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XF1, YF0, ZF1);
+    real32 V6 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XF1, YF1, ZF0);
+    real32 V7 = GetFromNeighbours(Neighbours, DynNeighbours, BlockP, XF1, YF1, ZF1);
     
     real32 Z0 = V0 + ZRemainder *(V1-V0);
     real32 Z1 = V2 + ZRemainder *(V3-V2);
@@ -559,7 +572,7 @@ GetInterpolatedValueByResolution(terrain_density_block **Neighbours, world_block
 }
 
 internal real32
-GetExactFromNeighbours(terrain_density_block **Neighbours,
+GetExactFromNeighbours(terrain_density_block **Neighbours, terrain_density_block **DynNeighbours,
                       world_block_pos *BlockP, 
                       int32 X, int32 Y, int32 Z)
 {
@@ -591,13 +604,14 @@ GetExactFromNeighbours(terrain_density_block **Neighbours,
     real32 NewResY = OffsetInParentY + ((real32)Y * OriginalRes / NewRes);
     real32 NewResZ = OffsetInParentZ + ((real32)Z * OriginalRes / NewRes);
     
-    real32 Result = GetInterpolatedValueByResolution(Neighbours, BlockP, NewRes, NewResX, NewResY, NewResZ, X, Y, Z);
+    real32 Result = GetInterpolatedValueByResolution(Neighbours, DynNeighbours, BlockP, NewRes, NewResX, NewResY, NewResZ, X, Y, Z);
     
     return Result;
 }
 
 internal v3
-GetPointNormal(terrain_density_block **Neighbours, world_block_pos *BlockP, v3 Point)
+GetPointNormal(terrain_density_block **Neighbours, terrain_density_block **DynNeighbours, 
+               world_block_pos *BlockP, v3 Point)
 {
     real32 Diff = 0.5f;
     
@@ -610,14 +624,14 @@ GetPointNormal(terrain_density_block **Neighbours, world_block_pos *BlockP, v3 P
     real32 DiffZMin = Point.Z - Diff;
     real32 DiffZMax = Point.Z + Diff;
     
-    real32 XP = GetInterpolatedNeighbour(Neighbours, BlockP, DiffXMax, Point.Y, Point.Z);
-    real32 XM = GetInterpolatedNeighbour(Neighbours, BlockP, DiffXMin, Point.Y, Point.Z);
+    real32 XP = GetInterpolatedNeighbour(Neighbours, DynNeighbours, BlockP, DiffXMax, Point.Y, Point.Z);
+    real32 XM = GetInterpolatedNeighbour(Neighbours, DynNeighbours, BlockP, DiffXMin, Point.Y, Point.Z);
     real32 NormalX = XP - XM;
-    real32 YP = GetInterpolatedNeighbour(Neighbours, BlockP, Point.X, DiffYMax, Point.Z);
-    real32 YM = GetInterpolatedNeighbour(Neighbours, BlockP, Point.X, DiffYMin, Point.Z);
+    real32 YP = GetInterpolatedNeighbour(Neighbours, DynNeighbours, BlockP, Point.X, DiffYMax, Point.Z);
+    real32 YM = GetInterpolatedNeighbour(Neighbours, DynNeighbours, BlockP, Point.X, DiffYMin, Point.Z);
     real32 NormalY = YP - YM;
-    real32 ZP = GetInterpolatedNeighbour(Neighbours, BlockP, Point.X, Point.Y, DiffZMax);
-    real32 ZM = GetInterpolatedNeighbour(Neighbours, BlockP, Point.X, Point.Y, DiffZMin);
+    real32 ZP = GetInterpolatedNeighbour(Neighbours, DynNeighbours, BlockP, Point.X, Point.Y, DiffZMax);
+    real32 ZM = GetInterpolatedNeighbour(Neighbours, DynNeighbours, BlockP, Point.X, Point.Y, DiffZMin);
     real32 NormalZ = ZP - ZM;
     
     v3 Result = v3{NormalX, NormalY, NormalZ};
@@ -745,6 +759,33 @@ Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
     return Result;
 }
 
+internal void 
+FillDynamic(terrain_density_block *Dynamic, world_block_pos *BlockP, real32 Value)
+{
+    Dynamic->Pos = *BlockP;
+    uint32 Dim = Dynamic->Grid.Dimension;
+    for(uint32 X = 0; X < Dim; X++)
+    {
+        for(uint32 Y = 0; Y < Dim; Y++)
+        {
+            for(uint32 Z = 0; Z < Dim; Z++)
+            {
+                SetGrid(&Dynamic->Grid, X, Y, Z, Value);
+            }
+        }
+    }
+}
+
+internal block_hash*
+CreateNewDynamicBlock(world_density *World, world_block_pos *BlockP)
+{
+    terrain_density_block *DynamicB = World->DynamicBlocks + World->DynamicBlockCount;
+    FillDynamic(DynamicB, BlockP, 0.0f);
+    block_hash *DynamicHash = WriteHash(World->DynamicHash, BlockP, World->DynamicBlockCount++);
+    
+    return DynamicHash;
+}
+
 #define DENSITY_ISO_LEVEL 0.0f
 internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
@@ -752,6 +793,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
     block_lower_neighbours NPositions;
     GetNeighbourBlockPositionsOnLowerRes(&NPositions, BlockP);
     terrain_density_block *Neighbours[ArrayCount(NPositions.Pos)];
+    terrain_density_block *DynNeighbours[ArrayCount(NPositions.Pos)];
     for(uint32 NeighbourIndex = 0;
         NeighbourIndex < ArrayCount(NPositions.Pos);
         NeighbourIndex++)
@@ -764,6 +806,13 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
         block_hash *NeighbourHash = GetHash(World->DensityHash, &MappedP);
         Assert(!HashIsEmpty(NeighbourHash));
         Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
+        
+        block_hash *DynamicHash = GetHash(World->DynamicHash, &MappedP);
+        if(HashIsEmpty(DynamicHash))
+        {
+            DynamicHash = CreateNewDynamicBlock(World, &MappedP);
+        }
+        DynNeighbours[NeighbourIndex] = World->DynamicBlocks + DynamicHash->Index;
     }
     
     Assert(BlockP->Resolution > 0);
@@ -780,7 +829,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
         for(uint32 Y = 0; Y < TerrainDimension; Y++)
         {
             for(uint32 Z = 0; Z < TerrainDimension; Z++)
-            {                
+            {
                 GRIDCELL Cell;
                 real32 fX = (real32)X;
                 real32 fY = (real32)Y;
@@ -793,14 +842,14 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
                 Cell.p[5] = v3{fX+1.0f, fY+1.0f, fZ+1.0f};
                 Cell.p[6] = v3{fX+1.0f, fY     , fZ+1.0f};
                 Cell.p[7] = v3{fX+1.0f, fY     , fZ     };
-                Cell.val[0] = GetExactFromNeighbours(Neighbours, BlockP, X  , Y+1, Z  );
-                Cell.val[1] = GetExactFromNeighbours(Neighbours, BlockP, X  , Y+1, Z+1);
-                Cell.val[2] = GetExactFromNeighbours(Neighbours, BlockP, X  , Y  , Z+1);
-                Cell.val[3] = GetExactFromNeighbours(Neighbours, BlockP, X  , Y  , Z  );
-                Cell.val[4] = GetExactFromNeighbours(Neighbours, BlockP, X+1, Y+1, Z  );
-                Cell.val[5] = GetExactFromNeighbours(Neighbours, BlockP, X+1, Y+1, Z+1);
-                Cell.val[6] = GetExactFromNeighbours(Neighbours, BlockP, X+1, Y  , Z+1);
-                Cell.val[7] = GetExactFromNeighbours(Neighbours, BlockP, X+1, Y  , Z  );
+                Cell.val[0] = GetExactFromNeighbours(Neighbours, DynNeighbours, BlockP, X  , Y+1, Z  );
+                Cell.val[1] = GetExactFromNeighbours(Neighbours, DynNeighbours, BlockP, X  , Y+1, Z+1);
+                Cell.val[2] = GetExactFromNeighbours(Neighbours, DynNeighbours, BlockP, X  , Y  , Z+1);
+                Cell.val[3] = GetExactFromNeighbours(Neighbours, DynNeighbours, BlockP, X  , Y  , Z  );
+                Cell.val[4] = GetExactFromNeighbours(Neighbours, DynNeighbours, BlockP, X+1, Y+1, Z  );
+                Cell.val[5] = GetExactFromNeighbours(Neighbours, DynNeighbours, BlockP, X+1, Y+1, Z+1);
+                Cell.val[6] = GetExactFromNeighbours(Neighbours, DynNeighbours, BlockP, X+1, Y  , Z+1);
+                Cell.val[7] = GetExactFromNeighbours(Neighbours, DynNeighbours, BlockP, X+1, Y  , Z  );
                 TRIANGLE Triangles[5];
                 uint32 TriangleCount = Polygonise(Cell, DENSITY_ISO_LEVEL, Triangles);
                 
@@ -810,9 +859,9 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
                     v3 Point1 = Triangles[TriangleIndex].p[1];
                     v3 Point2 = Triangles[TriangleIndex].p[2];
                                         
-                    v3 Normal0 = GetPointNormal(Neighbours, BlockP, Point0);
-                    v3 Normal1 = GetPointNormal(Neighbours, BlockP, Point1);
-                    v3 Normal2 = GetPointNormal(Neighbours, BlockP, Point2);
+                    v3 Normal0 = GetPointNormal(Neighbours, DynNeighbours, BlockP, Point0);
+                    v3 Normal1 = GetPointNormal(Neighbours, DynNeighbours, BlockP, Point1);
+                    v3 Normal2 = GetPointNormal(Neighbours, DynNeighbours, BlockP, Point2);
                     
                     RenderBlock->Vertices[VertexCount++] = 
                         Get3DVertex(Point0 * CellDiff, Normal0, GreenColor);

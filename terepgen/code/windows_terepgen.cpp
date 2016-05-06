@@ -58,6 +58,17 @@ struct win32_printer
 #endif
     }
     
+    static void PerfPrint(char *Text, real64 Arg1, uint32 Arg2)
+    {
+#if TEREPGEN_PERF
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s\n", Text);
+        char DebugBuffer2[256];
+        sprintf_s(DebugBuffer2, DebugBuffer, Arg1, Arg2);
+        OutputDebugStringA(DebugBuffer2);
+#endif
+    }
+    
     static void DebugPrint(char *Text)
     {
 #if TEREPGEN_DEBUG
@@ -107,6 +118,17 @@ struct win32_printer
         sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
         char DebugBuffer2[256];
         sprintf_s(DebugBuffer2, DebugBuffer, Arg1, Arg2);
+        OutputDebugStringA(DebugBuffer2);
+#endif
+    }
+    
+    static void DebugPrint(char *Text, real64 Arg1)
+    {
+#if TEREPGEN_DEBUG
+        char DebugBuffer[256];
+        sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s\n", Text);
+        char DebugBuffer2[256];
+        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
         OutputDebugStringA(DebugBuffer2);
 #endif
     }
@@ -448,7 +470,7 @@ WinMain(HINSTANCE Instance,
                 CalculateAvarageTime(FrameClock, &GameState->FrameAvg);
                 if(GameState->FrameAvg.MeasureCount > 50.0f)
                 {
-                    win32_printer::PerfPrint("Avg frame time: %f", GameState->FrameAvg.AvgTime * 1000.0);
+                    // win32_printer::PerfPrint("Avg frame time: %f", GameState->FrameAvg.AvgTime * 1000.0);
                     GameState->FrameAvg.MeasureCount = 0.0f;
                     GameState->FrameAvg.AvgTime = 0.0f;
                 }

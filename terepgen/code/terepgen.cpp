@@ -428,7 +428,7 @@ UpdateLowerBlocksMapping(world_density *World, world_block_pos *BlockP, int32 Re
 }
 
 internal void
-QueueBlockToRenderBlocksToRender(world_density *World, world_block_pos *BlockP, 
+QueueBlockToRender(world_density *World, world_block_pos *BlockP, 
     int32 *BlocksToGenerate, world_block_pos* BlocksToRender, uint32 *RenderCount, uint32 BlockRenderMaxCount)
 {
     block_lower_neighbours Neighbours;
@@ -709,21 +709,39 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                             real32 DistanceFromClick = Length(Diff);
                             if(DistanceFromClick < 25.0f)
                             {
-                                block_hash *DensityHash = GetHash(World->DensityHash, &Node.BlockP);
-                                if(!HashIsEmpty(DensityHash))
+                                // block_hash *DynamicHash = GetHash(World->DensityHash, &Node.BlockP);
+                                block_hash *DynamicHash = GetHash(World->DynamicHash, &Node.BlockP);
+                                if(HashIsEmpty(DynamicHash))
                                 {
-                                    terrain_density_block *ActDensityBlock = World->DensityBlocks + DensityHash->Index;
-                                    real32 GridVal = GetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z);
-                                    SetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z, GridVal + 1.0f);
-                                    
-                                    block_same_res_neighbours Neighbours;
-                                    GetNeighbourBlockPositionsOnSameRes(&Neighbours, &Node.BlockP);
-                                    for(uint32 NIndex = 0;
-                                        NIndex < ArrayCount(Neighbours.Pos);
-                                        NIndex++)
+                                    DynamicHash = CreateNewDynamicBlock(World, &Node.BlockP);
+                                }
+                                
+                                // terrain_density_block *ActDynamicBlock = World->DensityBlocks + DynamicHash->Index;
+                                terrain_density_block *ActDynamicBlock = World->DynamicBlocks + DynamicHash->Index;
+                                real32 GridVal = GetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z);
+                                SetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z, GridVal + 1.0f);
+                                
+                                block_same_res_neighbours Neighbours;
+                                GetNeighbourBlockPositionsOnSameRes(&Neighbours, &Node.BlockP);
+                                for(uint32 NIndex = 0;
+                                    NIndex < ArrayCount(Neighbours.Pos);
+                                    NIndex++)
+                                {
+                                    world_block_pos *NPos = Neighbours.Pos + NIndex;
+                                    bool32 AlreadyHave = false;
+                                    for(uint32 RenderIndex = 0;
+                                        RenderIndex < RenderCount;
+                                        RenderIndex++)
                                     {
-                                        world_block_pos *NPos = Neighbours.Pos + NIndex;
-                                        QueueBlockToRenderBlocksToRender(World, NPos, 
+                                        world_block_pos *RenderP = BlocksToRender + RenderIndex;
+                                        if(WorldPosEquals(RenderP, NPos))
+                                        {
+                                            AlreadyHave = true;
+                                        }
+                                    }
+                                    if(!AlreadyHave)
+                                    {
+                                        QueueBlockToRender(World, NPos, 
                                             &MaxRenderBlocksToGenerateInFrame, 
                                             BlocksToRender, &RenderCount, BlockRenderMaxCount);
                                         BlocksTouched++;
@@ -740,6 +758,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 break;
             }
         }
+        real64 TimeRightClickInner = Clock.GetSecondsElapsed();
+        win32_printer::DebugPrint("Right click time: %f", TimeRightClickInner * 1000.0);
     }
 
     real64 TimeRightClick = Clock.GetSecondsElapsed();
@@ -828,7 +848,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             {
                 EverybodyIsRenderedOnCorrectResolution = false;
                 
-                QueueBlockToRenderBlocksToRender(World, BlockP, 
+                QueueBlockToRender(World, BlockP, 
                     &MaxRenderBlocksToGenerateInFrame, 
                     BlocksToRender, &RenderCount, BlockRenderMaxCount);
             }
@@ -934,11 +954,11 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                         //NOTE: Have to examine the densities of neighbour's neighbours too
                         world_block_pos MappedNPos = GetBiggerMappedPosition(World, NPos);
                         Assert(MappedNPos.Resolution == NHash->Index);
-                        QueueBlockToRenderBlocksToRender(World, &MappedNPos, 
+                        QueueBlockToRender(World, &MappedNPos, 
                             &MaxRenderBlocksToGenerateInFrame, 
                             BlocksToRender, &RenderCount, BlockRenderMaxCount);
                     }
-                    QueueBlockToRenderBlocksToRender(World, SiblingP,
+                    QueueBlockToRender(World, SiblingP,
                         &MaxRenderBlocksToGenerateInFrame, 
                         BlocksToRender, &RenderCount, BlockRenderMaxCount);
                 }
@@ -1169,7 +1189,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     
     // win32_printer::PerfPrint("Generate density time: %f", TimeGenerateDensity * 1000.0);
     // win32_printer::PerfPrint("Right click time: %f", TimeRightClick * 1000.0);
-    // win32_printer::PerfPrint("Generate render: %f", TimeGenerateRender * 1000.0);
+    win32_printer::PerfPrint("Generate render: %f for %d blocks", TimeGenerateRender * 1000.0, RenderCount);
     // win32_printer::PerfPrint("Add to render time: %f", TimeAddToRender * 1000.0);
     // win32_printer::PerfPrint("Render time: %f", TimeToRender * 1000.0);
     
