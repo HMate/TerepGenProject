@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <crtdbg.h>
 
 #define global_variable static
 #define local_persist static
@@ -30,7 +31,7 @@ typedef double real64;
 #define ArrayCount(Array) (sizeof(Array)/sizeof(*Array))
 
 #if TEREPGEN_DEBUG
-#define Assert(Test) if(!(Test)){*(int *)0 = 0;}
+#define Assert(Test) if(!(Test)){_CrtDbgReport(_CRT_ASSERT, __FILE__, __LINE__, "terepgen.exe", "Test");}
 #else
 #define Assert(Test) 
 #endif
