@@ -1,3 +1,8 @@
+/*
+    Terep generátor by Hidvégi Máté @2016
+*/
+
+#include <cmath>
 
 inline int32
 Abs(int32 Val)

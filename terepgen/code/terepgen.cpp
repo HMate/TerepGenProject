@@ -4,6 +4,9 @@
 */
 
 #include "terepgen_random.cpp"
+#include "terepgen_units.cpp"
+#include "terepgen_hash.cpp"
+#include "terepgen_resolutions.cpp"
 #include "terepgen_terrain.cpp"
 #include "terepgen_dx_renderer.cpp"
 
@@ -707,7 +710,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                             v3 NodeRenderP = ConvertBlockNodeToRenderPos(Node);
                             v3 Diff = NodeRenderP - CheckPos;
                             real32 DistanceFromClick = Length(Diff);
-                            if(DistanceFromClick < 25.0f)
+                            if(DistanceFromClick < SphereRadius)
                             {
                                 // block_hash *DynamicHash = GetHash(World->DensityHash, &Node.BlockP);
                                 block_hash *DynamicHash = GetHash(World->DynamicHash, &Node.BlockP);

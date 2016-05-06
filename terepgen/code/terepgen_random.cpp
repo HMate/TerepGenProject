@@ -181,13 +181,13 @@ RandomFloat(perlin_noise_generator *Generator, real32 Row, real32 Column)
     uint32 RowWhole = FloorInt32(RowMod);
     uint32 RowWhole2 = (RowWhole + 1) % RANDOM_TEX_SIZE;
     real32 RowRemainder = RowMod - (real32)RowWhole;
-    Assert(RowRemainder <= 1.0f);
+    Assert(RowRemainder <= 1.0f && RowRemainder >= 0.0f);
 
     real32 ColumnMod = ModReal32(Column, (real32)RANDOM_TEX_SIZE);
     uint32 ColumnWhole = FloorInt32(ColumnMod);
     uint32 ColumnWhole2 = (ColumnWhole + 1) % RANDOM_TEX_SIZE;
     real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
-    Assert(ColumnRemainder <= 1.0f);
+    Assert(ColumnRemainder <= 1.0f && ColumnRemainder >= 0.0f);
     
     v3 G00 = Generator->GradientTex[RowWhole*RANDOM_TEX_SIZE + ColumnWhole];
     v3 G01 = Generator->GradientTex[RowWhole*RANDOM_TEX_SIZE + ColumnWhole2];
@@ -219,19 +219,19 @@ RandomFloat(perlin_noise_generator *Generator, real32 Plane, real32 Row, real32 
     uint32 PlaneWhole = FloorInt32(PlaneMod);
     uint32 PlaneWhole2 = (PlaneWhole + 1) % RANDOM_TEX_SIZE;
     real32 PlaneRemainder = PlaneMod - (real32)PlaneWhole;
-    Assert(PlaneRemainder <= 1.0f);
+    Assert(PlaneRemainder <= 1.0f && PlaneRemainder >= 0.0f);
     
     real32 RowMod = ModReal32(Row, (real32)RANDOM_TEX_SIZE);
     uint32 RowWhole = FloorInt32(RowMod);
     uint32 RowWhole2 = (RowWhole + 1) % RANDOM_TEX_SIZE;
     real32 RowRemainder = RowMod - (real32)RowWhole;
-    Assert(RowRemainder <= 1.0f);
+    Assert(RowRemainder <= 1.0f && RowRemainder >= 0.0f);
 
     real32 ColumnMod = ModReal32(Column, (real32)RANDOM_TEX_SIZE);
     uint32 ColumnWhole = FloorInt32(ColumnMod);
     uint32 ColumnWhole2 = (ColumnWhole + 1) % RANDOM_TEX_SIZE;
     real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
-    Assert(ColumnRemainder <= 1.0f);
+    Assert(ColumnRemainder <= 1.0f && ColumnRemainder >= 0.0f);
 
     v3 G000 = Generator->GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole];
     v3 G001 = Generator->GradientTex[PlaneWhole*RANDOM_TEX_SIZE*RANDOM_TEX_SIZE + RowWhole*RANDOM_TEX_SIZE + ColumnWhole2];
