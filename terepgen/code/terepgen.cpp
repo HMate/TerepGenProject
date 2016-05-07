@@ -277,43 +277,6 @@ DidRenderBlocksLoaded(world_density *World, world_block_pos *Positions, uint32 C
     return Result;
 }
 
-internal bool32
-AreNeighboursAreMappedSameOrBigger(world_density *World, world_block_pos *Positions, uint32 Count, int32 MappedIndex)
-{
-    bool32 Result = true;
-    for(uint32 PosIndex = 0;
-        PosIndex < Count;
-        ++PosIndex)
-    {
-        world_block_pos *Pos = Positions + PosIndex;
-        block_hash *MappedHash = GetHash(World->ResolutionMapping, Pos);
-        Assert(!HashIsEmpty(MappedHash));
-        Result = Result && (MappedHash->Index >= MappedIndex);
-    }
-    
-    return Result;
-}
-
-internal uint32
-GetResolutionIndex(uint32 Resolution)
-{
-    uint32 Result;
-    // TODO: Dont burn in values here!
-    if(Resolution==8)
-    {
-        Result = 0;
-    }
-    else if(Resolution == 4)
-    {
-        Result = 1;
-    }
-    else
-    {
-        Result = 2;
-    }
-    return Result;
-}
-
 inline bool32 
 BlockWasRendered(world_density *World, world_block_pos *BlockP)
 {
@@ -373,61 +336,6 @@ ManhattanDistance(world_block_pos *A, world_block_pos *B)
     int32 Result = 0;
     Result = Abs(A->BlockX - B->BlockX) + Abs(A->BlockY - B->BlockY) + Abs(A->BlockZ - B->BlockZ);
     return Result;
-}
-
-internal void 
-DowngradeMapping(world_density *World, world_block_pos *BlockP, int32 MappingValue)
-{
-    uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
-    if(ResIndex < RESOLUTION_COUNT-1)
-    {
-        lower_blocks LowerBlocks;
-        GetLowerResBlockPositions(&LowerBlocks, BlockP);
-        for(int32 LowerIndex = 0;
-            LowerIndex < ArrayCount(LowerBlocks.Pos);
-            LowerIndex++)
-        {
-            world_block_pos *LowerP = LowerBlocks.Pos + LowerIndex;
-            DowngradeMapping(World, LowerP, MappingValue);
-        }
-        block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
-        if(!HashIsEmpty(ResHash))
-        {
-            Assert(ResHash->Index < MappingValue);
-            ResHash->Index = MappingValue;
-        }
-        if(BlockWasRendered(World, BlockP))
-        {
-            DeleteRenderedBlock(World, BlockP);
-        }
-    }
-}
-
-internal void
-UpdateLowerBlocksMapping(world_density *World, world_block_pos *BlockP, int32 ResMapping)
-{
-    uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
-    if(ResIndex < RESOLUTION_COUNT-1)
-    {
-        lower_blocks LowerBlocks;
-        GetLowerResBlockPositions(&LowerBlocks, BlockP);
-        for(int32 LowerIndex = 0;
-            LowerIndex < ArrayCount(LowerBlocks.Pos);
-            LowerIndex++)
-        {
-            world_block_pos *LowerP = LowerBlocks.Pos + LowerIndex;
-            block_hash *ResHash = GetHash(World->ResolutionMapping, LowerP);
-            if(HashIsEmpty(ResHash))
-            {
-                MapBlockPosition(World, LowerP, ResMapping);
-            }
-            else
-            {
-                ResHash->Index = ResMapping;
-            }
-            Assert(ResHash->Index == ResMapping);
-        }
-    }
 }
 
 internal void
@@ -549,17 +457,17 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     }
     Clock.Reset();
     
-    if(World->DynamicBlockCount > (ArrayCount(World->DynamicBlocks) - 100))
+    if(World->DynamicBlockCount > (ArrayCount(World->DynamicBlocks) - 7000))
     {
         int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
         for(uint32 StoreIndex = 0; 
-            StoreIndex < World->DensityBlockCount; 
+            StoreIndex < World->DynamicBlockCount; 
             ++StoreIndex)
         {
             terrain_density_block *Block = World->DynamicBlocks + StoreIndex;
             world_block_pos *BlockP = &Block->Pos;
             uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
-            // NOTE:: Check manhattan distance, or need bigger hash and arrays
+            // NOTE: Check manhattan distance, or need bigger hash and arrays
             if(ManhattanDistance(WorldCameraP + ResIndex, BlockP) > LoadSpaceRadius)
             {
                 terrain_density_block *Last = World->DynamicBlocks + (--World->DynamicBlockCount);
@@ -583,7 +491,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     }
     Clock.Reset();
     
-    if(World->PoligonisedBlockCount > (ArrayCount(World->PoligonisedBlocks) * 7/8))
+    if(World->PoligonisedBlockCount > (ArrayCount(World->PoligonisedBlocks) - 1300))
     {
         int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS + 2;
         for(uint32 StoreIndex = 0; 
@@ -806,6 +714,9 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     // If all the lower blocks of a block are generated, then the lower blocks can be mix rendered
     // If a mix rendered blocks neigbours are done generating their lower blocks, then they can be generated normally
     
+    int32 DeleteRenderBlockCount = 0;
+    world_block_pos DeleteRenderBlockQueue[1000];
+    
     int32 LowestResUsed = FixedResolution[0];
     // NOTE: map all the blocks in range, if they arent already.
     for(uint32 ResolutionIndex = 0;
@@ -856,11 +767,20 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 
                 if(ShouldDowngrade)
                 {
-                    DowngradeMapping(World, BlockP, BlockP->Resolution);
+                    DowngradeMapping(World, BlockP, BlockP->Resolution, DeleteRenderBlockQueue, &DeleteRenderBlockCount);
                 }
             }
             Assert(!HashIsEmpty(ResHash));
             LowestResUsed = Min(LowestResUsed, ResHash->Index);
+        }
+    }
+    
+    for(int32 DelIndex = 0; DelIndex < DeleteRenderBlockCount; DelIndex++)
+    {
+        world_block_pos *BlockP = DeleteRenderBlockQueue + DelIndex;
+        if(BlockWasRendered(World, BlockP))
+        {
+            DeleteRenderedBlock(World, BlockP);
         }
     }
     
