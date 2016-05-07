@@ -470,6 +470,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             // NOTE: Check manhattan distance, or need bigger hash and arrays
             if(ManhattanDistance(WorldCameraP + ResIndex, BlockP) > LoadSpaceRadius)
             {
+                // TODO: Save to file!
                 terrain_density_block *Last = World->DynamicBlocks + (--World->DynamicBlockCount);
                 world_block_pos *LastP = &Last->Pos;
                 
@@ -775,15 +776,6 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         }
     }
     
-    for(int32 DelIndex = 0; DelIndex < DeleteRenderBlockCount; DelIndex++)
-    {
-        world_block_pos *BlockP = DeleteRenderBlockQueue + DelIndex;
-        if(BlockWasRendered(World, BlockP))
-        {
-            DeleteRenderedBlock(World, BlockP);
-        }
-    }
-    
     bool32 EverybodyIsRenderedOnCorrectResolution = true;
     // NOTE: Select the next blocks that we can render.
     
@@ -923,6 +915,12 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         }
     }
     
+    for(int32 DelIndex = 0; DelIndex < DeleteRenderBlockCount; DelIndex++)
+    {
+        world_block_pos *BlockP = DeleteRenderBlockQueue + DelIndex;
+        DeleteRenderedBlock(World, BlockP);
+    }
+    
     // NOTE: Remove duplicates from BlocksToRender
     for(uint32 RenderIndex = 0;
         RenderIndex < RenderCount;
@@ -943,7 +941,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         }
     }
     
-    // TODO: Befiore rendering, check for every blck that their neighbours are mapped right 
+    // TODO: Before rendering, check for every blck that their neighbours are mapped right 
     // and their densities are loaded.
     
     win32_clock AvgClock;

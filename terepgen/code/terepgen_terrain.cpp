@@ -2,7 +2,7 @@
     Terep generátor by Hidvégi Máté @2015
 */
 
-// NOTE: Block Resolution gives how many density values are skipped
+// NOTE: Block Resolution gives how frequent is the sampling from the noise function
 // This way a bigger area can be stored in the same block, 
 // if at rendering we only use every BlockResolution'th value too.
 internal void 
@@ -359,6 +359,7 @@ internal block_hash*
 CreateNewDynamicBlock(world_density *World, world_block_pos *BlockP)
 {
     terrain_density_block *DynamicB = World->DynamicBlocks + World->DynamicBlockCount;
+    // TODO: Load from file, if it was saved previously!
     FillDynamic(DynamicB, BlockP, 0.0f);
     Assert(World->DynamicBlockCount < ArrayCount(World->DynamicBlocks));
     block_hash *DynamicHash = WriteHash(World->DynamicHash, BlockP, World->DynamicBlockCount++);
@@ -388,6 +389,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
         Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
         
         block_hash *DynamicHash = GetHash(World->DynamicHash, &MappedP);
+        // TODO: This should be an assert
         if(HashIsEmpty(DynamicHash))
         {
             DynamicHash = CreateNewDynamicBlock(World, &MappedP);

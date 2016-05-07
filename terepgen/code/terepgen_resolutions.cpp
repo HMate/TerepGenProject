@@ -147,6 +147,7 @@ GetResolutionIndex(uint32 Resolution)
     return Result;
 }
 
+// TODO: Deleting blocks shouldn't be here
 internal void 
 DowngradeMapping(world_density *World, world_block_pos *BlockP, int32 MappingValue, 
                  world_block_pos *DeleteQueue, int32 *DeleteCount)
