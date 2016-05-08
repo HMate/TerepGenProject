@@ -56,10 +56,17 @@ struct avarage_time
     real64 MeasureCount = 0.0f;
 };
 
+struct session_description
+{
+    uint32 ID;
+    // NOTE: MAX_PATH is used for ASCII file names in windows
+    char DynamicStore[MAX_PATH];
+};
+
 struct game_state 
 {
     bool32 Initialized;
-    uint32 GameID;
+    session_description Session;
     dx_resource *DXResources;
     uint32 Seed;
     uint32 MaxResolutionToRender;
