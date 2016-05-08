@@ -56,6 +56,8 @@ struct avarage_time
     real64 MeasureCount = 0.0f;
 };
 
+typedef HANDLE FileHandle;
+
 struct session_description
 {
     uint32 ID;
@@ -96,6 +98,7 @@ struct game_state
 };
 
 internal void UpdateAndRenderGame(game_state*, game_input*, camera*, screen_info);
+internal void SaveGameState(game_state*);
 
 #define TEREPGEN_H
 #endif

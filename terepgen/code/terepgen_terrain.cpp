@@ -355,12 +355,126 @@ FillDynamic(terrain_density_block *Dynamic, world_block_pos *BlockP, real32 Valu
     }
 }
 
+
+
+internal FileHandle
+OpenBlocksFile(game_state *GameState, char *FileName)
+{
+    FileHandle Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if(Handle == INVALID_HANDLE_VALUE)
+    {
+        uint32 Error = GetLastError();
+        if(Error == ERROR_FILE_NOT_FOUND)
+        {
+            // NOTE: The file didn't exist before, so now we create its header
+            Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+            Assert(Handle != INVALID_HANDLE_VALUE);
+            
+            uint32 *Data = &GameState->Session.ID;
+            uint32 Length = 4;
+            uint32 BytesWritten;
+            WriteFile(Handle, Data, Length, (LPDWORD)&BytesWritten, NULL);
+            SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
+        }
+    }
+    return Handle;
+}
+
+internal void
+SaveBlockToFile(game_state *GameState, char *FileName, terrain_density_block *Block)
+{
+    FileHandle Handle = OpenBlocksFile(GameState, FileName);
+    
+    SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
+    uint32 BytesRead;
+    
+    // NOTE: Read header
+    char HeaderValue[4];
+    uint32 HeaderLength = 4;
+    ReadFile(Handle, HeaderValue, HeaderLength, (LPDWORD)&BytesRead, NULL);
+    Assert(HeaderLength == BytesRead);
+    
+    uint32 GameID = *(uint32*)HeaderValue;
+    Assert(GameID == GameState->Session.ID);
+    
+    //NOTE: Read blocks until we find the one we need
+    bool32 NotFound = true;
+    bool32 EndOfFile = false;
+    terrain_density_block ReadBlock;
+    const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
+    while(NotFound && !EndOfFile)
+    {
+        ReadFile(Handle, &ReadBlock, BlockSizeInBytes, (LPDWORD)&BytesRead, NULL);
+        EndOfFile = (BytesRead == 0);
+        Assert(BytesRead == BlockSizeInBytes || EndOfFile);
+        if(WorldPosEquals(&ReadBlock.Pos, &Block->Pos))
+        {
+            NotFound = false;
+            // NOTE: Set the file pointer to the begging of the block, to overwrite it
+            int32 Offset = sizeof(terrain_density_block);
+            SetFilePointer(Handle, -Offset, 0, FILE_CURRENT);
+        }
+    }
+    
+    //NOTE: Write Block
+    uint32 BytesWritten;
+    WriteFile(Handle, Block, BlockSizeInBytes, (LPDWORD)&BytesWritten, NULL);
+    Assert(BytesWritten == BlockSizeInBytes);
+    
+    CloseHandle(Handle);
+}
+
+// NOTE: Loads a block from a file
+// If the file was not in the file, returns false
+internal bool32
+LoadBlockFromFile(game_state *GameState, char *FileName, terrain_density_block *Block, world_block_pos *BlockP)
+{
+    FileHandle Handle = OpenBlocksFile(GameState, FileName);
+    
+    SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
+    uint32 BytesRead;
+    
+    // NOTE: Read header
+    char HeaderValue[4];
+    uint32 HeaderLength = 4;
+    ReadFile(Handle, HeaderValue, HeaderLength, (LPDWORD)&BytesRead, NULL);
+    Assert(HeaderLength == BytesRead);
+    
+    uint32 GameID = *(uint32*)HeaderValue;
+    Assert(GameID == GameState->Session.ID);
+    
+    //NOTE: Read blocks until we find the one we need
+    bool32 NotFound = true;
+    bool32 EndOfFile = false;
+    const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
+    while(NotFound && !EndOfFile)
+    {
+        ReadFile(Handle, Block, BlockSizeInBytes, (LPDWORD)&BytesRead, NULL);
+        EndOfFile = (BytesRead == 0);
+        Assert(BytesRead == BlockSizeInBytes || EndOfFile);
+        if(WorldPosEquals(&Block->Pos, BlockP))
+        {
+            NotFound = false;
+        }
+    }
+    
+    CloseHandle(Handle);
+    return !NotFound;
+}
+
+// NOTE: Creates a dynamic block, or loads it from a file
 internal block_hash*
-CreateNewDynamicBlock(world_density *World, world_block_pos *BlockP)
+CreateNewDynamicBlock(game_state *GameState, world_density *World, world_block_pos *BlockP)
 {
     terrain_density_block *DynamicB = World->DynamicBlocks + World->DynamicBlockCount;
-    // TODO: Load from file, if it was saved previously!
-    FillDynamic(DynamicB, BlockP, 0.0f);
+    // NOTE: Load from file, if it was saved previously!
+    bool32 Loaded = LoadBlockFromFile(GameState, GameState->Session.DynamicStore, DynamicB, BlockP);
+    if(!Loaded)
+    {
+        FillDynamic(DynamicB, BlockP, 0.0f);
+    }
     Assert(World->DynamicBlockCount < ArrayCount(World->DynamicBlocks));
     block_hash *DynamicHash = WriteHash(World->DynamicHash, BlockP, World->DynamicBlockCount++);
     
@@ -369,7 +483,7 @@ CreateNewDynamicBlock(world_density *World, world_block_pos *BlockP)
 
 #define DENSITY_ISO_LEVEL 0.0f
 internal void
-PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
+PoligoniseBlock(game_state *GameState, world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
 {
     block_lower_neighbours NPositions;
     GetNeighbourBlockPositionsOnLowerRes(&NPositions, BlockP);
@@ -392,7 +506,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
         // TODO: This should be an assert
         if(HashIsEmpty(DynamicHash))
         {
-            DynamicHash = CreateNewDynamicBlock(World, &MappedP);
+            DynamicHash = CreateNewDynamicBlock(GameState, World, &MappedP);
         }
         DynNeighbours[NeighbourIndex] = World->DynamicBlocks + DynamicHash->Index;
     }

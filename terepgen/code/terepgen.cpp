@@ -3,6 +3,29 @@
 
 */
 
+internal uint32
+StringLength(char *Text)
+{
+    uint32 Length = 0;
+    char *P = Text;
+    while(*P != '\0')
+    {
+        Length++; P++;
+    }
+    return Length;
+}
+
+internal void
+CopyString(char *Dest, char *Source)
+{
+    uint32 Index = 0;
+    for(; Source[Index] != '\0'; Index++)
+    {
+        Dest[Index] = Source[Index];
+    }
+    Dest[Index] = Source[Index];
+}
+
 #include "terepgen_random.cpp"
 #include "terepgen_units.cpp"
 #include "terepgen_hash.cpp"
@@ -353,136 +376,6 @@ QueueBlockToRender(world_density *World, world_block_pos *BlockP,
     }
 }
 
-internal uint32
-StringLength(char *Text)
-{
-    uint32 Length = 0;
-    char *P = Text;
-    while(*P != '\0')
-    {
-        Length++; P++;
-    }
-    return Length;
-}
-
-internal void
-CopyString(char *Dest, char *Source)
-{
-    uint32 Index = 0;
-    for(; Source[Index] != '\0'; Index++)
-    {
-        Dest[Index] = Source[Index];
-    }
-    Dest[Index] = Source[Index];
-}
-
-typedef HANDLE FileHandle;
-
-internal FileHandle
-OpenBlocksFile(game_state *GameState, char *FileName)
-{
-    FileHandle Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if(Handle == INVALID_HANDLE_VALUE)
-    {
-        uint32 Error = GetLastError();
-        if(Error == ERROR_FILE_NOT_FOUND)
-        {
-            // NOTE: The file didn't exist before, so now we create its header
-            Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
-                FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-            Assert(Handle != INVALID_HANDLE_VALUE);
-            
-            uint32 *Data = &GameState->Session.ID;
-            uint32 Length = 4;
-            uint32 BytesWritten;
-            WriteFile(Handle, Data, Length, (LPDWORD)&BytesWritten, NULL);
-            SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
-        }
-    }
-    return Handle;
-}
-
-internal void
-SaveBlockToFile(game_state *GameState, char *FileName, terrain_density_block *Block)
-{
-    FileHandle Handle = OpenBlocksFile(GameState, FileName);
-    
-    SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
-    uint32 BytesRead;
-    
-    // NOTE: Read header
-    char HeaderValue[4];
-    uint32 HeaderLength = 4;
-    ReadFile(Handle, HeaderValue, HeaderLength, (LPDWORD)&BytesRead, NULL);
-    Assert(HeaderLength == BytesRead);
-    
-    uint32 GameID = *(uint32*)HeaderValue;
-    Assert(GameID == GameState->Session.ID);
-    
-    //NOTE: Read blocks until we find the one we need
-    bool32 NotFound = true;
-    bool32 EndOfFile = false;
-    terrain_density_block ReadBlock;
-    const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
-    while(NotFound && !EndOfFile)
-    {
-        ReadFile(Handle, &ReadBlock, BlockSizeInBytes, (LPDWORD)&BytesRead, NULL);
-        EndOfFile = (BytesRead == 0);
-        Assert(BytesRead == BlockSizeInBytes || EndOfFile);
-        if(WorldPosEquals(&ReadBlock.Pos, &Block->Pos))
-        {
-            NotFound = false;
-            // NOTE: Set the file pointer to the begging of the block, to overwrite it
-            int32 Offset = sizeof(terrain_density_block);
-            SetFilePointer(Handle, -Offset, 0, FILE_CURRENT);
-        }
-    }
-    
-    //NOTE: Write Block
-    uint32 BytesWritten;
-    WriteFile(Handle, Block, BlockSizeInBytes, (LPDWORD)&BytesWritten, NULL);
-    Assert(BytesWritten == BlockSizeInBytes);
-    
-    CloseHandle(Handle);
-}
-
-
-internal void
-LoadBlockFromFile(game_state *GameState, char *FileName, terrain_density_block *Block, world_block_pos *BlockP)
-{
-    FileHandle Handle = OpenBlocksFile(GameState, FileName);
-    
-    SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
-    uint32 BytesRead;
-    
-    // NOTE: Read header
-    char HeaderValue[4];
-    uint32 HeaderLength = 4;
-    ReadFile(Handle, HeaderValue, HeaderLength, (LPDWORD)&BytesRead, NULL);
-    Assert(HeaderLength == BytesRead);
-    
-    uint32 GameID = *(uint32*)HeaderValue;
-    Assert(GameID == GameState->Session.ID);
-    
-    //NOTE: Read blocks until we find the one we need
-    bool32 NotFound = true;
-    bool32 EndOfFile = false;
-    const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
-    while(NotFound && !EndOfFile)
-    {
-        ReadFile(Handle, Block, BlockSizeInBytes, (LPDWORD)&BytesRead, NULL);
-        EndOfFile = (BytesRead == 0);
-        Assert(BytesRead == BlockSizeInBytes || EndOfFile);
-        if(WorldPosEquals(&Block->Pos, BlockP))
-        {
-            NotFound = false;
-        }
-    }
-    
-    CloseHandle(Handle);
-}
-
 internal FileHandle
 OpenSessionFile(char *FileName)
 {
@@ -543,49 +436,6 @@ FillSessionDesc(game_state *GameState, uint32 SessionID)
 }
 
 internal void
-TestFileWriting(game_state *GameState)
-{
-    world_density *World = &GameState->WorldDensity;
-    
-    char *FileName = GameState->Session.DynamicStore;
-    
-    world_block_pos DebugPos1{-1, 0, 1, 8};
-    world_block_pos DebugPos2{-2, 1, 0, 8};
-    world_block_pos DebugPos3{-3, -1, 1, 8};
-    block_hash *DynamicHash = CreateNewDynamicBlock(World, &DebugPos1);
-    terrain_density_block *DynB1 = World->DynamicBlocks + DynamicHash->Index;
-    SetGrid(&DynB1->Grid, 0, 0, 1, 3.5f);
-    SetGrid(&DynB1->Grid, 0, 0, 2, 5.5f);
-    SetGrid(&DynB1->Grid, 0, 0, 7, 2.39f);
-    SetGrid(&DynB1->Grid, 0, 1, 0, 10.312f);
-    SetGrid(&DynB1->Grid, 1, 0, 0, 11.312f);
-    SaveBlockToFile(GameState, FileName, DynB1);
-    
-    DynamicHash = CreateNewDynamicBlock(World, &DebugPos2);
-    terrain_density_block *DynB2 = World->DynamicBlocks + DynamicHash->Index;
-    SetGrid(&DynB2->Grid, 0, 0, 0, 1.111f);
-    SetGrid(&DynB2->Grid, 0, 0, 2, 5.41f);
-    SetGrid(&DynB2->Grid, 0, 0, 3, 1.169f);
-    SaveBlockToFile(GameState, FileName, DynB2);
-    
-    DynamicHash = CreateNewDynamicBlock(World, &DebugPos3);
-    terrain_density_block *DynB3 = World->DynamicBlocks + DynamicHash->Index;
-    SetGrid(&DynB3->Grid, 0, 0, 0, 3.5f);
-    SetGrid(&DynB3->Grid, 0, 0, 2, 5.5f);
-    SetGrid(&DynB3->Grid, 0, 0, 7, 2.39f);
-    SetGrid(&DynB3->Grid, 0, 1, 0, 10.312f);
-    SetGrid(&DynB3->Grid, 1, 0, 0, 11.312f);
-    SaveBlockToFile(GameState, FileName, DynB3);
-    
-    terrain_density_block ReferenceB;
-    LoadBlockFromFile(GameState, FileName, &ReferenceB, &DebugPos2);
-    
-    LoadBlockFromFile(GameState, FileName, &ReferenceB, &DebugPos1);
-    
-    int asd = 7;
-}
-
-internal void
 UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, screen_info ScreenInfo)
 {
     const uint32 ResolutionCount = RESOLUTION_COUNT;
@@ -608,8 +458,6 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         InitZeroHash(World);
         
         GameState->Initialized = true;
-        
-        TestFileWriting(GameState);
     }
     GameState->RenderMode = Input->RenderMode;
     
@@ -706,7 +554,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             // NOTE: Check manhattan distance, or need bigger hash and arrays
             if(ManhattanDistance(WorldCameraP + ResIndex, BlockP) > LoadSpaceRadius)
             {
-                // TODO: Save to file!
+                SaveBlockToFile(GameState, GameState->Session.DynamicStore, Block);
+                
                 terrain_density_block *Last = World->DynamicBlocks + (--World->DynamicBlockCount);
                 world_block_pos *LastP = &Last->Pos;
                 
@@ -895,7 +744,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                                 block_hash *DynamicHash = GetHash(World->DynamicHash, &Node.BlockP);
                                 if(HashIsEmpty(DynamicHash))
                                 {
-                                    DynamicHash = CreateNewDynamicBlock(World, &Node.BlockP);
+                                    DynamicHash = CreateNewDynamicBlock(GameState, World, &Node.BlockP);
                                 }
                                 
                                 // terrain_density_block *ActDynamicBlock = World->DensityBlocks + DynamicHash->Index;
@@ -1194,7 +1043,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         
         {
             AvgClock.Reset();
-            PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, BlockP);
+            PoligoniseBlock(GameState, World, World->PoligonisedBlocks + World->PoligonisedBlockCount, BlockP);
             CalculateAvarageTime(AvgClock, &GameState->AvgPoligoniseTime);
             
             if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
@@ -1382,6 +1231,22 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     // win32_printer::PerfPrint("Add to render time: %f", TimeAddToRender * 1000.0);
     // win32_printer::PerfPrint("Render time: %f", TimeToRender * 1000.0);
     
+}
+
+internal void
+SaveGameState(game_state *GameState)
+{
+    world_density *World = &GameState->WorldDensity;
+    if(GameState->Initialized)
+    {
+        for(uint32 DynamicIndex = 0; 
+            DynamicIndex < World->DynamicBlockCount; 
+            DynamicIndex++)
+        {
+            terrain_density_block *Block = World->DynamicBlocks + DynamicIndex;
+            SaveBlockToFile(GameState, GameState->Session.DynamicStore, Block);
+        }
+    }
 }
 
 

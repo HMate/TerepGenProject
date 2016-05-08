@@ -477,6 +477,8 @@ WinMain(HINSTANCE Instance,
                 FrameClock.Reset();
             }
             
+            SaveGameState(GameState);
+            
             delete GameState;
             Camera.Release();
             DXResources.Release();
