@@ -59,6 +59,7 @@ struct avarage_time
 struct game_state 
 {
     bool32 Initialized;
+    uint32 GameID;
     dx_resource *DXResources;
     uint32 Seed;
     uint32 MaxResolutionToRender;
