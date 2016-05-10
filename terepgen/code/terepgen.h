@@ -71,6 +71,9 @@ struct game_state
     session_description Session;
     dx_resource *DXResources;
     uint32 Seed;
+    
+    int32 FixedResolution[RESOLUTION_COUNT];
+    uint32 StoreResolutionCount;
     uint32 MaxResolutionToRender;
     
     real64 dtForFrame;

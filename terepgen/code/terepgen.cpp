@@ -363,7 +363,7 @@ ManhattanDistance(world_block_pos *A, world_block_pos *B)
 
 internal void
 QueueBlockToRender(world_density *World, world_block_pos *BlockP, 
-    int32 *BlocksToGenerate, world_block_pos* BlocksToRender, uint32 *RenderCount, uint32 BlockRenderMaxCount)
+    int32 *BlocksToGenerate, density_block_pos_array *BlocksToRender)
 {
     block_lower_neighbours Neighbours;
     GetNeighbourBlockPositionsOnLowerRes(&Neighbours, BlockP);
@@ -371,8 +371,9 @@ QueueBlockToRender(world_density *World, world_block_pos *BlockP,
     if(DidLoad)
     {
         (*BlocksToGenerate)--;
-        Assert(*RenderCount < BlockRenderMaxCount);
-        BlocksToRender[(*RenderCount)++] = *BlockP;
+        const int32 Size = ArrayCount(BlocksToRender->Pos);
+        Assert(BlocksToRender->Count < Size);
+        BlocksToRender->Pos[BlocksToRender->Count++] = *BlockP;
     }
 }
 
@@ -435,20 +436,101 @@ FillSessionDesc(game_state *GameState, uint32 SessionID)
     }
 }
 
+internal void 
+DeformBlocks(game_state *GameState, world_density *World, 
+             v3 *Center, density_block_pos_array *BlocksToRender, int32 *MaxRenderBlocksToGenerateInFrame)
+{
+    real32 SphereRadius = 30.0f;
+    v3 StartBlockRP = *Center - v3{SphereRadius, SphereRadius, SphereRadius};
+    v3 EndBlockRP = *Center + v3{SphereRadius, SphereRadius, SphereRadius};
+    block_node StartNode = ConvertRenderPosToBlockNode(StartBlockRP, GameState->FixedResolution[0]);
+    block_node EndNode = ConvertRenderPosToBlockNode(EndBlockRP, GameState->FixedResolution[0]);
+
+    uint32 BlocksTouched = 0;
+    block_node Node = StartNode;
+    for(uint32 XIndex = 0;
+        (Node.BlockP.BlockX != EndNode.BlockP.BlockX) || (Node.X != EndNode.X);
+        XIndex++)
+    {
+        Node = GetActualBlockNode(&StartNode.BlockP, 
+                    StartNode.X+XIndex, StartNode.Y, StartNode.Z);
+        for(uint32 YIndex = 0; 
+            (Node.BlockP.BlockY != EndNode.BlockP.BlockY) || (Node.Y != EndNode.Y);
+            YIndex++)
+        {
+            Node = GetActualBlockNode(&StartNode.BlockP, 
+                        StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z);
+            for(uint32 ZIndex = 0; 
+                (Node.BlockP.BlockZ != EndNode.BlockP.BlockZ) || (Node.Z != EndNode.Z);
+                ZIndex++)
+            {
+                Node = GetActualBlockNode(&StartNode.BlockP, 
+                            StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
+                // NOTE: Change node density and rerender the render block
+                v3 NodeRenderP = ConvertBlockNodeToRenderPos(Node);
+                v3 Diff = NodeRenderP - *Center;
+                real32 DistanceFromClick = Length(Diff);
+                if(DistanceFromClick < SphereRadius)
+                {
+                    block_hash *DynamicHash = GetHash(World->DynamicHash, &Node.BlockP);
+                    if(HashIsEmpty(DynamicHash))
+                    {
+                        DynamicHash = CreateNewDynamicBlock(GameState, World, &Node.BlockP);
+                    }
+                    
+                    terrain_density_block *ActDynamicBlock = World->DynamicBlocks + DynamicHash->Index;
+                    real32 GridVal = GetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z);
+                    SetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z, GridVal + 1.0f);
+                    
+                    // NOTE: Have to rerender all negihbours too beacuse of tears in geometry
+                    block_same_res_neighbours Neighbours;
+                    GetNeighbourBlockPositionsOnSameRes(&Neighbours, &Node.BlockP);
+                    for(uint32 NIndex = 0;
+                        NIndex < ArrayCount(Neighbours.Pos);
+                        NIndex++)
+                    {
+                        world_block_pos *NPos = Neighbours.Pos + NIndex;
+                        bool32 AlreadyHave = false;
+                        for(uint32 RenderIndex = 0;
+                            RenderIndex < BlocksToRender->Count;
+                            RenderIndex++)
+                        {
+                            world_block_pos *RenderP = BlocksToRender->Pos + RenderIndex;
+                            if(WorldPosEquals(RenderP, NPos))
+                            {
+                                AlreadyHave = true;
+                            }
+                        }
+                        if(!AlreadyHave)
+                        {
+                            QueueBlockToRender(World, NPos, 
+                                MaxRenderBlocksToGenerateInFrame, 
+                                BlocksToRender);
+                            BlocksTouched++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 internal void
 UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, screen_info ScreenInfo)
 {
-    const uint32 ResolutionCount = RESOLUTION_COUNT;
-    const int32 FixedResolution[ResolutionCount] = {8, 4, 2};
-    const int32 StoreResolutionCount = ResolutionCount-1;
-    
     int32 debugGS = getGridSize(13);
     
     world_density *World = &GameState->WorldDensity;
     if(GameState->Initialized == false)
     {
+        GameState->FixedResolution[0] = 8;
+        GameState->FixedResolution[1] = 4;
+        GameState->FixedResolution[2] = 2;
+        GameState->StoreResolutionCount = RESOLUTION_COUNT-1;
+        
         FillSessionDesc(GameState, 321421);
-        GameState->MaxResolutionToRender = ResolutionCount-2;
+        
+        GameState->MaxResolutionToRender = RESOLUTION_COUNT-2;
         GameState->Seed = 1000;
         GameState->WorldDensity.BlockSize = real32(TERRAIN_BLOCK_SIZE);
         SetSeed(&GameState->PerlinArray.Noise[0], GameState->Seed);
@@ -481,10 +563,10 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     GameState->CameraOrigo = CameraP + Normalize(Cross(UpDir, RightDir));
     
     
-    world_block_pos WorldCameraP[ResolutionCount] = {
-        WorldPosFromV3(CameraP, FixedResolution[0]),
-        WorldPosFromV3(CameraP, FixedResolution[1]),
-        WorldPosFromV3(CameraP, FixedResolution[2])
+    world_block_pos WorldCameraP[RESOLUTION_COUNT] = {
+        WorldPosFromV3(CameraP, GameState->FixedResolution[0]),
+        WorldPosFromV3(CameraP, GameState->FixedResolution[1]),
+        WorldPosFromV3(CameraP, GameState->FixedResolution[2])
     };
     
     CalculateBlockPositions(World->RenderPositionStore, 
@@ -585,7 +667,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             ++StoreIndex)
         {
             terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
-            world_block_pos BlockP = WorldPosFromV3(Block->Pos, FixedResolution[0]);
+            world_block_pos BlockP = WorldPosFromV3(Block->Pos, GameState->FixedResolution[0]);
             uint32 ResIndex = GetResolutionIndex(BlockP.Resolution);
             if(!DoRectangleContains(WorldCameraP + ResIndex, LoadSpaceRadius, &BlockP))
             {
@@ -663,7 +745,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     // NOTE: Generate density blocks
     int32 MaxDensityBlocksToGenerateInFrame = 3;
     for(uint32 ResolutionIndex = 0;
-        ResolutionIndex < StoreResolutionCount;
+        ResolutionIndex < GameState->StoreResolutionCount;
         ResolutionIndex++)
     {
         density_block_pos_array *BlockPositions = World->DensityPositionStore + ResolutionIndex;
@@ -693,10 +775,10 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     Clock.Reset();
     
     int32 MaxRenderBlocksToGenerateInFrame = 6;
-    const uint32 BlockRenderMaxCount = 4000;
-    world_block_pos BlocksToRender[BlockRenderMaxCount];
-    uint32 RenderCount = 0;
+    density_block_pos_array BlocksToRender;
+    BlocksToRender.Count = 0;
 
+    // NOTE: Handle Mouse click
     if(Input->MouseRightButton)
     {
         v3 RayDirection = Normalize(WorldMousePos - GameState->CameraOrigo);
@@ -705,83 +787,10 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             RayLength += 0.5f)
         {
             v3 CheckPos = GameState->CameraOrigo + (RayLength*RayDirection);
-            real32 PosValue = GetWorldGridValueFromV3(World, CheckPos, FixedResolution[0]);
+            real32 PosValue = GetWorldGridValueFromV3(World, CheckPos, GameState->FixedResolution[0]);
             if(PosValue < DENSITY_ISO_LEVEL)
-            {
-                real32 SphereRadius = 30.0f;
-                v3 StartBlockRP = CheckPos - v3{SphereRadius, SphereRadius, SphereRadius};
-                v3 EndBlockRP = CheckPos + v3{SphereRadius, SphereRadius, SphereRadius};
-                block_node StartNode = ConvertRenderPosToBlockNode(StartBlockRP, FixedResolution[0]);
-                block_node EndNode = ConvertRenderPosToBlockNode(EndBlockRP, FixedResolution[0]);
-                
-                uint32 BlocksTouched = 0;
-                block_node Node = StartNode;
-                for(uint32 XIndex = 0;
-                    (Node.BlockP.BlockX != EndNode.BlockP.BlockX) || (Node.X != EndNode.X);
-                    XIndex++)
-                {
-                    Node = GetActualBlockNode(&StartNode.BlockP, 
-                                StartNode.X+XIndex, StartNode.Y, StartNode.Z);
-                    for(uint32 YIndex = 0; 
-                        (Node.BlockP.BlockY != EndNode.BlockP.BlockY) || (Node.Y != EndNode.Y);
-                        YIndex++)
-                    {
-                        Node = GetActualBlockNode(&StartNode.BlockP, 
-                                    StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z);
-                        for(uint32 ZIndex = 0; 
-                            (Node.BlockP.BlockZ != EndNode.BlockP.BlockZ) || (Node.Z != EndNode.Z);
-                            ZIndex++)
-                        {
-                            Node = GetActualBlockNode(&StartNode.BlockP, 
-                                        StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
-                            // NOTE: Change node density and invalidate render block
-                            v3 NodeRenderP = ConvertBlockNodeToRenderPos(Node);
-                            v3 Diff = NodeRenderP - CheckPos;
-                            real32 DistanceFromClick = Length(Diff);
-                            if(DistanceFromClick < SphereRadius)
-                            {
-                                // block_hash *DynamicHash = GetHash(World->DensityHash, &Node.BlockP);
-                                block_hash *DynamicHash = GetHash(World->DynamicHash, &Node.BlockP);
-                                if(HashIsEmpty(DynamicHash))
-                                {
-                                    DynamicHash = CreateNewDynamicBlock(GameState, World, &Node.BlockP);
-                                }
-                                
-                                // terrain_density_block *ActDynamicBlock = World->DensityBlocks + DynamicHash->Index;
-                                terrain_density_block *ActDynamicBlock = World->DynamicBlocks + DynamicHash->Index;
-                                real32 GridVal = GetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z);
-                                SetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z, GridVal + 1.0f);
-                                
-                                block_same_res_neighbours Neighbours;
-                                GetNeighbourBlockPositionsOnSameRes(&Neighbours, &Node.BlockP);
-                                for(uint32 NIndex = 0;
-                                    NIndex < ArrayCount(Neighbours.Pos);
-                                    NIndex++)
-                                {
-                                    world_block_pos *NPos = Neighbours.Pos + NIndex;
-                                    bool32 AlreadyHave = false;
-                                    for(uint32 RenderIndex = 0;
-                                        RenderIndex < RenderCount;
-                                        RenderIndex++)
-                                    {
-                                        world_block_pos *RenderP = BlocksToRender + RenderIndex;
-                                        if(WorldPosEquals(RenderP, NPos))
-                                        {
-                                            AlreadyHave = true;
-                                        }
-                                    }
-                                    if(!AlreadyHave)
-                                    {
-                                        QueueBlockToRender(World, NPos, 
-                                            &MaxRenderBlocksToGenerateInFrame, 
-                                            BlocksToRender, &RenderCount, BlockRenderMaxCount);
-                                        BlocksTouched++;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            {                
+                DeformBlocks(GameState, World, &CheckPos, &BlocksToRender, &MaxRenderBlocksToGenerateInFrame);
                 AddCube(&GameState->Cube, CheckPos, 1.0f, 
                         v4{1.0f, 0.0f, 0.0f, 1.0f}, 
                         v4{0.0f, 1.0f, 0.0f, 1.0f}, 
@@ -803,10 +812,10 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     int32 DeleteRenderBlockCount = 0;
     world_block_pos DeleteRenderBlockQueue[1000];
     
-    int32 LowestResUsed = FixedResolution[0];
+    int32 LowestResUsed = GameState->FixedResolution[0];
     // NOTE: map all the blocks in range, if they arent already.
     for(uint32 ResolutionIndex = 0;
-        ResolutionIndex < StoreResolutionCount;
+        ResolutionIndex < GameState->StoreResolutionCount;
         ResolutionIndex++)
     {
         density_block_pos_array *BlockPositions = World->DensityPositionStore + ResolutionIndex;
@@ -821,7 +830,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             if(HashIsEmpty(ResHash))
             {
                 world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
-                if(BiggerP.Resolution <= FixedResolution[0])
+                if(BiggerP.Resolution <= GameState->FixedResolution[0])
                 {
                     block_hash *BigPResHash = GetHash(World->ResolutionMapping, &BiggerP);
                     Assert(!HashIsEmpty(BigPResHash));
@@ -829,7 +838,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 }
                 else
                 {
-                    ResHash = MapBlockPosition(World, BlockP, FixedResolution[0]);
+                    ResHash = MapBlockPosition(World, BlockP, GameState->FixedResolution[0]);
                 }
             }
             
@@ -865,7 +874,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     // NOTE: Select the next blocks that we can render.
     
     for(uint32 ResolutionIndex = 0;
-        ResolutionIndex < StoreResolutionCount;
+        ResolutionIndex < GameState->StoreResolutionCount;
         ResolutionIndex++)
     {
         block_pos_array *BlockPositions = World->RenderPositionStore + ResolutionIndex;
@@ -884,7 +893,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 
                 QueueBlockToRender(World, BlockP, 
                     &MaxRenderBlocksToGenerateInFrame, 
-                    BlocksToRender, &RenderCount, BlockRenderMaxCount);
+                    &BlocksToRender);
             }
         }
     }
@@ -897,7 +906,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         // NOTE: if everybody with a Resolution of LowestResUsed is rendered, we can upgrade LowestResUsed
         bool32 CanUpgradeLowestResolution = true;
         for(uint32 ResolutionIndex = 0;
-            ResolutionIndex < StoreResolutionCount;
+            ResolutionIndex < GameState->StoreResolutionCount;
             ResolutionIndex++)
         {
             block_pos_array *BlockPositions = World->RenderPositionStore + ResolutionIndex;
@@ -921,7 +930,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             uint32 NewResIndex = LowestResUsedIndex+1;
             if(NewResIndex < GameState->MaxResolutionToRender)
             {
-                LowestResUsed = FixedResolution[NewResIndex];
+                LowestResUsed = GameState->FixedResolution[NewResIndex];
                 LowestResUsedIndex = NewResIndex;
             }
         }
@@ -956,7 +965,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 }
                 
                 DeleteRenderedBlock(World, &BiggerP);
-                while(BiggerP.Resolution <= FixedResolution[0])
+                while(BiggerP.Resolution <= GameState->FixedResolution[0])
                 {
                     block_hash *BiggerHash = GetHash(World->ResolutionMapping, &BiggerP);
                     Assert(!HashIsEmpty(BiggerHash));
@@ -990,11 +999,11 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                         Assert(MappedNPos.Resolution == NHash->Index);
                         QueueBlockToRender(World, &MappedNPos, 
                             &MaxRenderBlocksToGenerateInFrame, 
-                            BlocksToRender, &RenderCount, BlockRenderMaxCount);
+                            &BlocksToRender);
                     }
                     QueueBlockToRender(World, SiblingP,
                         &MaxRenderBlocksToGenerateInFrame, 
-                        BlocksToRender, &RenderCount, BlockRenderMaxCount);
+                        &BlocksToRender);
                 }
             }
         }
@@ -1008,19 +1017,20 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     
     // NOTE: Remove duplicates from BlocksToRender
     for(uint32 RenderIndex = 0;
-        RenderIndex < RenderCount;
+        RenderIndex < BlocksToRender.Count;
         RenderIndex++)
     {
-        world_block_pos *BlockP = BlocksToRender + RenderIndex;
+        world_block_pos *BlockP = BlocksToRender.Pos + RenderIndex;
         for(uint32 RenderInnerIndex = RenderIndex+1;
-            RenderInnerIndex < RenderCount;
+            RenderInnerIndex < BlocksToRender.Count;
             RenderInnerIndex++)
         {
-            world_block_pos *InnerBlockP = BlocksToRender + RenderInnerIndex;
+            world_block_pos *InnerBlockP = BlocksToRender.Pos + RenderInnerIndex;
             if(WorldPosEquals(BlockP, InnerBlockP))
             {
-                world_block_pos LastP = BlocksToRender[--RenderCount];
-                BlocksToRender[RenderInnerIndex] = LastP;
+                --BlocksToRender.Count;
+                world_block_pos LastP = BlocksToRender.Pos[BlocksToRender.Count];
+                BlocksToRender.Pos[RenderInnerIndex] = LastP;
                 --RenderInnerIndex;
             }
         }
@@ -1032,10 +1042,10 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     win32_clock AvgClock;
     // NOTE: These blocks may have been rendered once, but now they have to be generated again
     for(uint32 RenderIndex = 0;
-        RenderIndex < RenderCount;
+        RenderIndex < BlocksToRender.Count;
         RenderIndex++)
     {
-        world_block_pos *BlockP = BlocksToRender + RenderIndex;
+        world_block_pos *BlockP = BlocksToRender.Pos + RenderIndex;
         DeleteRenderedBlock(World, BlockP);
         
         Assert(HashIsEmpty(GetHash(World->RenderHash, BlockP)));
@@ -1064,7 +1074,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     
     GameState->RenderBlockCount = 0;
     for(uint32 ResolutionIndex = 0;
-        ResolutionIndex < StoreResolutionCount;
+        ResolutionIndex < GameState->StoreResolutionCount;
         ResolutionIndex++)
     {
         block_pos_array *BlockPositions = World->RenderPositionStore + ResolutionIndex;
@@ -1186,7 +1196,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     
     for(uint32 ResolutionIndex = 0;
-        ResolutionIndex < StoreResolutionCount;
+        ResolutionIndex < GameState->StoreResolutionCount;
         ResolutionIndex++)
     {
         density_block_pos_array *BlockPositions = World->DensityPositionStore + ResolutionIndex;
