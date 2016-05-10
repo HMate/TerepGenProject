@@ -77,11 +77,11 @@ ConvertRenderPosToBlockNode(v3 RenderPos, int32 Resolution)
 }
 
 internal v3
-ConvertBlockNodeToRenderPos(block_node Node)
+ConvertBlockNodeToRenderPos(block_node *Node)
 {
-    v3 Result = V3FromWorldPos(Node.BlockP);
-    Result = Result + v3{(real32)Node.X, (real32)Node.Y, (real32)Node.Z} 
-                        * (real32)Node.BlockP.Resolution * RENDER_SPACE_UNIT;
+    v3 Result = V3FromWorldPos(Node->BlockP);
+    Result = Result + v3{(real32)Node->X, (real32)Node->Y, (real32)Node->Z} 
+                        * (real32)Node->BlockP.Resolution * RENDER_SPACE_UNIT;
     
     return Result;
 }

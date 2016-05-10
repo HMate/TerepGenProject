@@ -65,6 +65,19 @@ struct session_description
     char DynamicStore[MAX_PATH];
 };
 
+enum deformer_tpye
+{
+    DeformerTypeSphere = 1,
+    DeformerTypeCube = 2
+};
+
+struct block_deformer
+{
+    deformer_tpye Type;
+    real32 Radius;
+    v3 Center;
+};
+
 struct game_state 
 {
     bool32 Initialized;

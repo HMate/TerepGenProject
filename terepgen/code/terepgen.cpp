@@ -436,13 +436,54 @@ FillSessionDesc(game_state *GameState, uint32 SessionID)
     }
 }
 
+internal bool32
+IsAffectedByDeformer(block_deformer *Deformer, block_node *Node)
+{
+    bool32 Result = false;
+    if(Deformer->Type == DeformerTypeSphere)
+    {
+        v3 NodeRenderP = ConvertBlockNodeToRenderPos(Node);
+        v3 Diff = NodeRenderP - Deformer->Center;
+        real32 DistanceFromClick = Length(Diff);
+        Result = DistanceFromClick < Deformer->Radius;
+    }
+    else if(Deformer->Type == DeformerTypeCube)
+    {
+        v3 NodeRenderP = ConvertBlockNodeToRenderPos(Node);
+        v3 Diff = NodeRenderP - Deformer->Center;
+        Result = Abs(Diff.X) < Deformer->Radius && 
+                 Abs(Diff.Y) < Deformer->Radius &&
+                 Abs(Diff.Z) < Deformer->Radius;
+    }
+    else
+    {
+        Assert(!"Invalid code path");
+    }
+    
+    return Result;
+}
+
+internal real32
+ChangeDynamicValue(block_deformer *Deformer, real32 OldVal)
+{
+    real32 Result = 0.0f;
+    if(Deformer->Type == DeformerTypeSphere || Deformer->Type == DeformerTypeCube)
+    {
+        Result = OldVal + 1.0f;
+    }
+    else
+    {
+        Assert(!"Invalid code path");
+    }
+    return Result;
+}
+
 internal void 
 DeformBlocks(game_state *GameState, world_density *World, 
-             v3 *Center, density_block_pos_array *BlocksToRender, int32 *MaxRenderBlocksToGenerateInFrame)
+             block_deformer *Deformer, density_block_pos_array *BlocksToRender, int32 *MaxRenderBlocksToGenerateInFrame)
 {
-    real32 SphereRadius = 30.0f;
-    v3 StartBlockRP = *Center - v3{SphereRadius, SphereRadius, SphereRadius};
-    v3 EndBlockRP = *Center + v3{SphereRadius, SphereRadius, SphereRadius};
+    v3 StartBlockRP = Deformer->Center - v3{Deformer->Radius, Deformer->Radius, Deformer->Radius};
+    v3 EndBlockRP = Deformer->Center + v3{Deformer->Radius, Deformer->Radius, Deformer->Radius};
     block_node StartNode = ConvertRenderPosToBlockNode(StartBlockRP, GameState->FixedResolution[0]);
     block_node EndNode = ConvertRenderPosToBlockNode(EndBlockRP, GameState->FixedResolution[0]);
 
@@ -467,10 +508,8 @@ DeformBlocks(game_state *GameState, world_density *World,
                 Node = GetActualBlockNode(&StartNode.BlockP, 
                             StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
                 // NOTE: Change node density and rerender the render block
-                v3 NodeRenderP = ConvertBlockNodeToRenderPos(Node);
-                v3 Diff = NodeRenderP - *Center;
-                real32 DistanceFromClick = Length(Diff);
-                if(DistanceFromClick < SphereRadius)
+                
+                if(IsAffectedByDeformer(Deformer, &Node))
                 {
                     block_hash *DynamicHash = GetHash(World->DynamicHash, &Node.BlockP);
                     if(HashIsEmpty(DynamicHash))
@@ -480,7 +519,8 @@ DeformBlocks(game_state *GameState, world_density *World,
                     
                     terrain_density_block *ActDynamicBlock = World->DynamicBlocks + DynamicHash->Index;
                     real32 GridVal = GetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z);
-                    SetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z, GridVal + 1.0f);
+                    real32 ChangedGridVal = ChangeDynamicValue(Deformer, GridVal);
+                    SetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z, ChangedGridVal);
                     
                     // NOTE: Have to rerender all negihbours too beacuse of tears in geometry
                     block_same_res_neighbours Neighbours;
@@ -789,8 +829,18 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             v3 CheckPos = GameState->CameraOrigo + (RayLength*RayDirection);
             real32 PosValue = GetWorldGridValueFromV3(World, CheckPos, GameState->FixedResolution[0]);
             if(PosValue < DENSITY_ISO_LEVEL)
-            {                
-                DeformBlocks(GameState, World, &CheckPos, &BlocksToRender, &MaxRenderBlocksToGenerateInFrame);
+            {
+                // block_deformer SphereDeformer;
+                // SphereDeformer.Type = DeformerTypeSphere;
+                // SphereDeformer.Radius = 30.0f;
+                // SphereDeformer.Center = CheckPos;
+                
+                block_deformer CubeDeformer;
+                CubeDeformer.Type = DeformerTypeCube;
+                CubeDeformer.Radius = 30.0f;
+                CubeDeformer.Center = CheckPos;
+                
+                DeformBlocks(GameState, World, &CubeDeformer, &BlocksToRender, &MaxRenderBlocksToGenerateInFrame);
                 AddCube(&GameState->Cube, CheckPos, 1.0f, 
                         v4{1.0f, 0.0f, 0.0f, 1.0f}, 
                         v4{0.0f, 1.0f, 0.0f, 1.0f}, 
