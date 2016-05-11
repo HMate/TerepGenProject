@@ -833,13 +833,13 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             {
                 block_deformer SphereDeformer;
                 SphereDeformer.Type = DeformerTypeSphere;
-                SphereDeformer.Sign = 1.0f;
+                SphereDeformer.Sign = 1.0f * Input->DeformerSign;
                 SphereDeformer.Radius = 30.0f;
                 SphereDeformer.Center = CheckPos;
                 
                 block_deformer CubeDeformer;
                 CubeDeformer.Type = DeformerTypeCube;
-                CubeDeformer.Sign = 1.0f;
+                CubeDeformer.Sign = 1.0f * Input->DeformerSign;
                 CubeDeformer.Radius = 30.0f;
                 CubeDeformer.Center = CheckPos;
                 

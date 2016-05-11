@@ -62,6 +62,7 @@ struct game_input
     bool32 SpeedDown;
     
     uint32 RenderMode;
+    real32 DeformerSign;
     
     bool32 MouseLeftButton;
     bool32 MouseRightButton;
@@ -86,6 +87,7 @@ DefaultGameInput()
     Result.SpeedDown = false;
     
     Result.RenderMode = 0;
+    Result.DeformerSign = 1.0f;
     
     Result.MouseLeftButton = false;
     Result.MouseRightButton = false;

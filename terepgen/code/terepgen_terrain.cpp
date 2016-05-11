@@ -491,6 +491,8 @@ CreateNewDynamicBlock(game_state *GameState, world_density *World, world_block_p
                 {
                     for(uint32 Z = 0; Z < Dim; Z++)
                     {
+                        // TODO: Instead of loading neighbour block, just include one value from neighbour in this block
+                        // this means we have to rewrite every block indexing
                         real32 G000 = GetGrid(&Parent->Grid, XOffset+X/2  , YOffset+Y/2  , ZOffset+Z/2  );
                         real32 G001 = GetGrid(&Parent->Grid, XOffset+X/2  , YOffset+Y/2  , ZOffset+Z/2+1);
                         real32 G010 = GetGrid(&Parent->Grid, XOffset+X/2  , YOffset+Y/2+1, ZOffset+Z/2  );

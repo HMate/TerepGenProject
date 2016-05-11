@@ -325,6 +325,10 @@ Win32HandleMessages(game_input *Input)
                             Input->RenderMode = 0;
                         }
                     }
+                    else if(KeyCode == 'B' && KeyIsDown)
+                    {
+                        Input->DeformerSign = -Input->DeformerSign;
+                    }
                     else if(KeyCode == VK_ESCAPE && KeyIsDown)
                     {
                        GlobalRunning = false;
@@ -415,15 +419,16 @@ WinMain(HINSTANCE Instance,
             while(GlobalRunning)
             {
                 
-                NewInput->MoveLeft = OldInput->MoveLeft ;
+                NewInput->MoveLeft = OldInput->MoveLeft;
                 NewInput->MoveRight = OldInput->MoveRight;
                 NewInput->MoveForward = OldInput->MoveForward;
                 NewInput->MoveBack = OldInput->MoveBack;
-                NewInput->MoveUp = OldInput->MoveUp ;
+                NewInput->MoveUp = OldInput->MoveUp;
                 NewInput->MoveDown = OldInput->MoveDown;
                 NewInput->SpeedUp = OldInput->SpeedUp;
                 NewInput->SpeedDown = OldInput->SpeedDown;
                 NewInput->RenderMode = OldInput->RenderMode;
+                NewInput->DeformerSign = OldInput->DeformerSign;
                 
                 Win32HandleMessages(NewInput);
                 
