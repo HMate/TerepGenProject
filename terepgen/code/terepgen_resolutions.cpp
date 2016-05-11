@@ -2,6 +2,26 @@
     Terep generátor by Hidvégi Máté @2016
 */
 
+internal uint32
+GetResolutionIndex(uint32 Resolution)
+{
+    uint32 Result;
+    // TODO: Dont burn in values here!
+    if(Resolution==8)
+    {
+        Result = 0;
+    }
+    else if(Resolution == 4)
+    {
+        Result = 1;
+    }
+    else
+    {
+        Result = 2;
+    }
+    return Result;
+}
+
 internal world_block_pos
 ConvertToResolution(world_block_pos *P, uint32 NewRes)
 {
@@ -100,51 +120,14 @@ MapBlockPositionAfterParent(world_density *World, world_block_pos *BlockP)
 {
     world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
     block_hash *BPResHash = GetHash(World->ResolutionMapping, &BiggerP);
-    Assert(!HashIsEmpty(BPResHash));
+    
+    if(HashIsEmpty(BPResHash))
+    {
+        Assert(BiggerP.Resolution == World->FixedResolution[0]);
+        BPResHash = MapBlockPosition(World, &BiggerP, World->FixedResolution[0]);
+    }
     block_hash *ResHash = MapBlockPosition(World, BlockP, BPResHash->Index);
     return ResHash;
-}
-
-internal world_block_pos 
-GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
-{
-    world_block_pos Result = *BlockP;
-
-    block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
-    if(HashIsEmpty(ResHash))
-    {
-        ResHash = MapBlockPositionAfterParent(World, BlockP);
-    }
-    // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
-    // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
-    // which we doesn't handle here
-    while(Result.Resolution != ResHash->Index)
-    {
-        Assert(ResHash->Index > Result.Resolution);
-        Result = GetBiggerResBlockPosition(&Result);
-    }
-    
-    return Result;
-}
-
-internal uint32
-GetResolutionIndex(uint32 Resolution)
-{
-    uint32 Result;
-    // TODO: Dont burn in values here!
-    if(Resolution==8)
-    {
-        Result = 0;
-    }
-    else if(Resolution == 4)
-    {
-        Result = 1;
-    }
-    else
-    {
-        Result = 2;
-    }
-    return Result;
 }
 
 // TODO: Deleting blocks shouldn't be here
@@ -173,6 +156,47 @@ DowngradeMapping(world_density *World, world_block_pos *BlockP, int32 MappingVal
         DeleteQueue[*DeleteCount] = *BlockP;
         (*DeleteCount)++;
     }
+}
+
+internal world_block_pos 
+GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
+{
+    world_block_pos Result = *BlockP;
+
+    block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+    Assert(!HashIsEmpty(ResHash));
+    // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
+    // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
+    // which we doesn't handle here
+    while(Result.Resolution != ResHash->Index)
+    {
+        Assert(ResHash->Index > Result.Resolution);
+        Result = GetBiggerResBlockPosition(&Result);
+    }
+    
+    return Result;
+}
+
+internal world_block_pos 
+GetAndSetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
+{
+    world_block_pos Result = *BlockP;
+
+    block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+    if(HashIsEmpty(ResHash))
+    {
+        ResHash = MapBlockPositionAfterParent(World, BlockP);
+    }
+    // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
+    // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
+    // which we doesn't handle here
+    while(Result.Resolution != ResHash->Index)
+    {
+        Assert(ResHash->Index > Result.Resolution);
+        Result = GetBiggerResBlockPosition(&Result);
+    }
+    
+    return Result;
 }
 
 internal void

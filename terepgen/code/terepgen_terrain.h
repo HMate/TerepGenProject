@@ -99,6 +99,10 @@ struct density_block_pos_array
 
 struct world_density
 {
+    int32 FixedResolution[RESOLUTION_COUNT];
+    uint32 StoreResolutionCount;
+    uint32 MaxResolutionToRender;
+    
     real32 BlockSize;
     uint32 DeletedDensityBlockCount;
     uint32 DeletedDynamicBlockCount;

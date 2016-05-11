@@ -338,25 +338,6 @@ Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
     return Result;
 }
 
-internal void 
-FillDynamic(terrain_density_block *Dynamic, world_block_pos *BlockP, real32 Value)
-{
-    Dynamic->Pos = *BlockP;
-    uint32 Dim = Dynamic->Grid.Dimension;
-    for(uint32 X = 0; X < Dim; X++)
-    {
-        for(uint32 Y = 0; Y < Dim; Y++)
-        {
-            for(uint32 Z = 0; Z < Dim; Z++)
-            {
-                SetGrid(&Dynamic->Grid, X, Y, Z, Value);
-            }
-        }
-    }
-}
-
-
-
 internal FileHandle
 OpenBlocksFile(game_state *GameState, char *FileName)
 {
@@ -464,6 +445,23 @@ LoadBlockFromFile(game_state *GameState, char *FileName, terrain_density_block *
     return !NotFound;
 }
 
+internal void 
+FillDynamic(terrain_density_block *Dynamic, world_block_pos *BlockP, real32 Value)
+{
+    Dynamic->Pos = *BlockP;
+    uint32 Dim = Dynamic->Grid.Dimension;
+    for(uint32 X = 0; X < Dim; X++)
+    {
+        for(uint32 Y = 0; Y < Dim; Y++)
+        {
+            for(uint32 Z = 0; Z < Dim; Z++)
+            {
+                SetGrid(&Dynamic->Grid, X, Y, Z, Value);
+            }
+        }
+    }
+}
+
 // NOTE: Creates a dynamic block, or loads it from a file
 internal block_hash*
 CreateNewDynamicBlock(game_state *GameState, world_density *World, world_block_pos *BlockP)
@@ -473,7 +471,45 @@ CreateNewDynamicBlock(game_state *GameState, world_density *World, world_block_p
     bool32 Loaded = LoadBlockFromFile(GameState, GameState->Session.DynamicStore, DynamicB, BlockP);
     if(!Loaded)
     {
-        FillDynamic(DynamicB, BlockP, 0.0f);
+        /*if(BlockP->Resolution < World->FixedResolution[0])
+        {
+            // NOTE: Parent block should be existing at this pointer
+            world_block_pos *BiggerP = GetBiggerMappedPosition(BlockP);
+            block_hash *ParentHash = GetHash(World->DynamicHash, BiggerP);
+            Assert(!HashIsEmpty(DynamicHash));
+            terrain_density_block *Parent = World->DynamicBlocks + ParentHash->Index;
+            
+            uint32 XOffset = (BlockP->BlockX - Parent->BlockX*2) * 4;
+            uint32 YOffset = (BlockP->BlockY - Parent->BlockY*2) * 4;
+            uint32 ZOffset = (BlockP->BlockZ - Parent->BlockZ*2) * 4;
+                        
+            Dynamic->Pos = *BlockP;
+            uint32 Dim = Dynamic->Grid.Dimension;
+            for(uint32 X = 0; X < Dim; X++)
+            {
+                for(uint32 Y = 0; Y < Dim; Y++)
+                {
+                    for(uint32 Z = 0; Z < Dim; Z++)
+                    {
+                        real32 G000 = GetGrid(&Parent->Grid, XOffset+X/2  , YOffset+Y/2  , ZOffset+Z/2  );
+                        real32 G001 = GetGrid(&Parent->Grid, XOffset+X/2  , YOffset+Y/2  , ZOffset+Z/2+1);
+                        real32 G010 = GetGrid(&Parent->Grid, XOffset+X/2  , YOffset+Y/2+1, ZOffset+Z/2  );
+                        real32 G011 = GetGrid(&Parent->Grid, XOffset+X/2  , YOffset+Y/2+1, ZOffset+Z/2+1);
+                        real32 G100 = GetGrid(&Parent->Grid, XOffset+X/2+1, YOffset+Y/2  , ZOffset+Z/2  );
+                        real32 G101 = GetGrid(&Parent->Grid, XOffset+X/2+1, YOffset+Y/2  , ZOffset+Z/2+1);
+                        real32 G110 = GetGrid(&Parent->Grid, XOffset+X/2+1, YOffset+Y/2+1, ZOffset+Z/2  );
+                        real32 G111 = GetGrid(&Parent->Grid, XOffset+X/2+1, YOffset+Y/2+1, ZOffset+Z/2+1);
+                        
+                        SetGrid(&Dynamic->Grid, X, Y, Z, Value);
+                    }
+                }
+            }
+            
+        }
+        else*/
+        {
+            FillDynamic(DynamicB, BlockP, 0.0f);
+        }
     }
     Assert(World->DynamicBlockCount < ArrayCount(World->DynamicBlocks));
     block_hash *DynamicHash = WriteHash(World->DynamicHash, BlockP, World->DynamicBlockCount++);
@@ -483,7 +519,7 @@ CreateNewDynamicBlock(game_state *GameState, world_density *World, world_block_p
 
 #define DENSITY_ISO_LEVEL 0.0f
 internal void
-PoligoniseBlock(game_state *GameState, world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
+PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
 {
     block_lower_neighbours NPositions;
     GetNeighbourBlockPositionsOnLowerRes(&NPositions, BlockP);
@@ -503,11 +539,7 @@ PoligoniseBlock(game_state *GameState, world_density *World, terrain_render_bloc
         Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
         
         block_hash *DynamicHash = GetHash(World->DynamicHash, &MappedP);
-        // TODO: This should be an assert
-        if(HashIsEmpty(DynamicHash))
-        {
-            DynamicHash = CreateNewDynamicBlock(GameState, World, &MappedP);
-        }
+        Assert(!HashIsEmpty(DynamicHash));
         DynNeighbours[NeighbourIndex] = World->DynamicBlocks + DynamicHash->Index;
     }
     

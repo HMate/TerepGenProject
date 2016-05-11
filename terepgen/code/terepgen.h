@@ -74,6 +74,8 @@ enum deformer_tpye
 struct block_deformer
 {
     deformer_tpye Type;
+    // NOTE: positive makes air, negative makes ground
+    real32 Sign;
     real32 Radius;
     v3 Center;
 };
@@ -84,10 +86,6 @@ struct game_state
     session_description Session;
     dx_resource *DXResources;
     uint32 Seed;
-    
-    int32 FixedResolution[RESOLUTION_COUNT];
-    uint32 StoreResolutionCount;
-    uint32 MaxResolutionToRender;
     
     real64 dtForFrame;
     
