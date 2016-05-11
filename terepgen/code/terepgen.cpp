@@ -442,7 +442,7 @@ internal bool32
 IsAffectedByDeformer(block_deformer *Deformer, block_node *Node)
 {
     bool32 Result = false;
-    if(Deformer->Type == DeformerTypeSphere)
+    if(Deformer->Type == DeformerTypeSphere || Deformer->Type == DeformerTypeGradualSphere)
     {
         v3 NodeRenderP = ConvertBlockNodeToRenderPos(Node);
         v3 Diff = NodeRenderP - Deformer->Center;
@@ -466,12 +466,20 @@ IsAffectedByDeformer(block_deformer *Deformer, block_node *Node)
 }
 
 internal real32
-ChangeDynamicValue(block_deformer *Deformer, real32 OldVal)
+ChangeDynamicValue(block_deformer *Deformer, real32 OldVal, block_node *Node)
 {
     real32 Result = 0.0f;
     if(Deformer->Type == DeformerTypeSphere || Deformer->Type == DeformerTypeCube)
     {
         Result = OldVal + Deformer->Sign*1.0f;
+    }
+    else if(Deformer->Type == DeformerTypeGradualSphere)
+    {
+        v3 NodeRenderP = ConvertBlockNodeToRenderPos(Node);
+        v3 Diff = NodeRenderP - Deformer->Center;
+        real32 DistanceFromClick = Length(Diff);
+        real32 Scale = (Deformer->Radius - DistanceFromClick) / Deformer->Radius;
+        Result = OldVal + Scale*Deformer->Sign*1.0f;
     }
     else
     {
@@ -521,7 +529,7 @@ DeformBlocks(game_state *GameState, world_density *World,
                     
                     terrain_density_block *ActDynamicBlock = World->DynamicBlocks + DynamicHash->Index;
                     real32 GridVal = GetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z);
-                    real32 ChangedGridVal = ChangeDynamicValue(Deformer, GridVal);
+                    real32 ChangedGridVal = ChangeDynamicValue(Deformer, GridVal, &Node);
                     SetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z, ChangedGridVal);
                     
                     // NOTE: Have to rerender all negihbours too beacuse of tears in geometry
@@ -837,13 +845,19 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 SphereDeformer.Radius = 30.0f;
                 SphereDeformer.Center = CheckPos;
                 
+                block_deformer GradualSphereDeformer;
+                GradualSphereDeformer.Type = DeformerTypeGradualSphere;
+                GradualSphereDeformer.Sign = 1.0f * Input->DeformerSign;
+                GradualSphereDeformer.Radius = 30.0f;
+                GradualSphereDeformer.Center = CheckPos;
+                
                 block_deformer CubeDeformer;
                 CubeDeformer.Type = DeformerTypeCube;
                 CubeDeformer.Sign = 1.0f * Input->DeformerSign;
                 CubeDeformer.Radius = 30.0f;
                 CubeDeformer.Center = CheckPos;
                 
-                block_deformer *UsedDeformer = &SphereDeformer;
+                block_deformer *UsedDeformer = &GradualSphereDeformer;
                 
                 DeformBlocks(GameState, World, UsedDeformer, &BlocksToRender, &MaxRenderBlocksToGenerateInFrame);
                 AddCube(&GameState->Cube, CheckPos, 1.0f, 

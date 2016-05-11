@@ -68,7 +68,8 @@ struct session_description
 enum deformer_tpye
 {
     DeformerTypeSphere = 1,
-    DeformerTypeCube = 2
+    DeformerTypeGradualSphere = 2,
+    DeformerTypeCube = 3
 };
 
 struct block_deformer
