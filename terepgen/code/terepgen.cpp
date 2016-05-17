@@ -521,13 +521,7 @@ DeformBlocks(game_state *GameState, world_density *World,
                 
                 if(IsAffectedByDeformer(Deformer, &Node))
                 {
-                    block_hash *DynamicHash = GetHash(World->DynamicHash, &Node.BlockP);
-                    if(HashIsEmpty(DynamicHash))
-                    {
-                        DynamicHash = CreateNewDynamicBlock(GameState, World, &Node.BlockP);
-                    }
-                    
-                    terrain_density_block *ActDynamicBlock = World->DynamicBlocks + DynamicHash->Index;
+                    terrain_density_block *ActDynamicBlock = GetDynamicBlock(GameState, World, &Node.BlockP);
                     real32 GridVal = GetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z);
                     real32 ChangedGridVal = ChangeDynamicValue(Deformer, GridVal, &Node);
                     SetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z, ChangedGridVal);
@@ -836,8 +830,13 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             RayLength += 0.5f)
         {
             v3 CheckPos = GameState->CameraOrigo + (RayLength*RayDirection);
+            
             real32 PosValue = GetWorldGridValueFromV3(World, CheckPos, World->FixedResolution[0]);
-            if(PosValue < DENSITY_ISO_LEVEL)
+            block_node ClickNode = ConvertRenderPosToBlockNode(CheckPos, World->FixedResolution[0]);
+            terrain_density_block *DynamicBlock = GetDynamicBlock(GameState, World, &ClickNode.BlockP);
+            real32 DynamicVal = GetGrid(&DynamicBlock->Grid, ClickNode.X, ClickNode.Y, ClickNode.Z);
+            real32 Value = PosValue + DynamicVal;
+            if(Value < DENSITY_ISO_LEVEL)
             {
                 block_deformer SphereDeformer;
                 SphereDeformer.Type = DeformerTypeSphere;
@@ -1131,12 +1130,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             Assert(!HashIsEmpty(NeighbourHash));
             Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
             
-            block_hash *DynamicHash = GetHash(World->DynamicHash, &MappedP);
-            if(HashIsEmpty(DynamicHash))
-            {
-                DynamicHash = CreateNewDynamicBlock(GameState, World, &MappedP);
-            }
-            DynNeighbours[NeighbourIndex] = World->DynamicBlocks + DynamicHash->Index;
+            DynNeighbours[NeighbourIndex] = GetDynamicBlock(GameState, World, &MappedP);
         }
     }
     

@@ -519,6 +519,18 @@ CreateNewDynamicBlock(game_state *GameState, world_density *World, world_block_p
     return DynamicHash;
 }
 
+internal terrain_density_block*
+GetDynamicBlock(game_state *GameState, world_density *World, world_block_pos *BlockP)
+{
+    block_hash *DynamicHash = GetHash(World->DynamicHash, BlockP);
+    if(HashIsEmpty(DynamicHash))
+    {
+        DynamicHash = CreateNewDynamicBlock(GameState, World, BlockP);
+    }
+    terrain_density_block *Result = World->DynamicBlocks + DynamicHash->Index;
+    return Result;
+}
+
 #define DENSITY_ISO_LEVEL 0.0f
 internal void
 PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
