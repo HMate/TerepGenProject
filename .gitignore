@@ -84,5 +84,5 @@ $RECYCLE.BIN/
 # ==== Project Specific Files========
 misc/
 build/
-/data/sessions.txt
-/data/dynamicStore*.txt
+data/sessions.txt
+data/dynamicStore*.txt
