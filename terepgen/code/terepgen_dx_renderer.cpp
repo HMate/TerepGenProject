@@ -187,6 +187,49 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     return HResult;
 }
 
+struct shader_code
+{
+    uint8* Data;
+    uint32 Size;
+};
+
+internal shader_code 
+loadShaderCode(char* FileName)
+{
+    shader_code Result;
+    Result.Size = 0;
+    FileHandle Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if(Handle != INVALID_HANDLE_VALUE)
+    {
+        Result.Size = GetFileSize(Handle, NULL);
+        Result.Data = new uint8[Result.Size];
+        
+        bool32 EndOfFile = false;
+        uint32 BytesRead = 0;
+        
+        ReadFile(Handle, Result.Data, Result.Size, (LPDWORD)&BytesRead, NULL);
+    }
+    CloseHandle(Handle);
+    
+    return Result;
+}
+
+internal void 
+freeShaderCode(shader_code *Shader)
+{
+    if(Shader->Data != NULL)
+    {
+        delete[] Shader->Data;
+        Shader->Data = NULL;
+        Shader->Size = 0;
+    }
+}
+
+// internal void 
+// loadShader(char* FileName
+
+
 HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
 {
     HRESULT HResult;
@@ -358,50 +401,17 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     DeviceContext->OMSetDepthStencilState(DepthStencilState, 1);
             
     // NOTE: Compile Terrain Shaders
-    ID3D10Blob *BlobVs, *BlobPs;
-    ID3D10Blob *BlobError = nullptr;
     
-    HResult = D3DCompileFromFile(L"shaders.hlsl", 0, 0, "VShader", "vs_4_0", 0, 0, &BlobVs, &BlobError);
-    if(FAILED(HResult))
-    {
-        if(BlobError != nullptr)
-        {
-            OutputDebugStringA((char*)BlobError->GetBufferPointer());
-            MessageBox(Window, (char*)BlobError->GetBufferPointer(),
-                "Error in VShader", MB_OK | MB_ICONERROR);
-            BlobError->Release();
-        }
-        return HResult;
-    }
-    Device->CreateVertexShader(BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), 0, &TerrainVS);
+    shader_code VShader = loadShaderCode("terrain_vs.fxc");
+    HResult = Device->CreateVertexShader(VShader.Data, VShader.Size, 0, &TerrainVS);
+        
+    shader_code PShader = loadShaderCode("terrain_ps.fxc");
+    Device->CreatePixelShader(PShader.Data, PShader.Size, 0, &TerrainPS);
+    freeShaderCode(&PShader);
     
-    HResult = D3DCompileFromFile(L"shaders.hlsl", 0, 0, "TerrainPShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
-    if(FAILED(HResult))
-    {
-        if(BlobError != nullptr)
-        {
-            OutputDebugStringA((char*)BlobError->GetBufferPointer());
-            MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),
-                "Error in TerrainPShader", MB_OK | MB_ICONERROR);
-            BlobError->Release();
-        }
-        return HResult;
-    }
-    Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &TerrainPS);
-    
-    HResult = D3DCompileFromFile(L"shaders.hlsl", 0, 0, "LinePShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
-    if(FAILED(HResult))
-    {
-        if(BlobError != nullptr)
-        {
-            OutputDebugStringA((char*)BlobError->GetBufferPointer());
-            MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),	
-                "Error in LinePShader", MB_OK | MB_ICONERROR);
-            BlobError->Release();
-        }
-        return HResult;
-    }
-    Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &LinePS);
+    PShader = loadShaderCode("line_ps.fxc");
+    Device->CreatePixelShader(PShader.Data, PShader.Size, 0, &LinePS);
+    freeShaderCode(&PShader);
     
     // NOTE: Create Input Layout
     D3D11_INPUT_ELEMENT_DESC ElementDesc[] = 
@@ -411,42 +421,20 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
         {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
     HResult = Device->CreateInputLayout(ElementDesc, ArrayCount(ElementDesc), 
-                BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), &TerrainInputLayout);
-    BlobVs->Release();
-    BlobPs->Release();
+                VShader.Data, VShader.Size, &TerrainInputLayout);
+    freeShaderCode(&VShader);
     if(FAILED(HResult)) 
     {
         return HResult;
     }
     
     // NOTE: Background shaders
-    HResult = D3DCompileFromFile(L"shader_background.hlsl", 0, 0, "BackgroundVShader", "vs_4_0", 0, 0, &BlobVs, &BlobError);
-    if(FAILED(HResult))
-    {
-        if(BlobError != nullptr)
-        {
-            OutputDebugStringA((char*)BlobError->GetBufferPointer());
-            MessageBox(Window, (char*)BlobError->GetBufferPointer(),
-                "Error in VShader", MB_OK | MB_ICONERROR);
-            BlobError->Release();
-        }
-        return HResult;
-    }
-    Device->CreateVertexShader(BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), 0, &BackgroundVS);
+    VShader = loadShaderCode("background_vs.fxc");
+    Device->CreateVertexShader(VShader.Data, VShader.Size, 0, &BackgroundVS);
     
-    HResult = D3DCompileFromFile(L"shader_background.hlsl", 0, 0, "BackgroundPShader", "ps_4_0", 0, 0, &BlobPs, &BlobError);
-    if(FAILED(HResult))
-    {
-        if(BlobError != nullptr)
-        {
-            OutputDebugStringA((char*)BlobError->GetBufferPointer());
-            MessageBox(Window, (LPCSTR)BlobError->GetBufferPointer(),
-                "Error in TerrainPShader", MB_OK | MB_ICONERROR);
-            BlobError->Release();
-        }
-        return HResult;
-    }
-    Device->CreatePixelShader(BlobPs->GetBufferPointer(), BlobPs->GetBufferSize(), 0, &BackgroundPS);
+    PShader = loadShaderCode("background_ps.fxc");
+    Device->CreatePixelShader(PShader.Data, PShader.Size, 0, &BackgroundPS);
+    freeShaderCode(&PShader);
     
     // NOTE: Create Background Input Layout
                 
@@ -455,9 +443,8 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     HResult = Device->CreateInputLayout(BGElementDesc, ArrayCount(BGElementDesc), 
-                BlobVs->GetBufferPointer(), BlobVs->GetBufferSize(), &BackgroundInputLayout);
-    BlobVs->Release();
-    BlobPs->Release();
+                VShader.Data, VShader.Size, &BackgroundInputLayout);
+    freeShaderCode(&VShader);
     if(FAILED(HResult)) 
     {
         return HResult;

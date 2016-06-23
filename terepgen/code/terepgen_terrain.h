@@ -72,7 +72,7 @@ struct terrain_render_block
 
 // NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
 #define POS_GRID_SIZE(n) ((uint32)(((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1)
-#define RENDERED_BLOCK_RADIUS 3
+#define RENDERED_BLOCK_RADIUS 8
 #define DENSITY_BLOCK_RADIUS RENDERED_BLOCK_RADIUS+6
 #define ZERO_BLOCK_RADIUS 23
 #define BLOCK_POS_COUNT POS_GRID_SIZE(RENDERED_BLOCK_RADIUS)
@@ -92,8 +92,8 @@ struct density_block_pos_array
 
 #define DENSITY_BLOCK_COUNT 8000
 #define RENDER_BLOCK_COUNT 1500
-#define BLOCK_HASH_SIZE 16384
-#define ZERO_HASH_SIZE 32768
+#define BLOCK_HASH_SIZE 32768
+#define ZERO_HASH_SIZE 65536
 
 #define RESOLUTION_COUNT 3
 
@@ -118,10 +118,10 @@ struct world_density
     
     // NOTE: This must be a power of two for now!
     block_hash DensityHash[BLOCK_HASH_SIZE];
-    // NOTE: Index in ResolutionMapping means the Resolution that the block should be rendered
-    block_hash ResolutionMapping[BLOCK_HASH_SIZE];
     block_hash DynamicHash[BLOCK_HASH_SIZE];
     block_hash RenderHash[BLOCK_HASH_SIZE];
+    // NOTE: Index in ResolutionMapping means the Resolution that the block should be rendered
+    block_hash ResolutionMapping[BLOCK_HASH_SIZE];
     uint32 ZeroBlockCount;
     block_hash ZeroHash[ZERO_HASH_SIZE];
     

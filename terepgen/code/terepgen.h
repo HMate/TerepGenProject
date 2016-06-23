@@ -78,6 +78,7 @@ struct block_deformer
     // NOTE: positive makes air, negative makes ground
     real32 Sign;
     real32 Radius;
+    real32 Strength;
     v3 Center;
 };
 
@@ -105,8 +106,8 @@ struct game_state
     cube Cube;
     v3 CubePos;
     
-    cube_frame ResolutionCubes[DENSITY_BLOCK_COUNT];
-    int32 ResCubeCount;
+    cube_frame DebugBlockFrames[DENSITY_BLOCK_COUNT];
+    int32 DebugBlockFrameCount;
     
     avarage_time AvgPoligoniseTime;
     avarage_time FrameAvg;

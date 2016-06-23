@@ -63,6 +63,8 @@ struct game_input
     
     uint32 RenderMode;
     real32 DeformerSign;
+    bool32 ShowDebugGrid;
+    bool32 ShowDebugAxis;
     
     bool32 MouseLeftButton;
     bool32 MouseRightButton;
@@ -88,6 +90,8 @@ DefaultGameInput()
     
     Result.RenderMode = 0;
     Result.DeformerSign = 1.0f;
+    Result.ShowDebugGrid = false;
+    Result.ShowDebugAxis = false;
     
     Result.MouseLeftButton = false;
     Result.MouseRightButton = false;
@@ -97,6 +101,24 @@ DefaultGameInput()
     Result.OldMouseX = 0;
     Result.OldMouseY = 0;
     return Result;
+}
+
+internal void
+CopyInput(game_input* NewInput, game_input *OldInput)
+{
+    NewInput->MoveLeft = OldInput->MoveLeft;
+    NewInput->MoveRight = OldInput->MoveRight;
+    NewInput->MoveForward = OldInput->MoveForward;
+    NewInput->MoveBack = OldInput->MoveBack;
+    NewInput->MoveUp = OldInput->MoveUp;
+    NewInput->MoveDown = OldInput->MoveDown;
+    NewInput->SpeedUp = OldInput->SpeedUp;
+    NewInput->SpeedDown = OldInput->SpeedDown;
+    
+    NewInput->RenderMode = OldInput->RenderMode;
+    NewInput->DeformerSign = OldInput->DeformerSign;
+    NewInput->ShowDebugGrid = OldInput->ShowDebugGrid;
+    NewInput->ShowDebugAxis = OldInput->ShowDebugAxis;
 }
 
 #define TEREPGEN_TYPES_H

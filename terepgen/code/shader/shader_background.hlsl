@@ -20,8 +20,8 @@ struct SkyVIn
 
 struct SkyVOut
 {
-    float4 screenPos : SV_POSITION;
     float3 worldPos : POSITION;
+    float4 screenPos : SV_POSITION;
 };
 
 SkyVOut BackgroundVShader(SkyVIn input)

@@ -436,6 +436,7 @@ FillSessionDesc(game_state *GameState, uint32 SessionID)
         WriteFile(Handle, &GameState->Session, SessionDescSizeInBytes, (LPDWORD)&BytesWritten, NULL);
         Assert(BytesWritten == SessionDescSizeInBytes);
     }
+    CloseHandle(Handle);
 }
 
 internal bool32
@@ -471,7 +472,7 @@ ChangeDynamicValue(block_deformer *Deformer, real32 OldVal, block_node *Node)
     real32 Result = 0.0f;
     if(Deformer->Type == DeformerTypeSphere || Deformer->Type == DeformerTypeCube)
     {
-        Result = OldVal + Deformer->Sign*1.0f;
+        Result = OldVal + Deformer->Sign * Deformer->Strength;
     }
     else if(Deformer->Type == DeformerTypeGradualSphere)
     {
@@ -479,7 +480,7 @@ ChangeDynamicValue(block_deformer *Deformer, real32 OldVal, block_node *Node)
         v3 Diff = NodeRenderP - Deformer->Center;
         real32 DistanceFromClick = Length(Diff);
         real32 Scale = (Deformer->Radius - DistanceFromClick) / Deformer->Radius;
-        Result = OldVal + Scale*Deformer->Sign*1.0f;
+        Result = OldVal + Scale * Deformer->Sign * Deformer->Strength;
     }
     else
     {
@@ -757,7 +758,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     if(World->ZeroBlockCount > (ArrayCount(World->ZeroHash)*7/8))
     {
         int32 ZeroSpaceRadius = ZERO_BLOCK_RADIUS;
-        block_hash NewZeroHash[ZERO_HASH_SIZE];
+        block_hash *NewZeroHash = new block_hash[ZERO_HASH_SIZE];
         for(uint32 ZeroIndex = 0; 
             ZeroIndex < ArrayCount(World->ZeroHash); 
             ++ZeroIndex)
@@ -781,6 +782,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
                 World->ZeroBlockCount++;
             }
         }
+        delete[] NewZeroHash;
     }
     //real64 DeleteZeroTime = Clock.GetSecondsElapsed();
     Clock.Reset();
@@ -838,23 +840,27 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
             real32 Value = PosValue + DynamicVal;
             if(Value < DENSITY_ISO_LEVEL)
             {
+                real32 DeformerStrength = 50.0f;
                 block_deformer SphereDeformer;
                 SphereDeformer.Type = DeformerTypeSphere;
                 SphereDeformer.Sign = 1.0f * Input->DeformerSign;
                 SphereDeformer.Radius = 30.0f;
                 SphereDeformer.Center = CheckPos;
+                SphereDeformer.Strength = DeformerStrength;
                 
                 block_deformer GradualSphereDeformer;
                 GradualSphereDeformer.Type = DeformerTypeGradualSphere;
                 GradualSphereDeformer.Sign = 1.0f * Input->DeformerSign;
                 GradualSphereDeformer.Radius = 30.0f;
                 GradualSphereDeformer.Center = CheckPos;
+                GradualSphereDeformer.Strength = DeformerStrength;
                 
                 block_deformer CubeDeformer;
                 CubeDeformer.Type = DeformerTypeCube;
                 CubeDeformer.Sign = 1.0f * Input->DeformerSign;
                 CubeDeformer.Radius = 30.0f;
                 CubeDeformer.Center = CheckPos;
+                CubeDeformer.Strength = DeformerStrength;
                 
                 block_deformer *UsedDeformer = &GradualSphereDeformer;
                 
@@ -1231,29 +1237,32 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     DXResources->ObjectConstants.CameraDir = DirectX::XMFLOAT4(CamDir.X, CamDir.Y, CamDir.Z, 0.0f);
     DXResources->DrawBackground(BGVertices, 6);
     
-    // NOTE: Render axis
-    DXResources->SetDrawModeDefault();
+    //DXResources->DeviceContext->PSSetSamplers(0, 1, &DXResources->TexSamplerState);
     DXResources->DeviceContext->IASetInputLayout(DXResources->TerrainInputLayout);
-    DXResources->DeviceContext->VSSetShader(DXResources->TerrainVS, 0, 0);
-    DXResources->DeviceContext->PSSetShader(DXResources->LinePS, 0, 0);
-    DXResources->DeviceContext->PSSetSamplers(0, 1, &DXResources->TexSamplerState);
+    if(Input->ShowDebugAxis)
+    {
+        // NOTE: Render axis
+        DXResources->SetDrawModeDefault();
+        DXResources->DeviceContext->VSSetShader(DXResources->TerrainVS, 0, 0);
+        DXResources->DeviceContext->PSSetShader(DXResources->LinePS, 0, 0);
+        DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+        
+        const real32 AxisSize = 256;
+        const uint32 VertCount = 6;
+        const v4 Red{1.0f, 0.0f, 0.0f, 1.0f};
+        const v4 Green{0.0f, 1.0f, 0.0f, 1.0f}; 
+        const v4 Blue{0.0f, 0.0f, 1.0f, 1.0f};
+        const v3 Normal{0.0f, 1.0f, 0.0f};
+        vertex AxisVertices[VertCount]={Get3DVertex(v3{ 1.0f*AxisSize,  0.0f,  0.0f}, Normal, Red),
+                                        Get3DVertex(v3{-1.0f*AxisSize,  0.0f,  0.0f}, Normal, Red),
+                                        Get3DVertex(v3{ 0.0f,  1.0f*AxisSize,  0.0f}, Normal, Green),
+                                        Get3DVertex(v3{ 0.0f, -1.0f*AxisSize,  0.0f}, Normal, Green),
+                                        Get3DVertex(v3{ 0.0f,  0.0f,  1.0f*AxisSize}, Normal, Blue),
+                                        Get3DVertex(v3{ 0.0f,  0.0f, -1.0f*AxisSize}, Normal, Blue)};
+        DXResources->DrawLines(AxisVertices, VertCount);
+        // DXResources->DrawDebugTriangle();
+    }
     
-    const real32 AxisSize = 256;
-    const uint32 VertCount = 6;
-    const v4 Red{1.0f, 0.0f, 0.0f, 1.0f};
-    const v4 Green{0.0f, 1.0f, 0.0f, 1.0f}; 
-    const v4 Blue{0.0f, 0.0f, 1.0f, 1.0f};
-    const v3 Normal{0.0f, 1.0f, 0.0f};
-    vertex AxisVertices[VertCount]={Get3DVertex(v3{ 1.0f*AxisSize,  0.0f,  0.0f}, Normal, Red),
-                                    Get3DVertex(v3{-1.0f*AxisSize,  0.0f,  0.0f}, Normal, Red),
-                                    Get3DVertex(v3{ 0.0f,  1.0f*AxisSize,  0.0f}, Normal, Green),
-                                    Get3DVertex(v3{ 0.0f, -1.0f*AxisSize,  0.0f}, Normal, Green),
-                                    Get3DVertex(v3{ 0.0f,  0.0f,  1.0f*AxisSize}, Normal, Blue),
-                                    Get3DVertex(v3{ 0.0f,  0.0f, -1.0f*AxisSize}, Normal, Blue)};
-    DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    DXResources->DrawLines(AxisVertices, VertCount);
-    // DXResources->DrawDebugTriangle();
-
     if(GameState->RenderMode)
     {
         DXResources->SetDrawModeWireframe();
@@ -1266,6 +1275,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     DXResources->DeviceContext->VSSetShader(DXResources->TerrainVS, 0, 0);
     DXResources->DeviceContext->PSSetShader(DXResources->TerrainPS, 0, 0);
+    DXResources->DeviceContext->PSSetSamplers(0, 1, &DXResources->TexSamplerState);
     
     for(size_t RenderBlockIndex = 0; 
         RenderBlockIndex < GameState->RenderBlockCount; 
@@ -1285,43 +1295,45 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     DXResources->DrawTriangles(GameState->Cube.Vertices, CubeVertexCount);
     DXResources->SetTransformations(v3{});
     
-    
-    // NOTE: Draw debug resolution blocks
-    GameState->ResCubeCount = 0;
-    DXResources->SetDrawModeWireframe();
-    DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    
-    for(uint32 ResolutionIndex = 0;
-        ResolutionIndex < World->StoreResolutionCount;
-        ResolutionIndex++)
+    if(Input->ShowDebugGrid)
     {
-        density_block_pos_array *BlockPositions = World->DensityPositionStore + ResolutionIndex;
-        for(size_t BlockPosIndex = 0; 
-            (BlockPosIndex < BlockPositions->Count);
-            ++BlockPosIndex)
+        // NOTE: Draw debug resolution blocks
+        GameState->DebugBlockFrameCount = 0;
+        DXResources->SetDrawModeWireframe();
+        DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+        
+        for(uint32 ResolutionIndex = 0;
+            ResolutionIndex < World->StoreResolutionCount;
+            ResolutionIndex++)
         {
-            world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;            
-            block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
-            if(ResHash->Index == BlockP->Resolution)
+            density_block_pos_array *BlockPositions = World->DensityPositionStore + ResolutionIndex;
+            for(size_t BlockPosIndex = 0; 
+                (BlockPosIndex < BlockPositions->Count);
+                ++BlockPosIndex)
             {
-                v3 RenderPos = V3FromWorldPos(*BlockP);
-                real32 Size = (RENDER_SPACE_UNIT*TERRAIN_BLOCK_SIZE*BlockP->Resolution);
-                RenderPos += v3{0.5f, 0.5f, 0.5f}*Size;
-                
-                v4 Color{1.0f, 1.0f, 0.0f, 1.0f};
-                if(BlockP->Resolution > 4)
+                world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;            
+                block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+                if(ResHash->Index == BlockP->Resolution)
                 {
-                    Color = v4{0.0f, 0.3f, 0.0f, 1.0f};
+                    v3 RenderPos = V3FromWorldPos(*BlockP);
+                    real32 Size = (RENDER_SPACE_UNIT*TERRAIN_BLOCK_SIZE*BlockP->Resolution);
+                    RenderPos += v3{0.5f, 0.5f, 0.5f}*Size;
+                    
+                    v4 Color{1.0f, 1.0f, 0.0f, 1.0f};
+                    if(BlockP->Resolution > 4)
+                    {
+                        Color = v4{0.0f, 0.3f, 0.0f, 1.0f};
+                    }
+                    
+                    cube_frame *BlockCube = GameState->DebugBlockFrames + GameState->DebugBlockFrameCount++;
+                    AddCubeWireframe(BlockCube, RenderPos, Size-0.1f, Color);
                 }
-                
-                cube_frame *BlockCube = GameState->ResolutionCubes + GameState->ResCubeCount++;
-                AddCubeWireframe(BlockCube, RenderPos, Size-0.1f, Color);
             }
         }
+        
+        DXResources->DrawTriangles(GameState->DebugBlockFrames->Vertices, CubeFrameVertexCount*GameState->DebugBlockFrameCount);
+        DXResources->SetTransformations(v3{});
     }
-    
-    DXResources->DrawTriangles(GameState->ResolutionCubes->Vertices, CubeFrameVertexCount*GameState->ResCubeCount);
-    DXResources->SetTransformations(v3{});
     
     DXResources->SwapChain->Present(0, 0);
     

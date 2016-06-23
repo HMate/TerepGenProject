@@ -19,10 +19,10 @@ struct VIn
 
 struct VOut
 {
-    float4 screenPos : SV_POSITION;
+    float4 worldPos : POSITION;
     linear float3 normal : NORMAL;
     float4 color : COLOR;
-    float4 worldPos : POSITION;
+    float4 screenPos : SV_POSITION;
 };
 
 VOut VShader(VIn input)
