@@ -85,3 +85,4 @@ $RECYCLE.BIN/
 misc/
 build/
 /data/sessions.txt
+/data/dynamicStore*.txt
