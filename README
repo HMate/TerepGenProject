@@ -1,0 +1,23 @@
+TerepGen - A 3D dynamic terrain generator by Hidvégi Máté
+
+Description:
+The program creates a procedurally generated 3D landscape 
+which can dynamically be changed with the right mouse button.
+With the 'B' key, you can change between adding and erasing ground.
+
+Requirements for building: 
+Msvc 12.0 compiler, DirectX11 SDK
+
+How to build:
+To build the project, you have to run the terepgen/code/build.bat batch file.
+Compiling requires msvc compiler. For the build script to find this, you have to create a 
+"terepgen/misc/load_msvc.bat" file with call to the vcvarsall script of the msvc compiler you want to use.
+For example load_msvc.bat should contain a similar line:
+call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
+
+The program was tested with msvc 12.0(VS2013) and msvc 14.0(VS2015) compilers.
+
+Compiling shaders:
+Shader compilation happens with the call to terepegen/code/shader/build_shaders.bat script.
+The script requires to be given the location of fxc.exe in the script.
+Fxc.exe is the shader compiler of DirectX, which can be found in the DirectX SDK.
