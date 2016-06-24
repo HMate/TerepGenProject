@@ -6,7 +6,11 @@ REM chcp 1252>nul
 
 echo TerepGen compile starting at %TIME%
 
-cd /d Y:\code
+set projPath=%~dp0
+
+cd /d %projPath%
+REM load_msvc.bat set up the enviroment, so msvc cl.exe can be called
+REM eg. it contains a similar line : call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
 call "..\misc\load_msvc.bat"
 
 set debugBuild= 1
