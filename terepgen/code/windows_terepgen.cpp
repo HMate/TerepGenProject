@@ -181,7 +181,6 @@ internal void
 CalculateAvarageTime(win32_clock Clock, avarage_time *Avarage)
 {
     real64 CurrentTime = Clock.GetSecondsElapsed();
-    //win32_printer::Print("poligonise: %f", CurrentTime * 1000.0);
     real64 LastMeasure = Avarage->MeasureCount;
     Avarage->MeasureCount += 1.0f;
     Avarage->AvgTime = 
@@ -202,6 +201,41 @@ Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
     real64 Result = ((real64)(End.QuadPart - Start.QuadPart) /
                     (real64)GlobalPerfCountFrequency.QuadPart);
     return Result;
+}
+
+internal FileHandle
+PlatformOpenFileForRead(char *FileName)
+{
+    FileHandle Handle = CreateFile(FileName, GENERIC_READ,
+        FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    Assert(Handle != INVALID_HANDLE_VALUE);
+    return Handle;
+}
+
+internal FileHandle
+PlatformOpenOrCreateFileForWrite(char *FileName)
+{
+    FileHandle Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if(Handle == INVALID_HANDLE_VALUE)
+    {
+        uint32 Error = GetLastError();
+        if(Error == ERROR_FILE_NOT_FOUND)
+        {
+            // NOTE: The file didn't exist before, so now we create it
+            Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+            Assert(Handle != INVALID_HANDLE_VALUE);
+        }
+    }
+    return Handle;
+}
+
+internal bool32
+FileIsEmpty(FileHandle Handle)
+{
+    bool32 IsEmpty = (0 == GetFileSize(Handle, NULL));
+    return IsEmpty;
 }
 
 #include "terepgen.cpp"

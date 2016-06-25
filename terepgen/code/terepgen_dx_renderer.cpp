@@ -161,12 +161,7 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
         delete[] Image;
         return HResult;
     }
-    
-    // NOTE: Should use UpdateSubresource, if the resource isnt loaded every frame
-    // uint32 RowPitch = ImgWidth * 4;
-    // uint32 DepthPitch = RowPitch * ImgHeight;
-    // DXResources->DeviceContext->UpdateSubresource(Tex, 0, ???, Image, RowPitch, DepthPitch);
-    
+        
     D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc;
     SrvDesc.Format = TextureDesc.Format;
     // SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -194,29 +189,25 @@ struct shader_code
 };
 
 internal shader_code 
-loadShaderCode(char* FileName)
+LoadShaderCode(char* FileName)
 {
     shader_code Result;
     Result.Size = 0;
-    FileHandle Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if(Handle != INVALID_HANDLE_VALUE)
-    {
-        Result.Size = GetFileSize(Handle, NULL);
-        Result.Data = new uint8[Result.Size];
-        
-        bool32 EndOfFile = false;
-        uint32 BytesRead = 0;
-        
-        ReadFile(Handle, Result.Data, Result.Size, (LPDWORD)&BytesRead, NULL);
-    }
+    FileHandle Handle = PlatformOpenFileForRead(FileName); 
+    Result.Size = GetFileSize(Handle, NULL);
+    Result.Data = new uint8[Result.Size];
+    
+    bool32 EndOfFile = false;
+    uint32 BytesRead = 0;
+    ReadFile(Handle, Result.Data, Result.Size, (LPDWORD)&BytesRead, NULL);
+    
     CloseHandle(Handle);
     
     return Result;
 }
 
 internal void 
-freeShaderCode(shader_code *Shader)
+FreeShaderCode(shader_code *Shader)
 {
     if(Shader->Data != NULL)
     {
@@ -225,10 +216,6 @@ freeShaderCode(shader_code *Shader)
         Shader->Size = 0;
     }
 }
-
-// internal void 
-// loadShader(char* FileName
-
 
 HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
 {
@@ -402,16 +389,16 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
             
     // NOTE: Compile Terrain Shaders
     
-    shader_code VShader = loadShaderCode("terrain_vs.fxc");
+    shader_code VShader = LoadShaderCode("terrain_vs.fxc");
     HResult = Device->CreateVertexShader(VShader.Data, VShader.Size, 0, &TerrainVS);
         
-    shader_code PShader = loadShaderCode("terrain_ps.fxc");
+    shader_code PShader = LoadShaderCode("terrain_ps.fxc");
     Device->CreatePixelShader(PShader.Data, PShader.Size, 0, &TerrainPS);
-    freeShaderCode(&PShader);
+    FreeShaderCode(&PShader);
     
-    PShader = loadShaderCode("line_ps.fxc");
+    PShader = LoadShaderCode("line_ps.fxc");
     Device->CreatePixelShader(PShader.Data, PShader.Size, 0, &LinePS);
-    freeShaderCode(&PShader);
+    FreeShaderCode(&PShader);
     
     // NOTE: Create Input Layout
     D3D11_INPUT_ELEMENT_DESC ElementDesc[] = 
@@ -422,19 +409,19 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     };
     HResult = Device->CreateInputLayout(ElementDesc, ArrayCount(ElementDesc), 
                 VShader.Data, VShader.Size, &TerrainInputLayout);
-    freeShaderCode(&VShader);
+    FreeShaderCode(&VShader);
     if(FAILED(HResult)) 
     {
         return HResult;
     }
     
     // NOTE: Background shaders
-    VShader = loadShaderCode("background_vs.fxc");
+    VShader = LoadShaderCode("background_vs.fxc");
     Device->CreateVertexShader(VShader.Data, VShader.Size, 0, &BackgroundVS);
     
-    PShader = loadShaderCode("background_ps.fxc");
+    PShader = LoadShaderCode("background_ps.fxc");
     Device->CreatePixelShader(PShader.Data, PShader.Size, 0, &BackgroundPS);
-    freeShaderCode(&PShader);
+    FreeShaderCode(&PShader);
     
     // NOTE: Create Background Input Layout
                 
@@ -444,7 +431,7 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     };
     HResult = Device->CreateInputLayout(BGElementDesc, ArrayCount(BGElementDesc), 
                 VShader.Data, VShader.Size, &BackgroundInputLayout);
-    freeShaderCode(&VShader);
+    FreeShaderCode(&VShader);
     if(FAILED(HResult)) 
     {
         return HResult;

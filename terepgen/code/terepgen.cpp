@@ -30,6 +30,7 @@ CopyString(char *Dest, char *Source)
 #include "terepgen_units.cpp"
 #include "terepgen_hash.cpp"
 #include "terepgen_resolutions.cpp"
+#include "terepgen_marching_cubes.cpp"
 #include "terepgen_terrain.cpp"
 #include "terepgen_dx_renderer.cpp"
 
@@ -379,30 +380,11 @@ ManhattanDistance(world_block_pos *A, world_block_pos *B)
     return Result;
 }
 
-internal FileHandle
-OpenSessionFile(char *FileName)
-{
-    FileHandle Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if(Handle == INVALID_HANDLE_VALUE)
-    {
-        uint32 Error = GetLastError();
-        if(Error == ERROR_FILE_NOT_FOUND)
-        {
-            // NOTE: The file didn't exist before, so now we create its header
-            Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
-                FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-            Assert(Handle != INVALID_HANDLE_VALUE);
-        }
-    }
-    return Handle;
-}
-
 internal void
-FillSessionDesc(game_state *GameState, uint32 SessionID)
+LoadSessionDesc(game_state *GameState, uint32 SessionID)
 {
     char *SessionFile = "sessions.txt";
-    FileHandle Handle = OpenSessionFile(SessionFile);
+    FileHandle Handle = PlatformOpenOrCreateFileForWrite(SessionFile);
     
     //NOTE: Read blocks until we find the one we need
     bool32 NotFound = true;
@@ -574,7 +556,7 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
         World->StoreResolutionCount = RESOLUTION_COUNT-1;
         World->MaxResolutionToRender = RESOLUTION_COUNT-2;
         
-        FillSessionDesc(GameState, 321421);
+        LoadSessionDesc(GameState, 321421);
         
         GameState->Seed = 1000;
         GameState->WorldDensity.BlockSize = real32(TERRAIN_BLOCK_SIZE);

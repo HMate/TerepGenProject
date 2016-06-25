@@ -341,24 +341,14 @@ Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
 internal FileHandle
 OpenBlocksFile(game_state *GameState, char *FileName)
 {
-    FileHandle Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if(Handle == INVALID_HANDLE_VALUE)
+    FileHandle Handle = PlatformOpenOrCreateFileForWrite(FileName);
+    if(FileIsEmpty(Handle))
     {
-        uint32 Error = GetLastError();
-        if(Error == ERROR_FILE_NOT_FOUND)
-        {
-            // NOTE: The file didn't exist before, so now we create its header
-            Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
-                FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-            Assert(Handle != INVALID_HANDLE_VALUE);
-            
-            uint32 *Data = &GameState->Session.ID;
-            uint32 Length = 4;
-            uint32 BytesWritten;
-            WriteFile(Handle, Data, Length, (LPDWORD)&BytesWritten, NULL);
-            SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
-        }
+        // NOTE: The file didn't exist before, so now we create its header
+        uint32 *Data = &GameState->Session.ID;
+        uint32 Length = 4;
+        uint32 BytesWritten;
+        WriteFile(Handle, Data, Length, (LPDWORD)&BytesWritten, NULL);
     }
     return Handle;
 }
@@ -408,7 +398,7 @@ SaveBlockToFile(game_state *GameState, char *FileName, terrain_density_block *Bl
 }
 
 // NOTE: Loads a block from a file
-// If the file was not in the file, returns false
+// If the block was not in the file, returns false
 internal bool32
 LoadBlockFromFile(game_state *GameState, char *FileName, terrain_density_block *Block, world_block_pos *BlockP)
 {
@@ -471,6 +461,7 @@ CreateNewDynamicBlock(game_state *GameState, world_density *World, world_block_p
     bool32 Loaded = LoadBlockFromFile(GameState, GameState->Session.DynamicStore, DynamicB, BlockP);
     if(!Loaded)
     {
+        // TODO: If this block already have a lower resolution parent, values should be taken from there
         /*if(BlockP->Resolution < World->FixedResolution[0])
         {
             // NOTE: Parent block should be existing at this pointer
