@@ -543,11 +543,11 @@ DeformBlocks(game_state *GameState, world_density *World,
 }
 
 internal void
-UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, screen_info ScreenInfo)
+UpdateAndRenderGame(game_memory *Memory, game_input *Input, camera *Camera, screen_info ScreenInfo)
 {
-    int32 debugGS = getGridSize(13);
-    
+    game_state *GameState = (game_state *)Memory->Base;
     world_density *World = &GameState->WorldDensity;
+    
     if(GameState->Initialized == false)
     {
         World->FixedResolution[0] = 8;
@@ -649,7 +649,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     }
     Clock.Reset();
     
-    if(World->DynamicBlockCount > (ArrayCount(World->DynamicBlocks) - 7000))
+    uint32 DynamicClearThreshold = (ArrayCount(World->DynamicBlocks) - 100);
+    if(World->DynamicBlockCount > DynamicClearThreshold)
     {
         win32_printer::DebugPrint("Clearing Dynamic Blocks! count: %d", World->DynamicBlockCount);
         int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
@@ -686,7 +687,8 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
     }
     Clock.Reset();
     
-    if(World->PoligonisedBlockCount > (ArrayCount(World->PoligonisedBlocks) - 1300))
+    uint32 PoligonisedBlockClearThreshold = (ArrayCount(World->PoligonisedBlocks) - 100);
+    if(World->PoligonisedBlockCount > PoligonisedBlockClearThreshold)
     {
         int32 LoadSpaceRadius = RENDERED_BLOCK_RADIUS + 2;
         for(uint32 StoreIndex = 0; 
@@ -1334,8 +1336,9 @@ UpdateAndRenderGame(game_state *GameState, game_input *Input, camera *Camera, sc
 }
 
 internal void
-SaveGameState(game_state *GameState)
+SaveGameState(game_memory *Memory)
 {
+    game_state *GameState = (game_state *)Memory->Base;
     world_density *World = &GameState->WorldDensity;
     if(GameState->Initialized)
     {

@@ -14,6 +14,7 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
     
     v3 BlockPos = V3FromWorldPos(*WorldP);
     
+    DensityBlock->Grid.Dimension = GRID_DIMENSION;
     uint32 TerrainDimension = DensityBlock->Grid.Dimension;
     for(uint32 X = 0;
         X < TerrainDimension;

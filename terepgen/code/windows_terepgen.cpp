@@ -426,6 +426,15 @@ WinMain(HINSTANCE Instance,
         
         if(Window)
         {
+            game_memory Memory;
+            Memory.Size = GIGABYTE(1);
+            Memory.Base = VirtualAlloc(NULL, Memory.Size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            if(Memory.Base == NULL)
+            {
+                win32_printer::DebugPrint("Cannot allocate enough memory");
+                return 1;
+            }
+        
             dx_resource DXResources;
             HRESULT HResult = DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height);
             if(FAILED(HResult))
@@ -448,7 +457,7 @@ WinMain(HINSTANCE Instance,
             game_input *NewInput = &Inputs[0];
             game_input *OldInput = &Inputs[1];
             
-            game_state *GameState = new game_state;
+            game_state *GameState = (game_state*)Memory.Base;
             GameState->Initialized = false;
             GameState->DXResources = &DXResources;
             
@@ -496,7 +505,7 @@ WinMain(HINSTANCE Instance,
                 GameState->dtForFrame = WorldClock.GetSecondsElapsed();
                 WorldClock.Reset();
                 
-                UpdateAndRenderGame(GameState, NewInput, &Camera, ScreenInfo);
+                UpdateAndRenderGame(&Memory, NewInput, &Camera, ScreenInfo);
                 
                 game_input *Temp = NewInput;
                 NewInput = OldInput;
@@ -514,9 +523,8 @@ WinMain(HINSTANCE Instance,
                 FrameClock.Reset();
             }
             
-            SaveGameState(GameState);
+            SaveGameState(&Memory);
             
-            delete GameState;
             Camera.Release();
             DXResources.Release();
         }

@@ -44,6 +44,12 @@ typedef double real64;
 #define MEGABYTE(Size) (1024LL*1024LL*(Size))
 #define GIGABYTE(Size) (1024LL*1024LL*1024LL*(Size))
 
+struct game_memory
+{
+    uint64 Size;
+    void *Base;
+};
+
 struct screen_info
 {
     int32 Width;

@@ -112,8 +112,8 @@ struct game_state
     avarage_time FrameAvg;
 };
 
-internal void UpdateAndRenderGame(game_state*, game_input*, camera*, screen_info);
-internal void SaveGameState(game_state*);
+internal void UpdateAndRenderGame(game_memory*, game_input*, camera*, screen_info);
+internal void SaveGameState(game_memory*);
 
 #define TEREPGEN_H
 #endif
