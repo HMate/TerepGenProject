@@ -543,13 +543,18 @@ DeformBlocks(game_state *GameState, world_density *World,
 }
 
 internal void
-UpdateAndRenderGame(game_memory *Memory, game_input *Input, camera *Camera, screen_info ScreenInfo)
+UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenInfo, bool32 Resize)
 {
-    game_state *GameState = (game_state *)Memory->Base;
+    Assert(sizeof(game_state) < Memory->PermanentStorageSize);
+    game_state *GameState = (game_state *)Memory->PermanentStorage;
+    render_state *RenderState = &GameState->RenderState;
     world_density *World = &GameState->WorldDensity;
-    
+        
     if(GameState->Initialized == false)
     {
+        InitializeArena(&GameState->WorldArena, (uint8 *)Memory->PermanentStorage + sizeof(game_state), 
+                        Memory->PermanentStorageSize - sizeof(game_state));
+        
         World->FixedResolution[0] = 8;
         World->FixedResolution[1] = 4;
         World->FixedResolution[2] = 2;
@@ -568,6 +573,53 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, camera *Camera, scre
         
         GameState->Initialized = true;
     }
+    
+    // NOTE: Initialize transient state
+    Assert(sizeof(transient_state) < Memory->TransientStorageSize);
+    transient_state *TranState = (transient_state *)Memory->TransientStorage;
+    if(TranState->Initialized == false)
+    {
+        InitializeArena(&TranState->TranArena, (uint8 *)Memory->TransientStorage + sizeof(transient_state), 
+                        Memory->TransientStorageSize - sizeof(transient_state));
+        TranState->Initialized = true;
+    }
+    
+    camera *Camera = &RenderState->Camera;
+    if(RenderState->Initialized == false)
+    {
+        HRESULT HResult = RenderState->DXResources.Initialize(ScreenInfo.Width, ScreenInfo.Height);
+        if(FAILED(HResult))
+        {
+            char* ErrMsg = RenderState->DXResources.GetDebugMessage(HResult);
+            win32_printer::DebugPrint("Initialize error: %s", ErrMsg);
+#if TEREPGEN_DEBUG
+            char DebugBuffer[256];
+            sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Initialize error: %s\n", ErrMsg);
+            MessageBox(NULL, DebugBuffer, NULL, MB_OK);
+#endif
+            RenderState->DXResources.Release();
+            TerminateGame();
+            return;
+        }
+        
+        RenderState->Camera.Initialize(&RenderState->DXResources, ScreenInfo.Width, ScreenInfo.Height, 20.0f);
+        RenderState->Initialized = true;
+    }
+    
+    if(Resize)
+    {
+        HRESULT HResult = RenderState->DXResources.Resize(ScreenInfo.Width, ScreenInfo.Height);
+        if(FAILED(HResult)) 
+        {
+            char* ErrMsg = RenderState->DXResources.GetDebugMessage(HResult);
+            win32_printer::DebugPrint("Resize error: %s", ErrMsg);
+            
+            TerminateGame();
+            return;
+        }
+        Camera->Resize(ScreenInfo.Width, ScreenInfo.Height);
+    }
+    
     GameState->RenderMode = Input->RenderMode;
     
     Camera->Update(Input, GameState->dtForFrame);
@@ -587,7 +639,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, camera *Camera, scre
     v3 WorldMousePos = CameraP + (UpDir*NormalizedMouse.Y*WorldScreenSizeY) 
         + (RightDir*NormalizedMouse.X*WorldScreenSizeX);
         
-    GameState->CameraOrigo = CameraP + Normalize(Cross(UpDir, RightDir));
+    RenderState->CameraOrigo = CameraP + Normalize(Cross(UpDir, RightDir));
     
     
     world_block_pos WorldCameraP[RESOLUTION_COUNT] = {
@@ -810,12 +862,12 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, camera *Camera, scre
     // NOTE: Handle Mouse click
     if(Input->MouseRightButton)
     {
-        v3 RayDirection = Normalize(WorldMousePos - GameState->CameraOrigo);
+        v3 RayDirection = Normalize(WorldMousePos - RenderState->CameraOrigo);
         for(real32 RayLength = 0.5f; 
             RayLength < 2000.0f; 
             RayLength += 0.5f)
         {
-            v3 CheckPos = GameState->CameraOrigo + (RayLength*RayDirection);
+            v3 CheckPos = RenderState->CameraOrigo + (RayLength*RayDirection);
             
             real32 PosValue = GetWorldGridValueFromV3(World, CheckPos, World->FixedResolution[0]);
             block_node ClickNode = ConvertRenderPosToBlockNode(CheckPos, World->FixedResolution[0]);
@@ -1198,7 +1250,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, camera *Camera, scre
     
     Clock.Reset();
     
-    dx_resource *DXResources = GameState->DXResources;
+    dx_resource *DXResources = &RenderState->DXResources;
     DXResources->LoadResource(Camera->SceneConstantBuffer,
                   &Camera->SceneConstants, sizeof(Camera->SceneConstants));
     
@@ -1338,7 +1390,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, camera *Camera, scre
 internal void
 SaveGameState(game_memory *Memory)
 {
-    game_state *GameState = (game_state *)Memory->Base;
+    game_state *GameState = (game_state *)Memory->PermanentStorage;
     world_density *World = &GameState->WorldDensity;
     if(GameState->Initialized)
     {
@@ -1350,6 +1402,9 @@ SaveGameState(game_memory *Memory)
             SaveBlockToFile(GameState, GameState->Session.DynamicStore, Block);
         }
     }
+    
+    GameState->RenderState.Camera.Release();
+    GameState->RenderState.DXResources.Release();
 }
 
 

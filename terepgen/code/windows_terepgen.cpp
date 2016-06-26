@@ -17,7 +17,7 @@
 #include "terepgen.h"
 
 global_variable bool32 GlobalRunning = true;
-global_variable bool32 Resize;
+global_variable bool32 GlobalResize;
 global_variable LARGE_INTEGER GlobalPerfCountFrequency;  
 
 struct win32_printer
@@ -253,6 +253,11 @@ GetWindowDimension(HWND Window)
 
     return Result;
 }
+
+internal void TerminateGame()
+{
+    GlobalRunning = false;
+}
         
 LRESULT CALLBACK
 WindowProc(HWND Window, 
@@ -267,19 +272,19 @@ WindowProc(HWND Window,
         case WM_DESTROY:
         {
             win32_printer::DebugPrint("message arrived: WM_DESTROY");
-            GlobalRunning = false;
+            TerminateGame();
         } break;
 
         case WM_CLOSE:
         {
             win32_printer::DebugPrint("message arrived: WM_CLOSE");
-            GlobalRunning = false;
+            TerminateGame();
         } break;
         
         case WM_SIZE:
         {
             win32_printer::DebugPrint("message arrived: WM_SIZE");
-            Resize = true;
+            GlobalResize = true;
         } break;
         
         case WM_KEYDOWN:
@@ -373,7 +378,7 @@ Win32HandleMessages(game_input *Input)
                     }
                     else if(KeyCode == VK_ESCAPE && KeyIsDown)
                     {
-                       GlobalRunning = false;
+                       TerminateGame();
                     }
                     
                 }
@@ -427,39 +432,22 @@ WinMain(HINSTANCE Instance,
         if(Window)
         {
             game_memory Memory;
-            Memory.Size = GIGABYTE(1);
-            Memory.Base = VirtualAlloc(NULL, Memory.Size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-            if(Memory.Base == NULL)
+            Memory.PermanentStorageSize = MEGABYTE(512);
+            Memory.TransientStorageSize = MEGABYTE(512);
+            uint64 MemoryTotalSize = Memory.PermanentStorageSize + Memory.TransientStorageSize;
+            Memory.PermanentStorage = VirtualAlloc(NULL, MemoryTotalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            Memory.TransientStorage = (uint8*)Memory.PermanentStorage + Memory.PermanentStorageSize;
+            if(Memory.PermanentStorage == NULL)
             {
                 win32_printer::DebugPrint("Cannot allocate enough memory");
                 return 1;
             }
-        
-            dx_resource DXResources;
-            HRESULT HResult = DXResources.Initialize(Window, ScreenInfo.Width, ScreenInfo.Height);
-            if(FAILED(HResult))
-            {
-                char* ErrMsg = DXResources.GetDebugMessage(HResult);
-                win32_printer::DebugPrint("Initialize error: %s", ErrMsg);
-#if TEREPGEN_DEBUG
-                char DebugBuffer[256];
-                sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Initialize error: %s\n", ErrMsg);
-                MessageBox(NULL, DebugBuffer, NULL, MB_OK);
-#endif
-                DXResources.Release();
-                return 1;
-            }
-            
-            camera Camera;
-            Camera.Initialize(&DXResources, ScreenInfo.Width, ScreenInfo.Height, 20.0f);
-            
+            game_state *GameState = (game_state*)Memory.PermanentStorage;
+                    
             game_input Inputs[2] = {DefaultGameInput(), DefaultGameInput()};
             game_input *NewInput = &Inputs[0];
             game_input *OldInput = &Inputs[1];
             
-            game_state *GameState = (game_state*)Memory.Base;
-            GameState->Initialized = false;
-            GameState->DXResources = &DXResources;
             
             QueryPerformanceFrequency(&GlobalPerfCountFrequency);
             win32_clock FrameClock;
@@ -472,21 +460,8 @@ WinMain(HINSTANCE Instance,
                 CopyInput(NewInput, OldInput);
                 
                 Win32HandleMessages(NewInput);
-                
-                if(Resize)
-                {
-                    ScreenInfo = GetWindowDimension(Window);
-                    HResult = DXResources.Resize(ScreenInfo.Width, ScreenInfo.Height);
-                    if(FAILED(HResult)) 
-                    {
-                        char* ErrMsg = DXResources.GetDebugMessage(HResult);
-                        win32_printer::DebugPrint("Resize error: %s", ErrMsg);
-                        break;
-                    }
-                    Camera.Resize(ScreenInfo.Width, ScreenInfo.Height);
-                    Resize = false;
-                }
-        
+                ScreenInfo = GetWindowDimension(Window);
+                        
                 // NOTE: Update
                 NewInput->OldMouseX = OldInput->MouseX;
                 NewInput->OldMouseY = OldInput->MouseY;
@@ -505,11 +480,13 @@ WinMain(HINSTANCE Instance,
                 GameState->dtForFrame = WorldClock.GetSecondsElapsed();
                 WorldClock.Reset();
                 
-                UpdateAndRenderGame(&Memory, NewInput, &Camera, ScreenInfo);
+                UpdateAndRenderGame(&Memory, NewInput, ScreenInfo, GlobalResize);
                 
                 game_input *Temp = NewInput;
                 NewInput = OldInput;
                 OldInput = Temp;
+                
+                GlobalResize = false;
                 
                 // FrameClock.PrintMiliSeconds("Frame time:");
                 // win32_printer::PerfPrint("---------------------------");
@@ -524,9 +501,6 @@ WinMain(HINSTANCE Instance,
             }
             
             SaveGameState(&Memory);
-            
-            Camera.Release();
-            DXResources.Release();
         }
     }
     

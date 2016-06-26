@@ -40,14 +40,53 @@ typedef double real64;
     #define Assert(Test) 
 #endif
 
+#define InvalidCodePath Assert(!"InvalidCodePath");
+
 #define KILOBYTE(Size) (1024LL*(Size))
 #define MEGABYTE(Size) (1024LL*1024LL*(Size))
 #define GIGABYTE(Size) (1024LL*1024LL*1024LL*(Size))
 
 struct game_memory
 {
+    uint64 PermanentStorageSize;
+    void *PermanentStorage;
+    
+    uint64 TransientStorageSize;
+    void *TransientStorage;
+};
+
+struct memory_arena
+{
+    uint64 TotalSize;
+    uint64 Used;
+    uint8* Base;
+};
+
+internal void
+InitializeArena(memory_arena *Arena, void* Base, uint64 Size)
+{
+    Arena->TotalSize = Size;
+    Arena->Used = 0;
+    Arena->Base = (uint8*)Base;
+};
+
+#define PushStruct(Arena, type) (type *)PushElement_((Arena), sizeof(type))
+#define PushArray(Arena, type, Size) (type *)PushElement_((Arena), sizeof(type)*(Size))
+internal void *
+PushElement_(memory_arena *Arena, uint32 Size)
+{
+    Assert(Arena->Used + Size < Arena->TotalSize);
+    void *Result = Arena->Base + Arena->Used;
+    Arena->Used += Size;
+    
+    return Result;
+}
+
+struct temporary_memory
+{
+    memory_arena *Arena;
+    uint8 *Base;
     uint64 Size;
-    void *Base;
 };
 
 struct screen_info

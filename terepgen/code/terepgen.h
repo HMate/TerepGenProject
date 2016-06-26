@@ -81,23 +81,32 @@ struct block_deformer
     v3 Center;
 };
 
-struct game_state 
+struct render_state
 {
     bool32 Initialized;
-    session_description Session;
-    dx_resource *DXResources;
-    uint32 Seed;
-    
-    real64 dtForFrame;
+    dx_resource DXResources;
     
     v3 CameraDir;
     // NOTE: Camera origo is from where the origin of the camera ray casts that hit the screen
     v3 CameraOrigo;
+    camera Camera;
+};
+
+struct game_state 
+{
+    bool32 Initialized;
+    session_description Session;
+    uint32 Seed;
+    
+    real64 dtForFrame;
     
     perlin_noise_array PerlinArray;
     uint32 RenderMode;
     
+    memory_arena WorldArena;
     world_density WorldDensity;
+    
+    render_state RenderState;
     
     uint32 RenderBlockCount;
     terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
@@ -112,7 +121,14 @@ struct game_state
     avarage_time FrameAvg;
 };
 
-internal void UpdateAndRenderGame(game_memory*, game_input*, camera*, screen_info);
+struct transient_state
+{
+    bool32 Initialized;
+    memory_arena TranArena;
+};
+
+internal void TerminateGame();
+internal void UpdateAndRenderGame(game_memory*, game_input*, screen_info, bool32);
 internal void SaveGameState(game_memory*);
 
 #define TEREPGEN_H

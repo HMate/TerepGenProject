@@ -217,9 +217,13 @@ FreeShaderCode(shader_code *Shader)
     }
 }
 
-HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight)
+HRESULT dx_resource::Initialize(uint32 ScreenWidth, uint32 ScreenHeight)
 {
     HRESULT HResult;
+    
+    ViewPortMinDepth = 0.0f;
+    ViewPortMaxDepth = 1.0f;
+    DefaultDepthValue = 1.0f;
     
     // NOTE: Query hardware specs
     IDXGIFactory *Factory;
@@ -285,7 +289,7 @@ HRESULT dx_resource::Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHe
     SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     SwapChainDesc.BufferDesc.RefreshRate.Numerator = 0; // No VSync
     SwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-    SwapChainDesc.OutputWindow = Window;
+    SwapChainDesc.OutputWindow = GetActiveWindow();
     SwapChainDesc.SampleDesc.Count = 4;
     SwapChainDesc.SampleDesc.Quality = 0;
     SwapChainDesc.Windowed = true;
@@ -886,7 +890,20 @@ void camera::SetSceneConstants()
 void camera::Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 ScreenHeight, real32 CamSpeed)
 {   
     using namespace DirectX;
+    
+    AbsUpDir = DirectX::XMFLOAT3(0, 1, 0);
+    AbsHorzDir = DirectX::XMFLOAT3(0, 0, 1);
+    Position = DirectX::XMFLOAT3(0, 0, 0);
+    TargetPos = DirectX::XMFLOAT3(0, 0, 1);
+    UpDirection = DirectX::XMFLOAT3(0, 1, 0);
+    
     CameraSpeed = CamSpeed;
+    Fov = 3.14f * 0.35f;
+    NearZ = 3.0f;
+    FarZ = 3000.0f;
+    
+    YawRadian = 0.0f;
+    PitchRadian = 0.0f; 
     
     win32_printer::DebugPrint("Camera Width: %d", ScreenWidth);
     win32_printer::DebugPrint("Camera Height: %d", ScreenHeight);

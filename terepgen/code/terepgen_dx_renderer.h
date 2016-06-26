@@ -22,10 +22,10 @@ struct dx_resource
 {
     object_constants ObjectConstants;
     
-    real32 ViewPortMinDepth = 0.0f;
-    real32 ViewPortMaxDepth = 1.0f;
+    real32 ViewPortMinDepth;
+    real32 ViewPortMaxDepth;
     
-    real32 DefaultDepthValue = 1.0f;
+    real32 DefaultDepthValue;
     
     IDXGISwapChain *SwapChain = nullptr;
     ID3D11Device *Device = nullptr;
@@ -60,7 +60,7 @@ struct dx_resource
     char VideoCardDescription[128];
     uint32 MaxVertexCount;
     
-    HRESULT Initialize(HWND Window, uint32 ScreenWidth, uint32 ScreenHeight);
+    HRESULT Initialize(uint32 ScreenWidth, uint32 ScreenHeight);
     void Release();
     
     void ClearViews();
@@ -79,22 +79,22 @@ struct dx_resource
 
 struct camera
 {
-    const DirectX::XMFLOAT3 AbsUpDir = DirectX::XMFLOAT3(0, 1, 0);
-    const DirectX::XMFLOAT3 AbsHorzDir = DirectX::XMFLOAT3(0, 0, 1);
+    DirectX::XMFLOAT3 AbsUpDir;
+    DirectX::XMFLOAT3 AbsHorzDir;
     
-    DirectX::XMFLOAT3 Position = DirectX::XMFLOAT3(0, 0, 0);
-    DirectX::XMFLOAT3 TargetPos = DirectX::XMFLOAT3(0, 0, 1);
-    DirectX::XMFLOAT3 UpDirection = DirectX::XMFLOAT3(0, 1, 0);
-    real32 CameraSpeed = 60.0f;
+    DirectX::XMFLOAT3 Position;
+    DirectX::XMFLOAT3 TargetPos;
+    DirectX::XMFLOAT3 UpDirection;
+    real32 CameraSpeed;
     
-    real32 Fov = 3.14f * 0.35f;
+    real32 Fov;
     // NOTE: Regardless of nearZ, the screen always 
     // have a distance of 1.0 from the eye with PerspectiveFovLH
-    real32 NearZ = 3.0f;
-    real32 FarZ = 3000.0f;
+    real32 NearZ;
+    real32 FarZ;
     
-    real32 YawRadian = 0.0f; // Turnning left-right
-    real32 PitchRadian = 0.0f; // Turning up-down
+    real32 YawRadian; // Turnning left-right
+    real32 PitchRadian; // Turning up-down
     
     DirectX::XMFLOAT4X4 ViewMx;
     DirectX::XMFLOAT4X4 ProjMx;
