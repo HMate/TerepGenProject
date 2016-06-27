@@ -389,13 +389,12 @@ LoadSessionDesc(game_state *GameState, uint32 SessionID)
     //NOTE: Read blocks until we find the one we need
     bool32 NotFound = true;
     bool32 EndOfFile = false;
-    uint32 BytesRead = 0;
     
     session_description ReadSession;
     const uint32 SessionDescSizeInBytes = sizeof(session_description);
     while(NotFound && !EndOfFile)
     {
-        ReadFile(Handle, &ReadSession, SessionDescSizeInBytes, (LPDWORD)&BytesRead, NULL);
+        uint32 BytesRead = PlatformReadFile(Handle, &ReadSession, SessionDescSizeInBytes);
         EndOfFile = (BytesRead == 0);
         Assert(BytesRead == SessionDescSizeInBytes || EndOfFile);
         if(ReadSession.ID == SessionID)
@@ -414,8 +413,7 @@ LoadSessionDesc(game_state *GameState, uint32 SessionID)
         sprintf_s(SessionStorePath, "dynamicStore%d.txt", SessionID);
         CopyString((char*)&GameState->Session.DynamicStore, SessionStorePath);
         
-        uint32 BytesWritten = 0;
-        WriteFile(Handle, &GameState->Session, SessionDescSizeInBytes, (LPDWORD)&BytesWritten, NULL);
+        uint32 BytesWritten = PlatformWriteFile(Handle, &GameState->Session, SessionDescSizeInBytes);
         Assert(BytesWritten == SessionDescSizeInBytes);
     }
     CloseHandle(Handle);
@@ -1404,13 +1402,7 @@ SaveGameState(game_memory *Memory)
     world_density *World = &GameState->WorldDensity;
     if(GameState->Initialized)
     {
-        for(uint32 DynamicIndex = 0; 
-            DynamicIndex < World->DynamicBlockCount; 
-            DynamicIndex++)
-        {
-            terrain_density_block *Block = World->DynamicBlocks + DynamicIndex;
-            SaveBlockToFile(GameState, GameState->Session.DynamicStore, Block);
-        }
+        SaveBlockArrayToFile(GameState, GameState->Session.DynamicStore, World->DynamicBlocks, World->DynamicBlockCount);
     }
     
     GameState->RenderState.Camera.Release();

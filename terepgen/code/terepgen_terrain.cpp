@@ -351,34 +351,36 @@ OpenBlocksFile(game_state *GameState, char *FileName)
         uint32 BytesWritten;
         WriteFile(Handle, Data, Length, (LPDWORD)&BytesWritten, NULL);
     }
+    SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
     return Handle;
+}
+
+internal void
+ReadBlockFileHeader(game_state *GameState, FileHandle Handle)
+{
+    char HeaderValue[4];
+    uint32 HeaderLength = 4;
+    uint32 BytesRead = PlatformReadFile(Handle, HeaderValue, HeaderLength);
+    Assert(HeaderLength == BytesRead);
+    
+    uint32 GameID = *(uint32*)HeaderValue;
+    Assert(GameID == GameState->Session.ID);
 }
 
 internal void
 SaveBlockToFile(game_state *GameState, char *FileName, terrain_density_block *Block)
 {
     FileHandle Handle = OpenBlocksFile(GameState, FileName);
+    ReadBlockFileHeader(GameState, Handle);
     
-    SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
-    uint32 BytesRead;
-    
-    // NOTE: Read header
-    char HeaderValue[4];
-    uint32 HeaderLength = 4;
-    ReadFile(Handle, HeaderValue, HeaderLength, (LPDWORD)&BytesRead, NULL);
-    Assert(HeaderLength == BytesRead);
-    
-    uint32 GameID = *(uint32*)HeaderValue;
-    Assert(GameID == GameState->Session.ID);
-    
-    //NOTE: Read blocks until we find the one we need
+    //NOTE: Read blocks until we find the one we need);
     bool32 NotFound = true;
     bool32 EndOfFile = false;
     terrain_density_block ReadBlock;
     const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
     while(NotFound && !EndOfFile)
     {
-        ReadFile(Handle, &ReadBlock, BlockSizeInBytes, (LPDWORD)&BytesRead, NULL);
+        uint32 BytesRead = PlatformReadFile(Handle, &ReadBlock, BlockSizeInBytes);
         EndOfFile = (BytesRead == 0);
         Assert(BytesRead == BlockSizeInBytes || EndOfFile);
         if(WorldPosEquals(&ReadBlock.Pos, &Block->Pos))
@@ -391,11 +393,67 @@ SaveBlockToFile(game_state *GameState, char *FileName, terrain_density_block *Bl
     }
     
     //NOTE: Write Block
-    uint32 BytesWritten;
-    WriteFile(Handle, Block, BlockSizeInBytes, (LPDWORD)&BytesWritten, NULL);
+    uint32 BytesWritten = PlatformWriteFile(Handle, Block, BlockSizeInBytes);
     Assert(BytesWritten == BlockSizeInBytes);
     
     CloseHandle(Handle);
+}
+
+internal bool32
+BlockArrayContainsWorldPos(terrain_density_block *BlockArray, uint32 ArraySize, terrain_density_block *BlockToFind)
+{
+    for(uint32 i = 0; i < ArraySize; i++)
+    {
+        terrain_density_block *Current = BlockArray + i;
+        if(WorldPosEquals(&BlockToFind->Pos, &Current->Pos))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+internal void
+SaveBlockArrayToFile(game_state *GameState, char *FileName,  terrain_density_block *BlockArray, uint32 ArraySize)
+{
+    char TempFileName[256];
+    sprintf_s(TempFileName, "%s.temp", FileName);
+    
+    FileHandle Handle = OpenBlocksFile(GameState, FileName);
+    FileHandle TempHandle = OpenBlocksFile(GameState, TempFileName);
+    ReadBlockFileHeader(GameState, Handle);
+    ReadBlockFileHeader(GameState, TempHandle);
+        
+    //NOTE: Move blocks that are not modified to a new file
+    bool32 EndOfFile = false;
+    terrain_density_block ReadBlock;
+    const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
+    while(!EndOfFile)
+    {
+        uint32 BytesRead = PlatformReadFile(Handle, &ReadBlock, BlockSizeInBytes);
+        EndOfFile = (BytesRead == 0);
+        Assert(BytesRead == BlockSizeInBytes || EndOfFile);
+        if(!EndOfFile && !BlockArrayContainsWorldPos(BlockArray, ArraySize, &ReadBlock))
+        {
+            // NOTE: Set the file pointer to the begging of the block, to overwrite it
+            uint32 BytesWritten = PlatformWriteFile(TempHandle, &ReadBlock, BlockSizeInBytes);
+            Assert(BytesWritten == BlockSizeInBytes);
+        }
+    }
+    
+    // NOTE: Now write out the modified blocks
+    for(uint32 Index = 0; Index < ArraySize; Index++)
+    {
+        terrain_density_block *Current = BlockArray + Index;
+        uint32 BytesWritten = PlatformWriteFile(TempHandle, Current, BlockSizeInBytes);
+        Assert(BytesWritten == BlockSizeInBytes);
+    }
+    
+    CloseHandle(Handle);
+    CloseHandle(TempHandle);
+    
+    DeleteFile(FileName);
+    PlatformRenameFile(TempFileName, FileName);
 }
 
 // NOTE: Loads a block from a file
@@ -405,17 +463,8 @@ LoadBlockFromFile(game_state *GameState, char *FileName, terrain_density_block *
 {
     FileHandle Handle = OpenBlocksFile(GameState, FileName);
     
-    SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
-    uint32 BytesRead;
     
-    // NOTE: Read header
-    char HeaderValue[4];
-    uint32 HeaderLength = 4;
-    ReadFile(Handle, HeaderValue, HeaderLength, (LPDWORD)&BytesRead, NULL);
-    Assert(HeaderLength == BytesRead);
-    
-    uint32 GameID = *(uint32*)HeaderValue;
-    Assert(GameID == GameState->Session.ID);
+    ReadBlockFileHeader(GameState, Handle);
     
     //NOTE: Read blocks until we find the one we need
     bool32 NotFound = true;
@@ -423,7 +472,7 @@ LoadBlockFromFile(game_state *GameState, char *FileName, terrain_density_block *
     const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
     while(NotFound && !EndOfFile)
     {
-        ReadFile(Handle, Block, BlockSizeInBytes, (LPDWORD)&BytesRead, NULL);
+        uint32 BytesRead = PlatformReadFile(Handle, Block, BlockSizeInBytes);
         EndOfFile = (BytesRead == 0);
         Assert(BytesRead == BlockSizeInBytes || EndOfFile);
         if(WorldPosEquals(&Block->Pos, BlockP))

@@ -231,6 +231,29 @@ PlatformOpenOrCreateFileForWrite(char *FileName)
     return Handle;
 }
 
+// NOTE: Gives back number of bytes read
+internal uint32
+PlatformReadFile(FileHandle Handle, void *Dest, uint32 Size)
+{
+    uint32 BytesRead;
+    ReadFile(Handle, Dest, Size, (LPDWORD)&BytesRead, NULL);
+    return BytesRead;
+}
+
+internal uint32
+PlatformWriteFile(FileHandle Handle, void *Source, uint32 Size)
+{
+    uint32 BytesWritten;
+    WriteFile(Handle, Source, Size, (LPDWORD)&BytesWritten, NULL);
+    return BytesWritten;
+}
+
+internal void
+PlatformRenameFile(char* OldName, char* NewFileName)
+{
+    MoveFile(OldName, NewFileName);
+}
+
 internal bool32
 FileIsEmpty(FileHandle Handle)
 {

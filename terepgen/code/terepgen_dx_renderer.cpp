@@ -196,8 +196,7 @@ LoadShaderCode(memory_arena *Arena, char* FileName)
     Result.Data = PushArray(Arena, uint8, Result.Size);
     
     bool32 EndOfFile = false;
-    uint32 BytesRead = 0;
-    ReadFile(Handle, Result.Data, Result.Size, (LPDWORD)&BytesRead, NULL);
+    uint32 BytesRead = PlatformReadFile(Handle, Result.Data, Result.Size);
     
     CloseHandle(Handle);
     
