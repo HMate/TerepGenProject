@@ -2,12 +2,6 @@
 
 #define RANDOM_TEX_SIZE 33
 
-struct value_noise_generator
-{
-    uint32 Seed;
-    dynamic_grid3D RandomTex;
-};
-
 struct perlin_noise_generator
 {
     uint32 Seed;

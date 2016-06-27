@@ -60,6 +60,13 @@ struct memory_arena
     uint64 TotalSize;
     uint64 Used;
     uint8* Base;
+    uint32 TempCount;
+};
+
+struct temporary_memory
+{
+    memory_arena *Arena;
+    uint64 Used;
 };
 
 internal void
@@ -68,6 +75,7 @@ InitializeArena(memory_arena *Arena, void* Base, uint64 Size)
     Arena->TotalSize = Size;
     Arena->Used = 0;
     Arena->Base = (uint8*)Base;
+    Arena->TempCount = 0;
 };
 
 #define PushStruct(Arena, type) (type *)PushElement_((Arena), sizeof(type))
@@ -82,12 +90,33 @@ PushElement_(memory_arena *Arena, uint32 Size)
     return Result;
 }
 
-struct temporary_memory
+internal temporary_memory 
+BeginTemporaryMemory(memory_arena *Arena)
 {
-    memory_arena *Arena;
-    uint8 *Base;
-    uint64 Size;
-};
+    temporary_memory Temp;
+    Temp.Arena = Arena;
+    Temp.Used = Arena->Used;
+    Arena->TempCount++;
+    
+    return Temp;
+}
+
+internal void
+EndTemporaryMemory(temporary_memory *Temp)
+{
+    memory_arena *Arena = Temp->Arena;
+    Assert(Arena->Used >= Temp->Used);
+    Arena->Used = Temp->Used;
+    
+    Assert(Arena->TempCount > 0);
+    Arena->TempCount--;
+}
+
+internal void
+CheckMemoryArena(memory_arena *Arena)
+{
+    Assert(Arena->TempCount == 0);
+}
 
 struct screen_info
 {

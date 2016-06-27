@@ -577,17 +577,20 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     // NOTE: Initialize transient state
     Assert(sizeof(transient_state) < Memory->TransientStorageSize);
     transient_state *TranState = (transient_state *)Memory->TransientStorage;
+    memory_arena *TranArena = &TranState->TranArena;
     if(TranState->Initialized == false)
     {
-        InitializeArena(&TranState->TranArena, (uint8 *)Memory->TransientStorage + sizeof(transient_state), 
+        InitializeArena(TranArena, (uint8 *)Memory->TransientStorage + sizeof(transient_state), 
                         Memory->TransientStorageSize - sizeof(transient_state));
         TranState->Initialized = true;
     }
     
+    // NOTE: Initialize render state
     camera *Camera = &RenderState->Camera;
     if(RenderState->Initialized == false)
     {
-        HRESULT HResult = RenderState->DXResources.Initialize(ScreenInfo.Width, ScreenInfo.Height);
+        temporary_memory RenderMemory = BeginTemporaryMemory(TranArena);
+        HRESULT HResult = RenderState->DXResources.Initialize(TranArena, ScreenInfo.Width, ScreenInfo.Height);
         if(FAILED(HResult))
         {
             char* ErrMsg = RenderState->DXResources.GetDebugMessage(HResult);
@@ -603,6 +606,8 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         }
         
         RenderState->Camera.Initialize(&RenderState->DXResources, ScreenInfo.Width, ScreenInfo.Height, 20.0f);
+        
+        EndTemporaryMemory(&RenderMemory);
         RenderState->Initialized = true;
     }
     
@@ -666,6 +671,9 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     //
     // NOTE: Delete blocks that are too far from the camera
     //
+    
+    temporary_memory GeneratorMemory = BeginTemporaryMemory(TranArena);
+        
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
     if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) - 100))
     {
@@ -762,7 +770,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     {
         int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
         
-        block_hash *NewMappingHash = new block_hash[BLOCK_HASH_SIZE];
+        block_hash *NewMappingHash = PushArray(TranArena, block_hash, BLOCK_HASH_SIZE);
         for(uint32 StoreIndex = 0; 
             StoreIndex < ArrayCount(World->ResolutionMapping); 
             ++StoreIndex)
@@ -785,7 +793,6 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
                 MapBlockPosition(World, HashP, Hash->Index);
             }
         }
-        delete[] NewMappingHash;
     }
     Clock.Reset();
     
@@ -794,7 +801,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     if(World->ZeroBlockCount > (ArrayCount(World->ZeroHash)*7/8))
     {
         int32 ZeroSpaceRadius = ZERO_BLOCK_RADIUS;
-        block_hash *NewZeroHash = new block_hash[ZERO_HASH_SIZE];
+        block_hash *NewZeroHash = PushArray(TranArena, block_hash, ZERO_HASH_SIZE);
         for(uint32 ZeroIndex = 0; 
             ZeroIndex < ArrayCount(World->ZeroHash); 
             ++ZeroIndex)
@@ -818,7 +825,6 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
                 World->ZeroBlockCount++;
             }
         }
-        delete[] NewZeroHash;
     }
     //real64 DeleteZeroTime = Clock.GetSecondsElapsed();
     Clock.Reset();
@@ -1372,6 +1378,10 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     }
     
     DXResources->SwapChain->Present(0, 0);
+    
+    EndTemporaryMemory(&GeneratorMemory);
+    CheckMemoryArena(&GameState->WorldArena);
+    CheckMemoryArena(&TranState->TranArena);
     
     
     real64 TimeToRender = Clock.GetSecondsElapsed();

@@ -3,45 +3,6 @@
     Terep generátor by Hidvégi Máté @2015
 
 */
-
-struct dynamic_grid3D
-{
-    int32 Dimension;
-    real32* Elements;
-    
-    dynamic_grid3D()
-    {
-        this->Dimension = 0;
-        Elements = nullptr;
-    }
-    
-    dynamic_grid3D(int32 Dimension)
-    {
-        this->Dimension = Dimension;
-        Elements = new real32[Dimension * Dimension * Dimension];
-    }
-    
-    dynamic_grid3D(const dynamic_grid3D&) = delete;
-    dynamic_grid3D operator=(const dynamic_grid3D&) = delete;
-    
-    ~dynamic_grid3D()
-    {
-        if(Elements)
-        {
-            delete[] Elements;
-            Elements = nullptr;
-        }
-    }
-    
-    real32& GetPRC(int32 X, int32 Y, int32 Z)
-    {
-        if(X > Dimension - 1) X = Dimension - 1;
-        if(Y > Dimension - 1) Y = Dimension - 1;
-        if(Z > Dimension - 1) Z = Dimension - 1;
-        return Elements[X*Dimension*Dimension + Y*Dimension + Z];
-    }
-};
-
 #define GRID_DIMENSION 8
 
 struct static_grid3D

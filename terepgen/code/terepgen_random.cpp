@@ -68,72 +68,11 @@ MtStandardDeviate(void)
     return Result;
 }
 
-// Value noise
-
 inline real32
 Lerp(real32 A, real32 B, real32 X)
 {
     real32 T = X*X*X*(10.0f + (X*((X*6.0f) - 15.0f) ) );
     real32 Result = A + (T*(B - A));
-    return Result;
-}
-
-        
-void SetSeed(value_noise_generator *Generator, uint32 NewSeed)
-{
-    Generator->Seed = NewSeed;
-    uint32 TexSize = Generator->RandomTex.Dimension * Generator->RandomTex.Dimension * Generator->RandomTex.Dimension;
-    MtSeed(NewSeed);
-    for(uint32 Index = 0; Index < TexSize; Index++)
-    {
-        real32 Rand = MtStandardDeviate();
-        Generator->RandomTex.Elements[Index] = Rand;
-    }
-}
-        
-internal real32 
-RandomFloat(value_noise_generator *Generator, real32 Plane, real32 Row, real32 Column)
-{
-    real32 PlaneMod = ModReal32(Plane, (real32)RANDOM_TEX_SIZE);
-    uint32 PlaneWhole = FloorInt32(PlaneMod);
-    uint32 PlaneWhole2 = (PlaneWhole+1) % RANDOM_TEX_SIZE;
-    real32 PlaneRemainder = PlaneMod - (real32)PlaneWhole;
-    
-    real32 RowMod = ModReal32(Row, (real32)RANDOM_TEX_SIZE);
-    uint32 RowWhole = FloorInt32(RowMod);
-    uint32 RowWhole2 = (RowWhole+1) % RANDOM_TEX_SIZE;
-    real32 RowRemainder = RowMod - (real32)RowWhole;
-    
-    real32 ColumnMod = ModReal32(Column, (real32)RANDOM_TEX_SIZE);
-    uint32 ColumnWhole = FloorInt32(ColumnMod);
-    uint32 ColumnWhole2 = (ColumnWhole+1) % RANDOM_TEX_SIZE;
-    real32 ColumnRemainder = ColumnMod - (real32)ColumnWhole;
-    
-    real32 R000 = Generator->RandomTex.GetPRC(PlaneWhole , RowWhole , ColumnWhole );
-    real32 R001 = Generator->RandomTex.GetPRC(PlaneWhole , RowWhole , ColumnWhole2);
-    real32 R010 = Generator->RandomTex.GetPRC(PlaneWhole , RowWhole2, ColumnWhole );
-    real32 R011 = Generator->RandomTex.GetPRC(PlaneWhole , RowWhole2, ColumnWhole2);
-    real32 R100 = Generator->RandomTex.GetPRC(PlaneWhole2, RowWhole , ColumnWhole );
-    real32 R101 = Generator->RandomTex.GetPRC(PlaneWhole2, RowWhole , ColumnWhole2);
-    real32 R110 = Generator->RandomTex.GetPRC(PlaneWhole2, RowWhole2, ColumnWhole );
-    real32 R111 = Generator->RandomTex.GetPRC(PlaneWhole2, RowWhole2, ColumnWhole2);
-    
-    real32 I00 = Lerp(R000, R001, ColumnRemainder);
-    real32 I01 = Lerp(R010, R011, ColumnRemainder);
-    real32 I10 = Lerp(R100, R101, ColumnRemainder);
-    real32 I11 = Lerp(R110, R111, ColumnRemainder);
-    
-    real32 I0 = Lerp(I00, I01, RowRemainder);
-    real32 I1 = Lerp(I10, I11, RowRemainder);
-    
-    real32 Result = Lerp(I0, I1, PlaneRemainder);
-    return Result;
-}
-
-internal real32 
-RandomFloat(value_noise_generator *Generator, v3 WorldPos)
-{
-    real32 Result = RandomFloat(Generator, WorldPos.X, WorldPos.Y, WorldPos.Z);
     return Result;
 }
 

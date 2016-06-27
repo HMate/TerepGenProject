@@ -60,7 +60,7 @@ LoadJPGFromFile(dx_resource *DXResources, char *Filename, ID3D11ShaderResourceVi
 }
 
 internal HRESULT 
-LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResView)
+LoadBackground(dx_resource *DXResources, memory_arena *Arena, ID3D11ShaderResourceView **ShaderResView)
 {
     int32 ImgHeight = 512;
     int32 ImgWidth = 512;
@@ -92,7 +92,7 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     
     
     D3D11_SUBRESOURCE_DATA pData[6];
-    uint32 *Image = new uint32[ImgHeight*ImgWidth*6];
+    uint32 *Image = PushArray(Arena, uint32, ImgHeight*ImgWidth*6);
     uint8* Ptr = (uint8*)Image;
     for(int32 Side = 0;
         Side < 6;
@@ -158,7 +158,6 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     HRESULT HResult = DXResources->Device->CreateTexture2D(&TextureDesc, &pData[0], &Tex);
     if(FAILED(HResult)) 
     {
-        delete[] Image;
         return HResult;
     }
         
@@ -170,7 +169,6 @@ LoadBackground(dx_resource *DXResources, ID3D11ShaderResourceView **ShaderResVie
     SrvDesc.TextureCube.MostDetailedMip = 0;
     
     HResult = DXResources->Device->CreateShaderResourceView(Tex, &SrvDesc, ShaderResView);
-    delete[] Image;
     if(FAILED(HResult))
     {
         return HResult;
@@ -189,13 +187,13 @@ struct shader_code
 };
 
 internal shader_code 
-LoadShaderCode(char* FileName)
+LoadShaderCode(memory_arena *Arena, char* FileName)
 {
     shader_code Result;
     Result.Size = 0;
     FileHandle Handle = PlatformOpenFileForRead(FileName); 
     Result.Size = GetFileSize(Handle, NULL);
-    Result.Data = new uint8[Result.Size];
+    Result.Data = PushArray(Arena, uint8, Result.Size);
     
     bool32 EndOfFile = false;
     uint32 BytesRead = 0;
@@ -206,21 +204,10 @@ LoadShaderCode(char* FileName)
     return Result;
 }
 
-internal void 
-FreeShaderCode(shader_code *Shader)
-{
-    if(Shader->Data != NULL)
-    {
-        delete[] Shader->Data;
-        Shader->Data = NULL;
-        Shader->Size = 0;
-    }
-}
-
-HRESULT dx_resource::Initialize(uint32 ScreenWidth, uint32 ScreenHeight)
+HRESULT dx_resource::Initialize(memory_arena *Arena, uint32 ScreenWidth, uint32 ScreenHeight)
 {
     HRESULT HResult;
-    
+        
     ViewPortMinDepth = 0.0f;
     ViewPortMaxDepth = 1.0f;
     DefaultDepthValue = 1.0f;
@@ -247,7 +234,7 @@ HRESULT dx_resource::Initialize(uint32 ScreenWidth, uint32 ScreenHeight)
     if(FAILED(HResult))
         return HResult;
     
-    DXGI_MODE_DESC *DisplayModeList = new DXGI_MODE_DESC[NumModes];
+    DXGI_MODE_DESC *DisplayModeList = PushArray(Arena, DXGI_MODE_DESC, NumModes);
     if(!DisplayModeList)
         return E_ABORT;
     
@@ -275,7 +262,6 @@ HRESULT dx_resource::Initialize(uint32 ScreenWidth, uint32 ScreenHeight)
     VideoCardMemory = (int32)(AdapterDesc.DedicatedVideoMemory / 1024 / 1024);
     wcstombs_s(&StringLength, VideoCardDescription, 128, AdapterDesc.Description, 128);
     
-    delete[] DisplayModeList;
     AdapterOutput->Release();
     Adapter->Release();
     Factory->Release();
@@ -393,16 +379,14 @@ HRESULT dx_resource::Initialize(uint32 ScreenWidth, uint32 ScreenHeight)
             
     // NOTE: Compile Terrain Shaders
     
-    shader_code VShader = LoadShaderCode("terrain_vs.fxc");
+    shader_code VShader = LoadShaderCode(Arena, "terrain_vs.fxc");
     HResult = Device->CreateVertexShader(VShader.Data, VShader.Size, 0, &TerrainVS);
         
-    shader_code PShader = LoadShaderCode("terrain_ps.fxc");
+    shader_code PShader = LoadShaderCode(Arena, "terrain_ps.fxc");
     Device->CreatePixelShader(PShader.Data, PShader.Size, 0, &TerrainPS);
-    FreeShaderCode(&PShader);
     
-    PShader = LoadShaderCode("line_ps.fxc");
+    PShader = LoadShaderCode(Arena, "line_ps.fxc");
     Device->CreatePixelShader(PShader.Data, PShader.Size, 0, &LinePS);
-    FreeShaderCode(&PShader);
     
     // NOTE: Create Input Layout
     D3D11_INPUT_ELEMENT_DESC ElementDesc[] = 
@@ -413,19 +397,17 @@ HRESULT dx_resource::Initialize(uint32 ScreenWidth, uint32 ScreenHeight)
     };
     HResult = Device->CreateInputLayout(ElementDesc, ArrayCount(ElementDesc), 
                 VShader.Data, VShader.Size, &TerrainInputLayout);
-    FreeShaderCode(&VShader);
     if(FAILED(HResult)) 
     {
         return HResult;
     }
     
     // NOTE: Background shaders
-    VShader = LoadShaderCode("background_vs.fxc");
+    VShader = LoadShaderCode(Arena, "background_vs.fxc");
     Device->CreateVertexShader(VShader.Data, VShader.Size, 0, &BackgroundVS);
     
-    PShader = LoadShaderCode("background_ps.fxc");
+    PShader = LoadShaderCode(Arena, "background_ps.fxc");
     Device->CreatePixelShader(PShader.Data, PShader.Size, 0, &BackgroundPS);
-    FreeShaderCode(&PShader);
     
     // NOTE: Create Background Input Layout
                 
@@ -435,7 +417,6 @@ HRESULT dx_resource::Initialize(uint32 ScreenWidth, uint32 ScreenHeight)
     };
     HResult = Device->CreateInputLayout(BGElementDesc, ArrayCount(BGElementDesc), 
                 VShader.Data, VShader.Size, &BackgroundInputLayout);
-    FreeShaderCode(&VShader);
     if(FAILED(HResult)) 
     {
         return HResult;
@@ -515,7 +496,7 @@ HRESULT dx_resource::Initialize(uint32 ScreenWidth, uint32 ScreenHeight)
     if(FAILED(HResult)) return HResult;
     // HResult = LoadJPGFromFile(this, "sky-texture.jpg", &SkyTexture);
     // if(FAILED(HResult)) return HResult;
-    HResult = LoadBackground(this, &SkyTexture);
+    HResult = LoadBackground(this, Arena, &SkyTexture);
     if(FAILED(HResult)) return HResult;
     
     DeviceContext->PSSetShaderResources(0, 1, &GrassTexture);

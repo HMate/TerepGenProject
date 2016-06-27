@@ -440,6 +440,7 @@ internal void
 FillDynamic(terrain_density_block *Dynamic, world_block_pos *BlockP, real32 Value)
 {
     Dynamic->Pos = *BlockP;
+    Dynamic->Grid.Dimension = GRID_DIMENSION;
     uint32 Dim = Dynamic->Grid.Dimension;
     for(uint32 X = 0; X < Dim; X++)
     {

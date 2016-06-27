@@ -60,7 +60,7 @@ struct dx_resource
     char VideoCardDescription[128];
     uint32 MaxVertexCount;
     
-    HRESULT Initialize(uint32 ScreenWidth, uint32 ScreenHeight);
+    HRESULT Initialize(memory_arena *Arena, uint32 ScreenWidth, uint32 ScreenHeight);
     void Release();
     
     void ClearViews();
