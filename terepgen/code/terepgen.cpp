@@ -711,6 +711,10 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     if(World->DynamicBlockCount > DynamicClearThreshold)
     {
         win32_printer::DebugPrint("Clearing Dynamic Blocks! count: %d", World->DynamicBlockCount);
+        
+        uint32 SaveCount = 0;
+        terrain_density_block *SavedBlocks = 0;
+        
         int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
         for(uint32 StoreIndex = 0; 
             StoreIndex < World->DynamicBlockCount; 
@@ -722,7 +726,15 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
             // NOTE: Check manhattan distance, or need bigger hash and arrays
             if(ManhattanDistance(WorldCameraP + ResIndex, BlockP) > LoadSpaceRadius)
             {
-                SaveBlockToFile(GameState, GameState->Session.DynamicStore, Block);
+                terrain_density_block *SaveLocation = PushStruct(TranArena, terrain_density_block);
+                if(SavedBlocks == 0)
+                {
+                    SavedBlocks = SaveLocation;
+                }
+                SaveCount++;
+                
+                // TODO: First compress block, then copy it
+                *SaveLocation = *Block;
                 
                 terrain_density_block *Last = World->DynamicBlocks + (--World->DynamicBlockCount);
                 world_block_pos *LastP = &Last->Pos;
@@ -741,6 +753,11 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
                     *Block = *Last;
                 }
             }
+        }
+        
+        if(SavedBlocks != 0)
+        {
+            SaveBlockArrayToFile(GameState, GameState->Session.DynamicStore, SavedBlocks, SaveCount);
         }
     }
     Clock.Reset();
