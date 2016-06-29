@@ -470,7 +470,7 @@ ChangeDynamicValue(block_deformer *Deformer, real32 OldVal, block_node *Node)
 }
 
 internal void 
-DeformBlocks(game_state *GameState, world_density *World, 
+DeformBlocks(game_state *GameState, world_density *World, memory_arena *Arena, 
              block_deformer *Deformer, density_block_pos_array *BlocksToRender, int32 *MaxRenderBlocksToGenerateInFrame)
 {
     v3 StartBlockRP = Deformer->Center - v3{Deformer->Radius, Deformer->Radius, Deformer->Radius};
@@ -502,7 +502,7 @@ DeformBlocks(game_state *GameState, world_density *World,
                 
                 if(IsAffectedByDeformer(Deformer, &Node))
                 {
-                    terrain_density_block *ActDynamicBlock = GetDynamicBlock(GameState, World, &Node.BlockP);
+                    terrain_density_block *ActDynamicBlock = GetDynamicBlock(GameState, Arena, World, &Node.BlockP);
                     real32 GridVal = GetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z);
                     real32 ChangedGridVal = ChangeDynamicValue(Deformer, GridVal, &Node);
                     SetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z, ChangedGridVal);
@@ -713,7 +713,8 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         win32_printer::DebugPrint("Clearing Dynamic Blocks! count: %d", World->DynamicBlockCount);
         
         uint32 SaveCount = 0;
-        terrain_density_block *SavedBlocks = 0;
+        // terrain_density_block *SavedBlocks = 0;
+        compressed_block *SavedBlocks = 0;
         
         int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
         for(uint32 StoreIndex = 0; 
@@ -725,16 +726,13 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
             uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
             // NOTE: Check manhattan distance, or need bigger hash and arrays
             if(ManhattanDistance(WorldCameraP + ResIndex, BlockP) > LoadSpaceRadius)
-            {
-                terrain_density_block *SaveLocation = PushStruct(TranArena, terrain_density_block);
+            {                
+                compressed_block *Compressed = CompressBlock(TranArena, Block);
                 if(SavedBlocks == 0)
                 {
-                    SavedBlocks = SaveLocation;
+                    SavedBlocks = Compressed;
                 }
                 SaveCount++;
-                
-                // TODO: First compress block, then copy it
-                *SaveLocation = *Block;
                 
                 terrain_density_block *Last = World->DynamicBlocks + (--World->DynamicBlockCount);
                 world_block_pos *LastP = &Last->Pos;
@@ -757,7 +755,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         
         if(SavedBlocks != 0)
         {
-            SaveBlockArrayToFile(GameState, GameState->Session.DynamicStore, SavedBlocks, SaveCount);
+            SaveCompressedBlockArrayToFile(GameState, TranArena, GameState->Session.DynamicStore, SavedBlocks, SaveCount);
         }
     }
     Clock.Reset();
@@ -892,7 +890,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
             
             real32 PosValue = GetWorldGridValueFromV3(World, CheckPos, World->FixedResolution[0]);
             block_node ClickNode = ConvertRenderPosToBlockNode(CheckPos, World->FixedResolution[0]);
-            terrain_density_block *DynamicBlock = GetDynamicBlock(GameState, World, &ClickNode.BlockP);
+            terrain_density_block *DynamicBlock = GetDynamicBlock(GameState, TranArena, World, &ClickNode.BlockP);
             real32 DynamicVal = GetGrid(&DynamicBlock->Grid, ClickNode.X, ClickNode.Y, ClickNode.Z);
             real32 Value = PosValue + DynamicVal;
             if(Value < DENSITY_ISO_LEVEL)
@@ -921,7 +919,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
                 
                 block_deformer *UsedDeformer = &GradualSphereDeformer;
                 
-                DeformBlocks(GameState, World, UsedDeformer, &BlocksToRender, &MaxRenderBlocksToGenerateInFrame);
+                DeformBlocks(GameState, World, TranArena, UsedDeformer, &BlocksToRender, &MaxRenderBlocksToGenerateInFrame);
                 AddCube(&GameState->Cube, CheckPos, 1.0f, 
                         v4{1.0f, 0.0f, 0.0f, 1.0f}, 
                         v4{0.0f, 1.0f, 0.0f, 1.0f}, 
@@ -1193,7 +1191,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
             Assert(!HashIsEmpty(NeighbourHash));
             Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
             
-            DynNeighbours[NeighbourIndex] = GetDynamicBlock(GameState, World, &MappedP);
+            DynNeighbours[NeighbourIndex] = GetDynamicBlock(GameState, TranArena, World, &MappedP);
         }
     }
     
@@ -1417,13 +1415,37 @@ SaveGameState(game_memory *Memory)
 {
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     world_density *World = &GameState->WorldDensity;
+    transient_state *TranState = (transient_state *)Memory->TransientStorage;
+    memory_arena *TranArena = &TranState->TranArena;
+    
+    temporary_memory ClearupMemory = BeginTemporaryMemory(TranArena);
+    
     if(GameState->Initialized)
     {
-        SaveBlockArrayToFile(GameState, GameState->Session.DynamicStore, World->DynamicBlocks, World->DynamicBlockCount);
+        compressed_block *CompressedBlocks = 0;
+        for(uint32 Index = 0; 
+            Index < World->DynamicBlockCount; 
+            Index++)
+        {
+            compressed_block *Compressed = CompressBlock(TranArena, World->DynamicBlocks + Index);
+            if(CompressedBlocks == 0)
+            {
+                CompressedBlocks = Compressed;
+            }
+        }
+        if(CompressedBlocks != 0)
+        {
+            SaveCompressedBlockArrayToFile(GameState, TranArena, GameState->Session.DynamicStore, 
+                                           CompressedBlocks, World->DynamicBlockCount);
+        }
     }
     
     GameState->RenderState.Camera.Release();
     GameState->RenderState.DXResources.Release();
+    
+    
+    EndTemporaryMemory(&ClearupMemory);
+    CheckMemoryArena(&TranState->TranArena);
 }
 
 

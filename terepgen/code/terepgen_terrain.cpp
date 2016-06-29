@@ -339,6 +339,62 @@ Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
     return Result;
 }
 
+internal compressed_block *
+CompressBlock(memory_arena *TranArena, terrain_density_block *Block)
+{
+    compressed_block *Result = PushStruct(TranArena, compressed_block);
+    Result->Pos = Block->Pos;
+    Result->NodeCount = 1;
+    compressed_node *CurrentNode = PushStruct(TranArena, compressed_node);
+    CurrentNode->Count = 1;
+    CurrentNode->Value = Block->Grid.Elements[0];
+    
+    int32 GridSize = Block->Grid.Dimension * Block->Grid.Dimension * Block->Grid.Dimension;
+        
+    for(int32 Index = 1; 
+        Index < GridSize; 
+        Index++)
+    {
+        real32 Value = Block->Grid.Elements[Index];
+        if(CurrentNode->Value != Value)
+        {
+            CurrentNode = PushStruct(TranArena, compressed_node);
+            CurrentNode->Count = 0;
+            CurrentNode->Value = Value;
+            Result->NodeCount++;
+        }
+        CurrentNode->Count++;
+    }
+    return Result;
+};
+
+internal void
+DecompressBlock(terrain_density_block *Block, compressed_block *Source)
+{
+    Block->Pos = Source->Pos;
+    Block->Grid.Dimension = GRID_DIMENSION;
+    int32 GridSize = Block->Grid.Dimension * Block->Grid.Dimension * Block->Grid.Dimension;
+    uint32 NodesVisited = 0;
+    uint32 ValueCount = 0;
+    
+    compressed_node *Node = Source->Nodes;
+        
+    for(int32 Index = 0; 
+        Index < GridSize; 
+        Index++)
+    {
+        Block->Grid.Elements[Index] = Node->Value;
+        ValueCount++;
+        if(Node->Count <= ValueCount)
+        {
+            Node = Node + 1;
+            ValueCount = 0;
+            NodesVisited++;
+        }
+    }
+    Assert(NodesVisited == Source->NodeCount);
+};
+
 internal FileHandle
 OpenBlocksFile(game_state *GameState, char *FileName)
 {
@@ -367,54 +423,34 @@ ReadBlockFileHeader(game_state *GameState, FileHandle Handle)
     Assert(GameID == GameState->Session.ID);
 }
 
-internal void
-SaveBlockToFile(game_state *GameState, char *FileName, terrain_density_block *Block)
+inline compressed_block *
+NextCompressedBlock(compressed_block *Current)
 {
-    FileHandle Handle = OpenBlocksFile(GameState, FileName);
-    ReadBlockFileHeader(GameState, Handle);
-    
-    //NOTE: Read blocks until we find the one we need);
-    bool32 NotFound = true;
-    bool32 EndOfFile = false;
-    terrain_density_block ReadBlock;
-    const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
-    while(NotFound && !EndOfFile)
-    {
-        uint32 BytesRead = PlatformReadFile(Handle, &ReadBlock, BlockSizeInBytes);
-        EndOfFile = (BytesRead == 0);
-        Assert(BytesRead == BlockSizeInBytes || EndOfFile);
-        if(WorldPosEquals(&ReadBlock.Pos, &Block->Pos))
-        {
-            NotFound = false;
-            // NOTE: Set the file pointer to the begging of the block, to overwrite it
-            int32 Offset = sizeof(terrain_density_block);
-            SetFilePointer(Handle, -Offset, 0, FILE_CURRENT);
-        }
-    }
-    
-    //NOTE: Write Block
-    uint32 BytesWritten = PlatformWriteFile(Handle, Block, BlockSizeInBytes);
-    Assert(BytesWritten == BlockSizeInBytes);
-    
-    CloseHandle(Handle);
+    compressed_block *Result = (compressed_block *)((uint8 *)Current + sizeof(compressed_block) + 
+                    (sizeof(compressed_node) * Current->NodeCount));
+    return Result;
 }
 
 internal bool32
-BlockArrayContainsWorldPos(terrain_density_block *BlockArray, uint32 ArraySize, terrain_density_block *BlockToFind)
+CompressedBlockArrayContainsWorldPos(compressed_block *BlockArray, uint32 ArraySize, compressed_block *BlockToFind)
 {
-    for(uint32 i = 0; i < ArraySize; i++)
+    compressed_block *Current = BlockArray;
+    for(uint32 Index = 0; 
+        Index < ArraySize; 
+        Index++)
     {
-        terrain_density_block *Current = BlockArray + i;
         if(WorldPosEquals(&BlockToFind->Pos, &Current->Pos))
         {
             return true;
         }
+        Current = NextCompressedBlock(Current);
     }
     return false;
 }
 
 internal void
-SaveBlockArrayToFile(game_state *GameState, char *FileName,  terrain_density_block *BlockArray, uint32 ArraySize)
+SaveCompressedBlockArrayToFile(game_state *GameState, memory_arena *Arena, char *FileName,  
+                               compressed_block *BlockArray, uint32 ArraySize)
 {
     char TempFileName[256];
     sprintf_s(TempFileName, "%s.temp", FileName);
@@ -426,27 +462,47 @@ SaveBlockArrayToFile(game_state *GameState, char *FileName,  terrain_density_blo
         
     //NOTE: Move blocks that are not modified to a new file
     bool32 EndOfFile = false;
-    terrain_density_block ReadBlock;
-    const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
+    compressed_block ReadBlock = {0};
+    const uint32 BlockSizeInBytes = sizeof(compressed_block);
+    const uint32 NodeSizeInBytes = sizeof(compressed_node);
     while(!EndOfFile)
     {
         uint32 BytesRead = PlatformReadFile(Handle, &ReadBlock, BlockSizeInBytes);
         EndOfFile = (BytesRead == 0);
         Assert(BytesRead == BlockSizeInBytes || EndOfFile);
-        if(!EndOfFile && !BlockArrayContainsWorldPos(BlockArray, ArraySize, &ReadBlock))
+                
+        if(!EndOfFile && !CompressedBlockArrayContainsWorldPos(BlockArray, ArraySize, &ReadBlock))
         {
-            // NOTE: Set the file pointer to the begging of the block, to overwrite it
             uint32 BytesWritten = PlatformWriteFile(TempHandle, &ReadBlock, BlockSizeInBytes);
             Assert(BytesWritten == BlockSizeInBytes);
+            
+            compressed_node *ReadData = PushArray(Arena, compressed_node, ReadBlock.NodeCount);
+            uint32 DataSize = sizeof(compressed_node)*ReadBlock.NodeCount;
+            BytesRead = PlatformReadFile(Handle, ReadData, DataSize);
+            EndOfFile = (BytesRead == 0);
+            Assert(BytesRead == DataSize);
+            
+            BytesWritten = PlatformWriteFile(TempHandle, ReadData, DataSize);
+            Assert(BytesWritten == DataSize);
+        }
+        else if(!EndOfFile)
+        {
+            // NOTE: If this isn't the block we need, skip to next block
+            SetFilePointer(Handle, sizeof(compressed_node)*ReadBlock.NodeCount, NULL, FILE_CURRENT);
         }
     }
     
     // NOTE: Now write out the modified blocks
+    compressed_block *Current = BlockArray;
     for(uint32 Index = 0; Index < ArraySize; Index++)
     {
-        terrain_density_block *Current = BlockArray + Index;
         uint32 BytesWritten = PlatformWriteFile(TempHandle, Current, BlockSizeInBytes);
         Assert(BytesWritten == BlockSizeInBytes);
+        
+        uint32 DataSize = sizeof(compressed_node)*Current->NodeCount;
+        BytesWritten = PlatformWriteFile(TempHandle, Current->Nodes, DataSize);
+        Assert(BytesWritten == DataSize);
+        Current = NextCompressedBlock(Current);
     }
     
     CloseHandle(Handle);
@@ -459,26 +515,38 @@ SaveBlockArrayToFile(game_state *GameState, char *FileName,  terrain_density_blo
 // NOTE: Loads a block from a file
 // If the block was not in the file, returns false
 internal bool32
-LoadBlockFromFile(game_state *GameState, char *FileName, terrain_density_block *Block, world_block_pos *BlockP)
+LoadCompressedBlockFromFile(game_state *GameState, memory_arena *Arena, char *FileName, 
+                            terrain_density_block *DestinationBlock, world_block_pos *BlockP)
 {
     FileHandle Handle = OpenBlocksFile(GameState, FileName);
-    
     
     ReadBlockFileHeader(GameState, Handle);
     
     //NOTE: Read blocks until we find the one we need
     bool32 NotFound = true;
     bool32 EndOfFile = false;
-    const uint32 BlockSizeInBytes = sizeof(terrain_density_block);
+    const uint32 BlockSizeInBytes = sizeof(compressed_block);
+    compressed_block *ReadBlock = PushStruct(Arena, compressed_block);
     while(NotFound && !EndOfFile)
     {
-        uint32 BytesRead = PlatformReadFile(Handle, Block, BlockSizeInBytes);
+        uint32 BytesRead = PlatformReadFile(Handle, ReadBlock, BlockSizeInBytes);
         EndOfFile = (BytesRead == 0);
         Assert(BytesRead == BlockSizeInBytes || EndOfFile);
-        if(WorldPosEquals(&Block->Pos, BlockP))
+        
+        if(!EndOfFile && WorldPosEquals(&ReadBlock->Pos, BlockP))
         {
+            compressed_node *ReadData = PushArray(Arena, compressed_node, ReadBlock->NodeCount);
+            uint32 DataSize = sizeof(compressed_node)*ReadBlock->NodeCount;
+            BytesRead = PlatformReadFile(Handle, ReadData, DataSize);
+            Assert(BytesRead == DataSize);
+            
+            DecompressBlock(DestinationBlock, ReadBlock);
+            
             NotFound = false;
         }
+        
+        // NOTE: If this isn't the block we need, skip to next block
+        SetFilePointer(Handle, sizeof(compressed_node)*ReadBlock->NodeCount, NULL, FILE_CURRENT);
     }
     
     CloseHandle(Handle);
@@ -505,11 +573,12 @@ FillDynamic(terrain_density_block *Dynamic, world_block_pos *BlockP, real32 Valu
 
 // NOTE: Creates a dynamic block, or loads it from a file
 internal block_hash*
-CreateNewDynamicBlock(game_state *GameState, world_density *World, world_block_pos *BlockP)
+CreateNewDynamicBlock(game_state *GameState, memory_arena *Arena, world_density *World, world_block_pos *BlockP)
 {
     terrain_density_block *DynamicB = World->DynamicBlocks + World->DynamicBlockCount;
     // NOTE: Load from file, if it was saved previously!
-    bool32 Loaded = LoadBlockFromFile(GameState, GameState->Session.DynamicStore, DynamicB, BlockP);
+    // bool32 Loaded = LoadBlockFromFile(GameState, GameState->Session.DynamicStore, DynamicB, BlockP);
+    bool32 Loaded = LoadCompressedBlockFromFile(GameState, Arena, GameState->Session.DynamicStore, DynamicB, BlockP);
     if(!Loaded)
     {
         // TODO: If this block already have a lower resolution parent, values should be taken from there
@@ -562,12 +631,12 @@ CreateNewDynamicBlock(game_state *GameState, world_density *World, world_block_p
 }
 
 internal terrain_density_block*
-GetDynamicBlock(game_state *GameState, world_density *World, world_block_pos *BlockP)
+GetDynamicBlock(game_state *GameState, memory_arena *Arena, world_density *World, world_block_pos *BlockP)
 {
     block_hash *DynamicHash = GetHash(World->DynamicHash, BlockP);
     if(HashIsEmpty(DynamicHash))
     {
-        DynamicHash = CreateNewDynamicBlock(GameState, World, BlockP);
+        DynamicHash = CreateNewDynamicBlock(GameState, Arena, World, BlockP);
     }
     terrain_density_block *Result = World->DynamicBlocks + DynamicHash->Index;
     return Result;

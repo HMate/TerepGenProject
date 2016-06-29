@@ -31,11 +31,7 @@ typedef double real64;
 #define ArrayCount(Array) (sizeof(Array)/sizeof(*Array))
 
 #if TEREPGEN_DEBUG
-    #if _DEBUG
-        #define Assert(Test) if(!(Test)){_CrtDbgReport(_CRT_ASSERT, __FILE__, __LINE__, "terepgen.exe", "Test");}
-    #else
-        #define Assert(Test) if(!(Test)){*(void*)0 = 2;}
-    #endif
+    #define Assert(Test) if(!(Test)){*(int*)0 = 2;}
 #else
     #define Assert(Test) 
 #endif
@@ -70,11 +66,11 @@ struct temporary_memory
 };
 
 internal void
-InitializeArena(memory_arena *Arena, void* Base, uint64 Size)
+InitializeArena(memory_arena *Arena, uint8* Base, uint64 Size)
 {
     Arena->TotalSize = Size;
     Arena->Used = 0;
-    Arena->Base = (uint8*)Base;
+    Arena->Base = Base;
     Arena->TempCount = 0;
 };
 

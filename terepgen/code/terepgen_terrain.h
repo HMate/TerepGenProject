@@ -28,6 +28,22 @@ struct terrain_density_block
     static_grid3D Grid;
 };//2'064 B
 
+struct compressed_node
+{
+    uint16 Count;
+    real32 Value;
+};
+
+#pragma warning(disable : 4200)
+struct compressed_block
+{
+    world_block_pos Pos;
+    // NOTE compressed block is created on a way, that the NodeCount number of 
+    // compressed_node comes after it in memory.
+    uint32 NodeCount;
+    compressed_node Nodes[0];
+};
+
 #define HASH_UNINITIALIZED -1
 #define HASH_ZERO_BLOCK -2
 #define HASH_DELETED -3
