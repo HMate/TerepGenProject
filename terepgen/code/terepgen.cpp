@@ -3,6 +3,8 @@
 
 */
 
+#include "terepgen.h"
+
 internal uint32
 StringLength(char *Text)
 {
@@ -25,6 +27,29 @@ CopyString(char *Dest, char *Source)
     }
     Dest[Index] = Source[Index];
 }
+
+internal void
+StringConcat(char* Result, char* Part0, char* Part1)
+{
+	uint32 i = 0, j = 0;
+	while(Part0[i] != '\0')
+	{
+		Result[i] = Part0[i];
+		i++;
+	}
+	
+	while(Part1[j] != '\0')
+	{
+		Result[i] = Part1[j];
+		i++; 
+		j++;
+	}
+	Result[i] = '\0';
+}
+
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "external\stb\stb_image.h"
 
 #include "terepgen_random.cpp"
 #include "terepgen_units.cpp"
@@ -122,6 +147,21 @@ AddToRenderBlocks(game_state *GameState, terrain_render_block *Block, v3 CameraP
             Assert(GameState->RenderBlockCount < ArrayCount(GameState->RenderBlocks));
         }
     }  
+}
+
+
+vertex Vertex(v3 Pos, v3 Norm, v4 Color)
+{
+    vertex Result;
+    Result.X = Pos.X;
+    Result.Y = Pos.Y;
+    Result.Z = Pos.Z;
+    Result.NX = Norm.X;
+    Result.NY = Norm.Y;
+    Result.NZ = Norm.Z;
+    Result.Color = Color;
+    
+    return Result;
 }
 
 internal void
@@ -540,7 +580,7 @@ DeformBlocks(game_state *GameState, world_density *World, memory_arena *Arena,
     }
 }
 
-internal void
+void
 UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenInfo, bool32 Resize)
 {
     Assert(sizeof(game_state) < Memory->PermanentStorageSize);
@@ -550,6 +590,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         
     if(GameState->Initialized == false)
     {
+        // TODO: WorldDensity should be in WordArena! -> lets put it in there!
         InitializeArena(&GameState->WorldArena, (uint8 *)Memory->PermanentStorage + sizeof(game_state), 
                         Memory->PermanentStorageSize - sizeof(game_state));
         
@@ -592,7 +633,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         if(FAILED(HResult))
         {
             char* ErrMsg = RenderState->DXResources.GetDebugMessage(HResult);
-            win32_printer::DebugPrint("Initialize error: %s", ErrMsg);
+            logger::DebugPrint("Initialize error: %s", ErrMsg);
 #if TEREPGEN_DEBUG
             char DebugBuffer[256];
             sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] Initialize error: %s\n", ErrMsg);
@@ -615,7 +656,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         if(FAILED(HResult)) 
         {
             char* ErrMsg = RenderState->DXResources.GetDebugMessage(HResult);
-            win32_printer::DebugPrint("Resize error: %s", ErrMsg);
+            logger::DebugPrint("Resize error: %s", ErrMsg);
             
             TerminateGame();
             return;
@@ -665,7 +706,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
                             ArrayCount(World->DensityPositionStore->Pos), 
                             WorldCameraP + 1, DENSITY_BLOCK_RADIUS);
     
-    win32_clock Clock;
+    timer Clock;
     //
     // NOTE: Delete blocks that are too far from the camera
     //
@@ -710,7 +751,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     uint32 DynamicClearThreshold = (ArrayCount(World->DynamicBlocks) - 100);
     if(World->DynamicBlockCount > DynamicClearThreshold)
     {
-        win32_printer::DebugPrint("Clearing Dynamic Blocks! count: %d", World->DynamicBlockCount);
+        logger::DebugPrint("Clearing Dynamic Blocks! count: %d", World->DynamicBlockCount);
         
         uint32 SaveCount = 0;
         // terrain_density_block *SavedBlocks = 0;
@@ -928,7 +969,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
             }
         }
         real64 TimeRightClickInner = Clock.GetSecondsElapsed();
-        win32_printer::DebugPrint("Right click time: %f", TimeRightClickInner * 1000.0);
+        logger::DebugPrint("Right click time: %f", TimeRightClickInner * 1000.0);
     }
 
     real64 TimeRightClick = Clock.GetSecondsElapsed();
@@ -1196,7 +1237,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     }
     
     
-    win32_clock AvgClock;
+    timer AvgClock;
     // NOTE: These blocks may have been rendered once, but now they have to be generated again
     for(uint32 RenderIndex = 0;
         RenderIndex < BlocksToRender.Count;
@@ -1211,7 +1252,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         {
             AvgClock.Reset();
             PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, BlockP);
-            CalculateAvarageTime(AvgClock, &GameState->AvgPoligoniseTime);
+            AvgClock.CalculateAverageTime(&GameState->AvgPoligoniseTime);
             
             if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
             {
@@ -1400,17 +1441,17 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     real64 TimeToRender = Clock.GetSecondsElapsed();
     
     
-    // win32_printer::PerfPrint("Avg poligonise: %f", GameState->AvgPoligoniseTime * 1000.0);
+    // logger::PerfPrint("Avg poligonise: %f", GameState->AvgPoligoniseTime * 1000.0);
     
-    // win32_printer::PerfPrint("Generate density time: %f", TimeGenerateDensity * 1000.0);
-    // win32_printer::PerfPrint("Right click time: %f", TimeRightClick * 1000.0);
-    // win32_printer::PerfPrint("Generate render: %f for %d blocks", TimeGenerateRender * 1000.0, RenderCount);
-    // win32_printer::PerfPrint("Add to render time: %f", TimeAddToRender * 1000.0);
-    // win32_printer::PerfPrint("Render time: %f", TimeToRender * 1000.0);
+    // logger::PerfPrint("Generate density time: %f", TimeGenerateDensity * 1000.0);
+    // logger::PerfPrint("Right click time: %f", TimeRightClick * 1000.0);
+    // logger::PerfPrint("Generate render: %f for %d blocks", TimeGenerateRender * 1000.0, RenderCount);
+    // logger::PerfPrint("Add to render time: %f", TimeAddToRender * 1000.0);
+    // logger::PerfPrint("Render time: %f", TimeToRender * 1000.0);
     
 }
 
-internal void
+void
 SaveGameState(game_memory *Memory)
 {
     game_state *GameState = (game_state *)Memory->PermanentStorage;
@@ -1447,7 +1488,6 @@ SaveGameState(game_memory *Memory)
     EndTemporaryMemory(&ClearupMemory);
     CheckMemoryArena(&TranState->TranArena);
 }
-
 
 
 

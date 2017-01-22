@@ -6,181 +6,167 @@
 #include <windows.h>
 #include <stdio.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "external\stb\stb_image.h"
-
-#include <d3dcompiler.h>
-#include <dxgi.h>
-#include <d3d11.h>
-#include <DirectXMath.h>
-
 #include "terepgen.h"
 
 global_variable bool32 GlobalRunning = true;
 global_variable bool32 GlobalResize;
 global_variable LARGE_INTEGER GlobalPerfCountFrequency;  
 
-struct win32_printer
-{
-    static void Print(char *Text)
-    {
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN] %s\n", Text);
-        OutputDebugStringA(DebugBuffer);
-    }
-    
-    static void Print(char *Text, real64 Arg1)
-    {
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN] %s\n", Text);
-        char DebugBuffer2[256];
-        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
-        OutputDebugStringA(DebugBuffer2);
-    }
-    
-    static void Print(char *Text, uint32 Arg1)
-    {
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN] %s\n", Text);
-        char DebugBuffer2[256];
-        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
-        OutputDebugStringA(DebugBuffer2);
-    }
-    
-    static void PerfPrint(char *Text, real64 Arg1)
-    {
-#if TEREPGEN_PERF
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s\n", Text);
-        char DebugBuffer2[256];
-        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
-        OutputDebugStringA(DebugBuffer2);
-#endif
-    }
-    
-    static void PerfPrint(char *Text, real64 Arg1, uint32 Arg2)
-    {
-#if TEREPGEN_PERF
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s\n", Text);
-        char DebugBuffer2[256];
-        sprintf_s(DebugBuffer2, DebugBuffer, Arg1, Arg2);
-        OutputDebugStringA(DebugBuffer2);
-#endif
-    }
-    
-    static void DebugPrint(char *Text)
-    {
-#if TEREPGEN_DEBUG
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
-        OutputDebugStringA(DebugBuffer);
-#endif
-    }
-    
-    static void DebugPrint(char *Text, char *Arg1)
-    {
-#if TEREPGEN_DEBUG
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
-        char DebugBuffer2[256];
-        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
-        OutputDebugStringA(DebugBuffer2);
-#endif
-    }
-    
-    static void DebugPrint(char *Text, uint32 Arg1)
-    {
-#if TEREPGEN_DEBUG
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
-        char DebugBuffer2[256];
-        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
-        OutputDebugStringA(DebugBuffer2);
-#endif
-    }
-    
-    static void DebugPrint(char *Text, real32 Arg1)
-    {
-#if TEREPGEN_DEBUG
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
-        char DebugBuffer2[256];
-        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
-        OutputDebugStringA(DebugBuffer2);
-#endif
-    }
-    
-    static void DebugPrint(char *Text, real32 Arg1, real32 Arg2)
-    {
-#if TEREPGEN_DEBUG
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
-        char DebugBuffer2[256];
-        sprintf_s(DebugBuffer2, DebugBuffer, Arg1, Arg2);
-        OutputDebugStringA(DebugBuffer2);
-#endif
-    }
-    
-    static void DebugPrint(char *Text, real64 Arg1)
-    {
-#if TEREPGEN_DEBUG
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s\n", Text);
-        char DebugBuffer2[256];
-        sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
-        OutputDebugStringA(DebugBuffer2);
-#endif
-    }
-}; 
 
-// NOTE: Requires GlobalPerfCountFrequency to be initialized
-struct win32_clock
+void TerminateGame()
 {
-    LARGE_INTEGER Start;
-    
-    win32_clock()
-    {
-        Reset();
-    }
-    
-    void Reset()
-    {
-        QueryPerformanceCounter(&Start);
-    }
-    
-    real64 GetSecondsElapsed()
-    {
-        LARGE_INTEGER End;
-        QueryPerformanceCounter(&End);
-        real64 Result = ((real64)(End.QuadPart - Start.QuadPart) /
-                        (real64)GlobalPerfCountFrequency.QuadPart);
-        return Result;
-    }
-    
-    void PrintMiliSeconds(char *PrintText)
-    {
-        real64 SecondsElapsed = GetSecondsElapsed();
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f ms\n",
-            PrintText, SecondsElapsed * 1000.0);
-        OutputDebugStringA(DebugBuffer);
-    }
-    
-    void PrintSeconds(char *PrintText)
-    {
-        real64 SecondsElapsed = GetSecondsElapsed();
-        char DebugBuffer[256];
-        sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f s\n",
-            PrintText, SecondsElapsed);
-        OutputDebugStringA(DebugBuffer);
-    }
-};
+    GlobalRunning = false;
+}
 
-internal void 
-CalculateAvarageTime(win32_clock Clock, avarage_time *Avarage)
+void logger::Print(char *Text)
 {
-    real64 CurrentTime = Clock.GetSecondsElapsed();
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN] %s\n", Text);
+    OutputDebugStringA(DebugBuffer);
+}
+    
+void logger::Print(char *Text, real64 Arg1)
+{
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+    OutputDebugStringA(DebugBuffer2);
+}
+
+void logger::Print(char *Text, uint32 Arg1)
+{
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+    OutputDebugStringA(DebugBuffer2);
+}
+
+void logger::PerfPrint(char *Text, real64 Arg1)
+{
+#if TEREPGEN_PERF
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+    OutputDebugStringA(DebugBuffer2);
+#endif
+}
+
+void logger::PerfPrint(char *Text, real64 Arg1, uint32 Arg2)
+{
+#if TEREPGEN_PERF
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1, Arg2);
+    OutputDebugStringA(DebugBuffer2);
+#endif
+}
+
+void logger::DebugPrint(char *Text)
+{
+#if TEREPGEN_DEBUG
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+    OutputDebugStringA(DebugBuffer);
+#endif
+}
+
+void logger::DebugPrint(char *Text, char *Arg1)
+{
+#if TEREPGEN_DEBUG
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+    OutputDebugStringA(DebugBuffer2);
+#endif
+}
+
+void logger::DebugPrint(char *Text, uint32 Arg1)
+{
+#if TEREPGEN_DEBUG
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+    OutputDebugStringA(DebugBuffer2);
+#endif
+}
+
+void logger::DebugPrint(char *Text, real32 Arg1)
+{
+#if TEREPGEN_DEBUG
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+    OutputDebugStringA(DebugBuffer2);
+#endif
+}
+
+void logger::DebugPrint(char *Text, real32 Arg1, real32 Arg2)
+{
+#if TEREPGEN_DEBUG
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1, Arg2);
+    OutputDebugStringA(DebugBuffer2);
+#endif
+}
+
+void logger::DebugPrint(char *Text, real64 Arg1)
+{
+#if TEREPGEN_DEBUG
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1);
+    OutputDebugStringA(DebugBuffer2);
+#endif
+}
+
+// NOTE: Requires GlobalPerfCountFrequency to be initialized    
+void timer::Reset()
+{
+    LARGE_INTEGER Current;
+    QueryPerformanceCounter(&Current);
+    Start = Current.QuadPart;
+}
+    
+real64 timer::GetSecondsElapsed()
+{
+    LARGE_INTEGER End;
+    QueryPerformanceCounter(&End);
+    real64 Result = ((real64)(End.QuadPart - Start) /
+                    (real64)GlobalPerfCountFrequency.QuadPart);
+    return Result;
+}
+
+void timer::PrintMiliSeconds(char *PrintText)
+{
+    real64 SecondsElapsed = GetSecondsElapsed();
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f ms\n",
+        PrintText, SecondsElapsed * 1000.0);
+    OutputDebugStringA(DebugBuffer);
+}
+
+void timer::PrintSeconds(char *PrintText)
+{
+    real64 SecondsElapsed = GetSecondsElapsed();
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f s\n",
+        PrintText, SecondsElapsed);
+    OutputDebugStringA(DebugBuffer);
+}
+
+void timer::CalculateAverageTime(avarage_time *Avarage)
+{
+    real64 CurrentTime = GetSecondsElapsed();
     real64 LastMeasure = Avarage->MeasureCount;
     Avarage->MeasureCount += 1.0f;
     Avarage->AvgTime = 
@@ -203,7 +189,7 @@ Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
     return Result;
 }
 
-internal FileHandle
+FileHandle
 PlatformOpenFileForRead(char *FileName)
 {
     FileHandle Handle = CreateFile(FileName, GENERIC_READ,
@@ -212,7 +198,7 @@ PlatformOpenFileForRead(char *FileName)
     return Handle;
 }
 
-internal FileHandle
+FileHandle
 PlatformOpenOrCreateFileForWrite(char *FileName)
 {
     FileHandle Handle = CreateFile(FileName, GENERIC_READ | GENERIC_WRITE,
@@ -232,7 +218,7 @@ PlatformOpenOrCreateFileForWrite(char *FileName)
 }
 
 // NOTE: Gives back number of bytes read
-internal uint32
+uint32
 PlatformReadFile(FileHandle Handle, void *Dest, uint32 Size)
 {
     uint32 BytesRead;
@@ -240,7 +226,7 @@ PlatformReadFile(FileHandle Handle, void *Dest, uint32 Size)
     return BytesRead;
 }
 
-internal uint32
+uint32
 PlatformWriteFile(FileHandle Handle, void *Source, uint32 Size)
 {
     uint32 BytesWritten;
@@ -248,21 +234,18 @@ PlatformWriteFile(FileHandle Handle, void *Source, uint32 Size)
     return BytesWritten;
 }
 
-internal void
+void
 PlatformRenameFile(char* OldName, char* NewFileName)
 {
     MoveFile(OldName, NewFileName);
 }
 
-internal bool32
+bool32
 FileIsEmpty(FileHandle Handle)
 {
     bool32 IsEmpty = (0 == GetFileSize(Handle, NULL));
     return IsEmpty;
 }
-
-#include "terepgen.cpp"
-// TODO: Should the render code be a separately compiled cpp?
 
 internal screen_info 
 GetWindowDimension(HWND Window)
@@ -277,11 +260,6 @@ GetWindowDimension(HWND Window)
     return Result;
 }
 
-internal void TerminateGame()
-{
-    GlobalRunning = false;
-}
-        
 LRESULT CALLBACK
 WindowProc(HWND Window, 
            UINT Message,
@@ -291,22 +269,22 @@ WindowProc(HWND Window,
     LRESULT Result = 0;
     
     switch(Message)
-    {
+    {        
         case WM_DESTROY:
         {
-            win32_printer::DebugPrint("message arrived: WM_DESTROY");
+            logger::DebugPrint("message arrived: WM_DESTROY");
             TerminateGame();
         } break;
 
         case WM_CLOSE:
         {
-            win32_printer::DebugPrint("message arrived: WM_CLOSE");
+            logger::DebugPrint("message arrived: WM_CLOSE");
             TerminateGame();
         } break;
         
         case WM_SIZE:
         {
-            win32_printer::DebugPrint("message arrived: WM_SIZE");
+            logger::DebugPrint("message arrived: WM_SIZE");
             GlobalResize = true;
         } break;
         
@@ -332,7 +310,7 @@ Win32HandleMessages(game_input *Input)
     while(PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
     {
         switch(Message.message)
-        {
+        {            
             case WM_KEYDOWN:
             case WM_KEYUP:
             case WM_SYSKEYUP:
@@ -403,7 +381,6 @@ Win32HandleMessages(game_input *Input)
                     {
                        TerminateGame();
                     }
-                    
                 }
             } break;
         
@@ -453,7 +430,9 @@ WinMain(HINSTANCE Instance,
                             0);
         
         if(Window)
-        {
+        {            
+            // NOTE: Allocate game memory at start. 
+            // We dont allow to use more than this amount during the game
             game_memory Memory;
             Memory.PermanentStorageSize = MEGABYTE(512);
             Memory.TransientStorageSize = MEGABYTE(512);
@@ -462,7 +441,7 @@ WinMain(HINSTANCE Instance,
             Memory.TransientStorage = (uint8*)Memory.PermanentStorage + Memory.PermanentStorageSize;
             if(Memory.PermanentStorage == NULL)
             {
-                win32_printer::DebugPrint("Cannot allocate enough memory");
+                logger::DebugPrint("Cannot allocate enough memory");
                 return 1;
             }
             game_state *GameState = (game_state*)Memory.PermanentStorage;
@@ -471,10 +450,9 @@ WinMain(HINSTANCE Instance,
             game_input *NewInput = &Inputs[0];
             game_input *OldInput = &Inputs[1];
             
-            
             QueryPerformanceFrequency(&GlobalPerfCountFrequency);
-            win32_clock FrameClock;
-            win32_clock WorldClock;
+            timer FrameClock;
+            timer WorldClock;
             LARGE_INTEGER FrameStartTime = Win32GetWallClock();
             LARGE_INTEGER WorldTime = FrameStartTime;
             
@@ -512,11 +490,11 @@ WinMain(HINSTANCE Instance,
                 GlobalResize = false;
                 
                 // FrameClock.PrintMiliSeconds("Frame time:");
-                // win32_printer::PerfPrint("---------------------------");
-                CalculateAvarageTime(FrameClock, &GameState->FrameAvg);
+                // logger::PerfPrint("---------------------------");
+                FrameClock.CalculateAverageTime(&GameState->FrameAvg);
                 if(GameState->FrameAvg.MeasureCount > 50.0f)
                 {
-                    // win32_printer::PerfPrint("Avg frame time: %f", GameState->FrameAvg.AvgTime * 1000.0);
+                    // logger::PerfPrint("Avg frame time: %f", GameState->FrameAvg.AvgTime * 1000.0);
                     GameState->FrameAvg.MeasureCount = 0.0f;
                     GameState->FrameAvg.AvgTime = 0.0f;
                 }

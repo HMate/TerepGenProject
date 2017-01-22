@@ -4,6 +4,11 @@
 
 */
 
+#include <d3dcompiler.h>
+#include <dxgi.h>
+#include <d3d11.h>
+#include <DirectXMath.h>
+
 struct scene_constants
 {
     DirectX::XMFLOAT4X4 ViewProjMx;

@@ -453,8 +453,8 @@ SaveCompressedBlockArrayToFile(game_state *GameState, memory_arena *Arena, char 
                                compressed_block *BlockArray, uint32 ArraySize)
 {
     char TempFileName[256];
-    sprintf_s(TempFileName, "%s.temp", FileName);
-    
+    StringConcat(TempFileName, FileName, ".temp");
+	
     FileHandle Handle = OpenBlocksFile(GameState, FileName);
     FileHandle TempHandle = OpenBlocksFile(GameState, TempFileName);
     ReadBlockFileHeader(GameState, Handle);
@@ -751,7 +751,7 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
         }
     }
     RenderBlock->VertexCount = VertexCount;
-    //win32_printer::DebugPrint("Current Vertex Count: %d", VertexCount);
+    //logger::DebugPrint("Current Vertex Count: %d", VertexCount);
 }
 
 

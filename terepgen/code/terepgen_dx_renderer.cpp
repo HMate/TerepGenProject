@@ -800,7 +800,7 @@ void dx_resource::LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 Re
                     D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
     if(FAILED(HResult))
     {
-        win32_printer::DebugPrint("Load Resource failed: %s", GetDebugMessage(HResult));
+        logger::DebugPrint("Load Resource failed: %s", GetDebugMessage(HResult));
     }
     memcpy(MappedSubresource.pData, Resource, ResourceSize);                 
     DeviceContext->Unmap(Buffer, NULL);
@@ -885,9 +885,9 @@ void camera::Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 Scr
     YawRadian = 0.0f;
     PitchRadian = 0.0f; 
     
-    win32_printer::DebugPrint("Camera Width: %d", ScreenWidth);
-    win32_printer::DebugPrint("Camera Height: %d", ScreenHeight);
-    win32_printer::DebugPrint("Camera ApectRatio: %f", (real32)ScreenWidth/ScreenHeight);
+    logger::DebugPrint("Camera Width: %d", ScreenWidth);
+    logger::DebugPrint("Camera Height: %d", ScreenHeight);
+    logger::DebugPrint("Camera ApectRatio: %f", (real32)ScreenWidth/ScreenHeight);
     
     SetViewMatrix();
     SetProjMatrix(ScreenWidth, ScreenHeight);
@@ -915,7 +915,11 @@ void camera::Initialize(dx_resource *DXResources, uint32 ScreenWidth, uint32 Scr
 
 void camera::Release()
 {
-    SceneConstantBuffer->Release();
+    if(SceneConstantBuffer)
+    {
+        SceneConstantBuffer->Release();
+        SceneConstantBuffer = nullptr;
+    }
 }
 
 void camera::Update(game_input *Input, real64 TimeDelta)
@@ -982,7 +986,7 @@ void camera::Update(game_input *Input, real64 TimeDelta)
         YawRadian += dMouseX/100.0f;
         PitchRadian += dMouseY/100.0f;
         
-        //win32_printer::DebugPrint("Yaw: %f Pitch: %f", YawRadian, PitchRadian);
+        //logger::DebugPrint("Yaw: %f Pitch: %f", YawRadian, PitchRadian);
 
         XMVECTOR NewTargetDir = XMLoadFloat3(&AbsHorzDir);
         XMVECTOR NewUpDir = XMLoadFloat3(&AbsUpDir);
@@ -1009,9 +1013,9 @@ void camera::Resize(uint32 ScreenWidth, uint32 ScreenHeight)
     using namespace DirectX;
     if(ScreenWidth && ScreenHeight)
     {
-        win32_printer::DebugPrint("Camera Width: %d", ScreenWidth);
-        win32_printer::DebugPrint("Camera Height: %d", ScreenHeight);
-        win32_printer::DebugPrint("Camera ApectRatio: %f", (real32)ScreenWidth/ScreenHeight);
+        logger::DebugPrint("Camera Width: %d", ScreenWidth);
+        logger::DebugPrint("Camera Height: %d", ScreenHeight);
+        logger::DebugPrint("Camera ApectRatio: %f", (real32)ScreenWidth/ScreenHeight);
         
         SetProjMatrix(ScreenWidth, ScreenHeight);
         SetViewProjMatrix();

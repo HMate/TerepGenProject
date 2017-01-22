@@ -5,6 +5,7 @@
 */
 
 #include "terepgen_types.h"
+#include "platform.h"
 #include "terepgen_math.cpp"
 #include "terepgen_grid.h"
 #include "terepgen_vector.h"
@@ -21,20 +22,6 @@ struct vertex
     v4 Color;
 };
 
-vertex Vertex(v3 Pos, v3 Norm, v4 Color)
-{
-    vertex Result;
-    Result.X = Pos.X;
-    Result.Y = Pos.Y;
-    Result.Z = Pos.Z;
-    Result.NX = Norm.X;
-    Result.NY = Norm.Y;
-    Result.NZ = Norm.Z;
-    Result.Color = Color;
-    
-    return Result;
-}
-
 #include "terepgen_dx_renderer.h"
 #include "terepgen_terrain.h"
 
@@ -48,14 +35,6 @@ struct cube_frame
 {
     vertex Vertices[CubeFrameVertexCount];
 };
-
-struct avarage_time
-{
-    real64 AvgTime = 0.0f;
-    real64 MeasureCount = 0.0f;
-};
-
-typedef HANDLE FileHandle;
 
 struct session_description
 {
@@ -94,6 +73,7 @@ struct render_state
 
 struct game_state 
 {
+    bool32 Running;
     bool32 Initialized;
     session_description Session;
     uint32 Seed;
@@ -103,7 +83,10 @@ struct game_state
     perlin_noise_array PerlinArray;
     uint32 RenderMode;
     
+    // NOTE: WorldArena is a memory_arena, where dynamic stuff can be stored, 
+    // that will stay from frame to frame
     memory_arena WorldArena;
+    // NOTE: WorldDensity size is constant now, that's why its not in WordArena
     world_density WorldDensity;
     
     render_state RenderState;
@@ -127,9 +110,8 @@ struct transient_state
     memory_arena TranArena;
 };
 
-internal void TerminateGame();
-internal void UpdateAndRenderGame(game_memory*, game_input*, screen_info, bool32);
-internal void SaveGameState(game_memory*);
+void UpdateAndRenderGame(game_memory*, game_input*, screen_info, bool32);
+void SaveGameState(game_memory*);
 
 #define TEREPGEN_H
 #endif
