@@ -1,4 +1,8 @@
 #if !defined(TEREPGEN_PLATFORM_H)
+/*
+    Terep generátor by Hidvégi Máté @2017
+
+*/
 
 void TerminateGame();
 
@@ -7,10 +11,14 @@ typedef void *FileHandle;
 
 FileHandle PlatformOpenFileForRead(char *FileName);
 FileHandle PlatformOpenOrCreateFileForWrite(char *FileName);
-uint32 PlatformReadFile(FileHandle Handle, void *Dest, uint32 Size);
-uint32 PlatformWriteFile(FileHandle Handle, void *Source, uint32 Size);
+uint32 PlatformReadFile(FileHandle, void *Dest, uint32 Size);
+uint32 PlatformWriteFile(FileHandle, void *Source, uint32 Size);
+uint32 PlatformSetFilePosition(FileHandle, uint32 PositionFromStart);
+uint32 PlatformIncrementFilePosition(FileHandle, uint32 Step);
+void PlatformCloseFile(FileHandle);
+void PlatformDeleteFile(char *FileName);
 void PlatformRenameFile(char* OldName, char* NewFileName);
-bool32 FileIsEmpty(FileHandle Handle);
+bool32 FileIsEmpty(FileHandle);
 
 struct logger
 {

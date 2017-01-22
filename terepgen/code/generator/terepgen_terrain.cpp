@@ -330,16 +330,7 @@ GetPointNormal(terrain_density_block **Neighbours, terrain_density_block **DynNe
     return Result;
 }
 
-internal vertex
-Get3DVertex(v3 LocalPos, v3 Normal, v4 Color)
-{
-    vertex Result = {LocalPos.X, LocalPos.Y, LocalPos.Z, 
-                     Normal.X, Normal.Y, Normal.Z,
-                     Color};
-    return Result;
-}
-
-internal compressed_block *
+compressed_block *
 CompressBlock(memory_arena *TranArena, terrain_density_block *Block)
 {
     compressed_block *Result = PushStruct(TranArena, compressed_block);
@@ -396,23 +387,22 @@ DecompressBlock(terrain_density_block *Block, compressed_block *Source)
 };
 
 internal FileHandle
-OpenBlocksFile(game_state *GameState, char *FileName)
+OpenBlocksFile(char *FileName, uint32 SessionId)
 {
     FileHandle Handle = PlatformOpenOrCreateFileForWrite(FileName);
     if(FileIsEmpty(Handle))
     {
         // NOTE: The file didn't exist before, so now we create its header
-        uint32 *Data = &GameState->Session.ID;
+        uint32 *Data = &SessionId;
         uint32 Length = 4;
-        uint32 BytesWritten;
-        WriteFile(Handle, Data, Length, (LPDWORD)&BytesWritten, NULL);
+        PlatformWriteFile(Handle, Data, Length);
     }
-    SetFilePointer(Handle, 0, NULL, FILE_BEGIN);
+    PlatformSetFilePosition(Handle, 0);
     return Handle;
 }
 
 internal void
-ReadBlockFileHeader(game_state *GameState, FileHandle Handle)
+ReadBlockFileHeader(FileHandle Handle, uint32 SessionId)
 {
     char HeaderValue[4];
     uint32 HeaderLength = 4;
@@ -420,7 +410,7 @@ ReadBlockFileHeader(game_state *GameState, FileHandle Handle)
     Assert(HeaderLength == BytesRead);
     
     uint32 GameID = *(uint32*)HeaderValue;
-    Assert(GameID == GameState->Session.ID);
+    Assert(GameID == SessionId);
 }
 
 inline compressed_block *
@@ -448,17 +438,17 @@ CompressedBlockArrayContainsWorldPos(compressed_block *BlockArray, uint32 ArrayS
     return false;
 }
 
-internal void
-SaveCompressedBlockArrayToFile(game_state *GameState, memory_arena *Arena, char *FileName,  
+void
+SaveCompressedBlockArrayToFile(memory_arena *Arena, char *FileName, uint32 SessionId,
                                compressed_block *BlockArray, uint32 ArraySize)
 {
     char TempFileName[256];
     StringConcat(TempFileName, FileName, ".temp");
 	
-    FileHandle Handle = OpenBlocksFile(GameState, FileName);
-    FileHandle TempHandle = OpenBlocksFile(GameState, TempFileName);
-    ReadBlockFileHeader(GameState, Handle);
-    ReadBlockFileHeader(GameState, TempHandle);
+    FileHandle Handle = OpenBlocksFile(FileName, SessionId);
+    FileHandle TempHandle = OpenBlocksFile(TempFileName, SessionId);
+    ReadBlockFileHeader(Handle, SessionId);
+    ReadBlockFileHeader(TempHandle, SessionId);
         
     //NOTE: Move blocks that are not modified to a new file
     bool32 EndOfFile = false;
@@ -488,7 +478,7 @@ SaveCompressedBlockArrayToFile(game_state *GameState, memory_arena *Arena, char 
         else if(!EndOfFile)
         {
             // NOTE: If this isn't the block we need, skip to next block
-            SetFilePointer(Handle, sizeof(compressed_node)*ReadBlock.NodeCount, NULL, FILE_CURRENT);
+            PlatformIncrementFilePosition(Handle, sizeof(compressed_node)*ReadBlock.NodeCount);
         }
     }
     
@@ -505,22 +495,21 @@ SaveCompressedBlockArrayToFile(game_state *GameState, memory_arena *Arena, char 
         Current = NextCompressedBlock(Current);
     }
     
-    CloseHandle(Handle);
-    CloseHandle(TempHandle);
+    PlatformCloseFile(Handle);
+    PlatformCloseFile(TempHandle);
     
-    DeleteFile(FileName);
+    PlatformDeleteFile(FileName);
     PlatformRenameFile(TempFileName, FileName);
 }
 
 // NOTE: Loads a block from a file
 // If the block was not in the file, returns false
 internal bool32
-LoadCompressedBlockFromFile(game_state *GameState, memory_arena *Arena, char *FileName, 
+LoadCompressedBlockFromFile(memory_arena *Arena, char *FileName, uint32 SessionId,
                             terrain_density_block *DestinationBlock, world_block_pos *BlockP)
 {
-    FileHandle Handle = OpenBlocksFile(GameState, FileName);
-    
-    ReadBlockFileHeader(GameState, Handle);
+    FileHandle Handle = OpenBlocksFile(FileName, SessionId);
+    ReadBlockFileHeader(Handle, SessionId);
     
     //NOTE: Read blocks until we find the one we need
     bool32 NotFound = true;
@@ -546,10 +535,10 @@ LoadCompressedBlockFromFile(game_state *GameState, memory_arena *Arena, char *Fi
         }
         
         // NOTE: If this isn't the block we need, skip to next block
-        SetFilePointer(Handle, sizeof(compressed_node)*ReadBlock->NodeCount, NULL, FILE_CURRENT);
+        PlatformIncrementFilePosition(Handle, sizeof(compressed_node)*ReadBlock->NodeCount);
     }
     
-    CloseHandle(Handle);
+    PlatformCloseFile(Handle);
     return !NotFound;
 }
 
@@ -572,13 +561,17 @@ FillDynamic(terrain_density_block *Dynamic, world_block_pos *BlockP, real32 Valu
 }
 
 // NOTE: Creates a dynamic block, or loads it from a file
+// TODO: Separate loading in compressed blocks to a separate function, 
+// and load in every block at once, if they are in the area of the camera
 internal block_hash*
-CreateNewDynamicBlock(game_state *GameState, memory_arena *Arena, world_density *World, world_block_pos *BlockP)
+CreateNewDynamicBlock(memory_arena *Arena, world_density *World, 
+                      world_block_pos *BlockP, char *DynamicStoreName, uint32 SessionId)
 {
     terrain_density_block *DynamicB = World->DynamicBlocks + World->DynamicBlockCount;
     // NOTE: Load from file, if it was saved previously!
     // bool32 Loaded = LoadBlockFromFile(GameState, GameState->Session.DynamicStore, DynamicB, BlockP);
-    bool32 Loaded = LoadCompressedBlockFromFile(GameState, Arena, GameState->Session.DynamicStore, DynamicB, BlockP);
+    bool32 Loaded = LoadCompressedBlockFromFile(Arena, DynamicStoreName, SessionId,
+                                                DynamicB, BlockP);
     if(!Loaded)
     {
         // TODO: If this block already have a lower resolution parent, values should be taken from there
@@ -631,12 +624,13 @@ CreateNewDynamicBlock(game_state *GameState, memory_arena *Arena, world_density 
 }
 
 internal terrain_density_block*
-GetDynamicBlock(game_state *GameState, memory_arena *Arena, world_density *World, world_block_pos *BlockP)
+GetDynamicBlock(memory_arena *Arena, world_density *World, world_block_pos *BlockP,
+                char *DynamicStoreName, uint32 SessionId)
 {
     block_hash *DynamicHash = GetHash(World->DynamicHash, BlockP);
     if(HashIsEmpty(DynamicHash))
     {
-        DynamicHash = CreateNewDynamicBlock(GameState, Arena, World, BlockP);
+        DynamicHash = CreateNewDynamicBlock(Arena, World, BlockP, DynamicStoreName, SessionId);
     }
     terrain_density_block *Result = World->DynamicBlocks + DynamicHash->Index;
     return Result;
@@ -717,11 +711,11 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
                     v3 Normal2 = GetPointNormal(Neighbours, DynNeighbours, BlockP, Point2);
                     
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DVertex(Point0 * CellDiff, Normal0, GreenColor);
+                        Vertex(Point0 * CellDiff, Normal0, GreenColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DVertex(Point1 * CellDiff, Normal1, GreenColor);
+                        Vertex(Point1 * CellDiff, Normal1, GreenColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DVertex(Point2 * CellDiff, Normal2, GreenColor);
+                        Vertex(Point2 * CellDiff, Normal2, GreenColor);
 #if 0
                     // NOTE: Draw normals for debug purposes
                     v4 BlueColor = v4{0.0, 0.0f, 1.0f, 1.0f};
@@ -734,17 +728,17 @@ PoligoniseBlock(world_density *World, terrain_render_block *RenderBlock, world_b
                     NormalPerpend = Normalize(NormalPerpend);
                     v3 Pos = Point0;
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DVertex(Pos * CellDiff, NormalNormal, BlueColor);
+                        Vertex(Pos * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DVertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
+                        Vertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DVertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
+                        Vertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DVertex(Pos * CellDiff, NormalNormal, BlueColor);
+                        Vertex(Pos * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DVertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
+                        Vertex((Pos + 0.9f*Normal0 + 0.1f*NormalPerpend) * CellDiff, NormalNormal, BlueColor);
                     RenderBlock->Vertices[VertexCount++] = 
-                        Get3DVertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
+                        Vertex((Pos + Normal0) * CellDiff, NormalNormal, BlueColor);
 #endif
                 }
             }

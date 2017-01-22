@@ -37,7 +37,7 @@ V3FromWorldPos(world_block_pos Pos)
     return Result;
 }
 
-internal block_node
+block_node
 GetActualBlockNode(world_block_pos *Original, int32 X, int32 Y, int32 Z)
 {
     // TODO: What to do with Resolution ??
@@ -62,7 +62,7 @@ GetActualBlockNode(world_block_pos *Original, int32 X, int32 Y, int32 Z)
     return Result;
 }
 
-internal block_node
+block_node
 ConvertRenderPosToBlockNode(v3 RenderPos, int32 Resolution)
 {
     world_block_pos WorldOrigo{0, 0, 0, Resolution};
@@ -76,7 +76,7 @@ ConvertRenderPosToBlockNode(v3 RenderPos, int32 Resolution)
     return Node;
 }
 
-internal v3
+v3
 ConvertBlockNodeToRenderPos(block_node *Node)
 {
     v3 Result = V3FromWorldPos(Node->BlockP);

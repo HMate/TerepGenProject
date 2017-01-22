@@ -782,9 +782,9 @@ void dx_resource::DrawDebugTriangle()
     const uint32 FalseCount = 3;
     v4 Color{1.0f, 0.0f, 0.0f, 1.0f};
     v3 Normal{0.0f, 1.0f, 0.0f};
-    vertex FalseVertices[FalseCount]={Get3DVertex(v3{1.0f , 0.55f, 1.0f}, Normal, Color),
-                                      Get3DVertex(v3{-0.8f, -0.7f, 1.0f}, Normal, Color),
-                                      Get3DVertex(v3{-1.0f, 0.0f , 1.0f}, Normal, Color)};
+    vertex FalseVertices[FalseCount]={Vertex(v3{1.0f , 0.55f, 1.0f}, Normal, Color),
+                                      Vertex(v3{-0.8f, -0.7f, 1.0f}, Normal, Color),
+                                      Vertex(v3{-1.0f, 0.0f , 1.0f}, Normal, Color)};
     Assert(!"Curently not implemented!");
 }
 

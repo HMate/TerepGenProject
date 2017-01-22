@@ -1,3 +1,4 @@
+#if !defined(TEREPGEN_MATH_H)
 /*
     Terep generátor by Hidvégi Máté @2016
 */
@@ -115,3 +116,5 @@ Min(int32 A, int32 B)
         return B;
     }
 }
+#define TEREPGEN_MATH_H
+#endif

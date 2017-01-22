@@ -173,22 +173,6 @@ void timer::CalculateAverageTime(avarage_time *Avarage)
         (LastMeasure/Avarage->MeasureCount)*Avarage->AvgTime + (CurrentTime / Avarage->MeasureCount);
 }
 
-inline LARGE_INTEGER
-Win32GetWallClock(void)
-{
-    LARGE_INTEGER Result;
-    QueryPerformanceCounter(&Result);
-    return Result;
-}    
-
-inline real64
-Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
-{
-    real64 Result = ((real64)(End.QuadPart - Start.QuadPart) /
-                    (real64)GlobalPerfCountFrequency.QuadPart);
-    return Result;
-}
-
 FileHandle
 PlatformOpenFileForRead(char *FileName)
 {
@@ -232,6 +216,32 @@ PlatformWriteFile(FileHandle Handle, void *Source, uint32 Size)
     uint32 BytesWritten;
     WriteFile(Handle, Source, Size, (LPDWORD)&BytesWritten, NULL);
     return BytesWritten;
+}
+
+uint32 
+PlatformSetFilePosition(FileHandle Handle, uint32 PositionFromStart)
+{
+    uint32 Result = SetFilePointer(Handle, PositionFromStart, NULL, FILE_BEGIN);
+    return Result;
+}
+
+uint32 
+PlatformIncrementFilePosition(FileHandle Handle, uint32 Step)
+{
+    uint32 Result = SetFilePointer(Handle, Step, NULL, FILE_CURRENT);
+    return Result;
+}
+
+void
+PlatformCloseFile(FileHandle Handle)
+{
+    CloseHandle(Handle);
+}
+
+void
+PlatformDeleteFile(char* FileName)
+{
+    DeleteFile(FileName);
 }
 
 void
@@ -411,8 +421,8 @@ WinMain(HINSTANCE Instance,
     int32 MaxScreenHeight = GetSystemMetrics(SM_CYSCREEN);
     
     screen_info ScreenInfo;
-    ScreenInfo.Width = MaxScreenWidth*3/4;//1280;
-    ScreenInfo.Height = MaxScreenHeight*3/4;//800;
+    ScreenInfo.Width = MaxScreenWidth*3/4;
+    ScreenInfo.Height = MaxScreenHeight*3/4;
     
     if(RegisterClassA(&WindowClass))
     {
@@ -453,8 +463,6 @@ WinMain(HINSTANCE Instance,
             QueryPerformanceFrequency(&GlobalPerfCountFrequency);
             timer FrameClock;
             timer WorldClock;
-            LARGE_INTEGER FrameStartTime = Win32GetWallClock();
-            LARGE_INTEGER WorldTime = FrameStartTime;
             
             while(GlobalRunning)
             {
@@ -463,7 +471,7 @@ WinMain(HINSTANCE Instance,
                 Win32HandleMessages(NewInput);
                 ScreenInfo = GetWindowDimension(Window);
                         
-                // NOTE: Update
+                // NOTE: Update Mouse inputs
                 NewInput->OldMouseX = OldInput->MouseX;
                 NewInput->OldMouseY = OldInput->MouseY;
                 

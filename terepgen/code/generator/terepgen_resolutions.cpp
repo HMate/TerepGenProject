@@ -115,6 +115,13 @@ MapBlockPosition(world_density *World, world_block_pos *BlockP, int32 MappingVal
     return ResHash;
 }
 
+int32
+GetBlockMappedResolution(world_density *World, world_block_pos *BlockP)
+{
+    block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+    return ResHash->Index;
+}
+
 internal block_hash*
 MapBlockPositionAfterParent(world_density *World, world_block_pos *BlockP)
 {
