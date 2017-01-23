@@ -287,8 +287,8 @@ HRESULT dx_resource::Initialize(memory_arena *Arena, uint32 ScreenWidth, uint32 
     
     uint32 DeviceFlags = NULL;
 #if TEREPGEN_DEBUG
-    OutputDebugStringA("[TEREPGEN_DEBUG]Device and SwapChain are created with DEBUG flag\n");
     // NOTE: D3D11_CREATE_DEVICE_DEBUGGABLE flag does not work before win8.1 
+    logger::DebugPrint("Device and SwapChain are created with DEBUG flag");
     DeviceFlags = D3D11_CREATE_DEVICE_DEBUG;
 #endif
     HResult = D3D11CreateDeviceAndSwapChain(NULL,

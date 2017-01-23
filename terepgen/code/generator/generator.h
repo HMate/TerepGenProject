@@ -109,9 +109,9 @@ void ClearFarawayBlocks(memory_arena*, world_density*,
 void GenerateTerrainBlocks(memory_arena*, world_density*, game_input *Input,
                            char* DynamicStoreName, uint32 SessionId, generator_position *,
                            v3 WorldMousePos, v3 CameraOrigo, cube *, v3 CameraP, v3 CamDir);
-
 void SaveCompressedBlockArrayToFile(memory_arena *Arena, char *FileName, uint32 SessionId,  
                                     compressed_block *BlockArray, uint32 ArraySize);
+
 compressed_block *CompressBlock(memory_arena *Arena, terrain_density_block *Block);
 int32 GetBlockMappedResolution(world_density *World, world_block_pos *BlockP);
 
