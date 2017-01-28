@@ -14,8 +14,6 @@
 #include "generator\generator.h"
 
 #include "terepgen_dx_renderer.h"
-#include "terepgen_terrain.h"
-
 
 #define CubeFrameVertexCount 24
 struct cube_frame

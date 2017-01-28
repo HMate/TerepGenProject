@@ -25,7 +25,7 @@ struct vertex
 
 vertex Vertex(v3 Pos, v3 Norm, v4 Color);
 
-#include "..\terepgen_terrain.h"
+#include "terrain.h"
 
 bool32 WorldPosEquals(world_block_pos *A, world_block_pos *B);
 inline world_block_pos WorldPosFromV3(v3 Pos, int32 Resolution);

@@ -9,15 +9,17 @@
 #include "hash.cpp"
 #include "marching_cubes.cpp"
 #include "resolutions.cpp"
-#include "terrain.cpp"
+#include "density_block.cpp"
+#include "dynamic_block.cpp"
 #include "render_block.cpp"
+#include "terrain.cpp"
 
 // Select which blocks can be potentially generated this frame / 
 // which blocks are seen at this resolution
 internal void 
 FillBlockPositions(block_pos_array *PosArray, uint32 MaxArraySize, 
                     world_block_pos *CentralBlockPos, int32 Radius)
-{    
+{
     PosArray->Count = 0;
     for(int32 Dist = 0;
         Dist <= Radius;
@@ -106,6 +108,7 @@ void ClearFarawayBlocks(memory_arena *Arena, world_density* World,
 {
     world_block_pos *Center = (world_block_pos *)GeneratorPos;
     // TODO: Maybe we need to reinitialize the block hash, if there are too many deleted blocks?
+    // Clear density blocks
     if(World->DensityBlockCount > (ArrayCount(World->DensityBlocks) - 100))
     {
         int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
@@ -139,6 +142,7 @@ void ClearFarawayBlocks(memory_arena *Arena, world_density* World,
         }
     }
     
+    // Clear dynamic blocks
     uint32 DynamicClearThreshold = (ArrayCount(World->DynamicBlocks) - 100);
     if(World->DynamicBlockCount > DynamicClearThreshold)
     {
@@ -192,6 +196,7 @@ void ClearFarawayBlocks(memory_arena *Arena, world_density* World,
         }
     }
     
+    // Clear render blocks
     uint32 PoligonisedBlockClearThreshold = (ArrayCount(World->PoligonisedBlocks) - 100);
     if(World->PoligonisedBlockCount > PoligonisedBlockClearThreshold)
     {
@@ -210,6 +215,7 @@ void ClearFarawayBlocks(memory_arena *Arena, world_density* World,
         }
     }
     
+    // Clear resolution mapping blocks
     if(World->BlockMappedCount > (ArrayCount(World->ResolutionMapping) * 7/8))
     {
         int32 LoadSpaceRadius = DENSITY_BLOCK_RADIUS + 1;
@@ -239,6 +245,7 @@ void ClearFarawayBlocks(memory_arena *Arena, world_density* World,
         }
     }
     
+    // Clear Zero blocks
     int32 ZeroGridTotalSize = POS_GRID_SIZE(ZERO_BLOCK_RADIUS);
     Assert(ZeroGridTotalSize < ZERO_HASH_SIZE);
     if(World->ZeroBlockCount > (ArrayCount(World->ZeroHash)*7/8))
@@ -271,46 +278,6 @@ void ClearFarawayBlocks(memory_arena *Arena, world_density* World,
     }
 }
 
-
-internal bool32
-DidDensityBlocksLoaded(world_density *World, world_block_pos *Positions, uint32 Count)
-{
-    bool32 Result = true;
-    for(uint32 PosIndex = 0;
-        PosIndex < Count;
-        ++PosIndex)
-    {
-        block_hash *DensityHash = GetHash(World->DensityHash, Positions + PosIndex);
-        Result = Result && !HashIsEmpty(DensityHash);
-    }
-    
-    return Result;
-}
-
-internal bool32
-DidBiggerMappedDensitiesLoad(world_density *World, world_block_pos *Positions, uint32 Count)
-{
-    bool32 Result = true;
-    for(uint32 PosIndex = 0;
-        PosIndex < Count;
-        ++PosIndex)
-    {
-        world_block_pos *Pos = Positions + PosIndex;
-        block_hash *ResHash = GetHash(World->ResolutionMapping, Pos);
-        if(HashIsEmpty(ResHash))
-        {
-            ResHash = MapBlockPositionAfterParent(World, Pos);
-        }
-        Assert(!HashIsEmpty(ResHash));
-        Assert(ResHash->Index >= Pos->Resolution);
-        
-        world_block_pos MappedPos = GetAndSetBiggerMappedPosition(World, Pos);
-        block_hash *DensityHash = GetHash(World->DensityHash, &MappedPos);
-        Result = Result && !HashIsEmpty(DensityHash);
-    }
-    
-    return Result;
-}
 
 internal void
 QueueBlockToRender(world_density *World, world_block_pos *BlockP, 
@@ -393,7 +360,7 @@ DeformBlocks(world_density *World, memory_arena *Arena, block_deformer *Deformer
     {
         Node = GetActualBlockNode(&StartNode.BlockP, 
                     StartNode.X+XIndex, StartNode.Y, StartNode.Z);
-        for(uint32 YIndex = 0; 
+        for(uint32 YIndex = 0;
             (Node.BlockP.BlockY != EndNode.BlockP.BlockY) || (Node.Y != EndNode.Y);
             YIndex++)
         {
@@ -406,7 +373,6 @@ DeformBlocks(world_density *World, memory_arena *Arena, block_deformer *Deformer
                 Node = GetActualBlockNode(&StartNode.BlockP, 
                             StartNode.X+XIndex, StartNode.Y+YIndex, StartNode.Z+ZIndex);
                 // NOTE: Change node density and rerender the render block
-                
                 if(IsAffectedByDeformer(Deformer, &Node))
                 {
                     terrain_density_block *ActDynamicBlock = GetDynamicBlock(Arena, World, &Node.BlockP,
@@ -446,12 +412,6 @@ DeformBlocks(world_density *World, memory_arena *Arena, block_deformer *Deformer
             }
         }
     }
-}
-
-void InitializeTerrain(world_density *World)
-{
-    InitBlockHash(World);
-    InitZeroHash(World);
 }
 
 internal void
@@ -698,7 +658,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, world_density* World, game_input
             Assert(!HashIsEmpty(ResHash));
             bool32 AreOnSameRes = BlockP->Resolution == ResHash->Index;
             
-            if(AreOnSameRes && !BlockWasRendered(World, BlockP))
+            if(AreOnSameRes && !IsBlockInTerrainModel(World, BlockP))
             {
                 EverybodyIsRenderedOnCorrectResolution = false;
                 
@@ -730,8 +690,8 @@ void GenerateTerrainBlocks(memory_arena *Arena, world_density* World, game_input
                 Assert(!HashIsEmpty(ResHash));
                 
                 CanUpgradeLowestResolution = CanUpgradeLowestResolution &&
-                    (((BlockP->Resolution == LowestResUsed) && BlockWasRendered(World, BlockP)) ||
-                    ((BlockP->Resolution != LowestResUsed) && !BlockWasRendered(World, BlockP)));
+                    (((BlockP->Resolution == LowestResUsed) && IsBlockInTerrainModel(World, BlockP)) ||
+                    ((BlockP->Resolution != LowestResUsed) && !IsBlockInTerrainModel(World, BlockP)));
             }
         }
         
@@ -775,7 +735,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, world_density* World, game_input
                     UpdateLowerBlocksMapping(World, SiblingP, LowestResUsed);
                 }
                 
-                DeleteRenderedBlock(World, &BiggerP);
+                DeleteFromTerrainModel(World, &BiggerP);
                 while(BiggerP.Resolution <= World->FixedResolution[0])
                 {
                     block_hash *BiggerHash = GetHash(World->ResolutionMapping, &BiggerP);
@@ -823,7 +783,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, world_density* World, game_input
     for(int32 DelIndex = 0; DelIndex < DeleteRenderBlockCount; DelIndex++)
     {
         world_block_pos *BlockP = DeleteRenderBlockQueue + DelIndex;
-        DeleteRenderedBlock(World, BlockP);
+        DeleteFromTerrainModel(World, BlockP);
     }
     
     // NOTE: Remove duplicates from BlocksToRender
@@ -839,9 +799,9 @@ void GenerateTerrainBlocks(memory_arena *Arena, world_density* World, game_input
             world_block_pos *InnerBlockP = BlocksToRender.Pos + RenderInnerIndex;
             if(WorldPosEquals(BlockP, InnerBlockP))
             {
-                --BlocksToRender.Count;
-                world_block_pos LastP = BlocksToRender.Pos[BlocksToRender.Count];
+                world_block_pos LastP = BlocksToRender.Pos[BlocksToRender.Count-1];
                 BlocksToRender.Pos[RenderInnerIndex] = LastP;
+                --BlocksToRender.Count;
                 --RenderInnerIndex;
             }
         }
@@ -873,7 +833,8 @@ void GenerateTerrainBlocks(memory_arena *Arena, world_density* World, game_input
             Assert(!HashIsEmpty(NeighbourHash));
             Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
             
-            DynNeighbours[NeighbourIndex] = GetDynamicBlock(Arena, World, &MappedP, DynamicStoreName, SessionId);
+            DynNeighbours[NeighbourIndex] = GetDynamicBlock(Arena, World, &MappedP, 
+                                                            DynamicStoreName, SessionId);
         }
     }
     
@@ -885,14 +846,14 @@ void GenerateTerrainBlocks(memory_arena *Arena, world_density* World, game_input
         RenderIndex++)
     {
         world_block_pos *BlockP = BlocksToRender.Pos + RenderIndex;
-        DeleteRenderedBlock(World, BlockP);
+        DeleteFromTerrainModel(World, BlockP);
         
         Assert(HashIsEmpty(GetHash(World->RenderHash, BlockP)));
         Assert(HashIsEmpty(GetZeroHash(World, BlockP)));
         
         {
             AvgClock.Reset();
-            PoligoniseBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, BlockP);
+            CreateRenderBlock(World, World->PoligonisedBlocks + World->PoligonisedBlockCount, BlockP);
             AvgClock.CalculateAverageTime(&World->AvgPoligoniseTime);
             
             if(World->PoligonisedBlocks[World->PoligonisedBlockCount].VertexCount != 0)
@@ -935,7 +896,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, world_density* World, game_input
                     block_hash *Hash = GetHash(World->RenderHash, SiblingP);
                     if(!HashIsEmpty(Hash))
                     {
-                        AddToRenderBlocks(World, World->PoligonisedBlocks + Hash->Index, 
+                        AddToTerrainModel(World, World->PoligonisedBlocks + Hash->Index, 
                                           CameraP, CamDir);
                     }
                 }

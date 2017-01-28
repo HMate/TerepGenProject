@@ -1,4 +1,6 @@
 
+// NOTE: String utils
+
 internal uint32
 StringLength(char *Text)
 {
