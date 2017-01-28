@@ -4,8 +4,11 @@
 
 */
 
-void TerminateGame();
-
+#if defined(_WIN32) || defined(_WIN64)
+    #ifndef MAX_FILE_PATH
+        #define MAX_FILE_PATH 256
+    #endif
+#endif
 
 typedef void *FileHandle;
 

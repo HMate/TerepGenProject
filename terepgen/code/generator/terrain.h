@@ -113,6 +113,13 @@ struct density_block_pos_array
 
 constexpr int32 RESOLUTION_COUNT = 3;
 
+struct session_description
+{
+    uint32 Id;
+    // NOTE: MAX_FILE_PATH is used for ASCII file names in windows
+    char DynamicStore[MAX_FILE_PATH];
+};
+
 struct terrain
 {
     uint32 Seed;

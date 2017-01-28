@@ -222,13 +222,10 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     
     timer Clock;
     generator_position GeneratorPosition = CalculateTerrainGeneratorPositon(Terrain, CameraP);
-    ClearFarawayBlocks(TranArena, Terrain, GameState->Session.DynamicStore, 
-                       GameState->Session.Id, &GeneratorPosition);
+    ClearFarawayBlocks(TranArena, Terrain, &GameState->Session, &GeneratorPosition);
     Clock.Reset();
         
-    GenerateTerrainBlocks(TranArena, Terrain, Input, 
-                          GameState->Session.DynamicStore, GameState->Session.Id,
-                          &GeneratorPosition,
+    GenerateTerrainBlocks(TranArena, Terrain, Input, &GameState->Session, &GeneratorPosition,
                           WorldMousePos, RenderState->CameraOrigo, &GameState->Cube,
                           CameraP, CamDir);
         
@@ -393,23 +390,7 @@ SaveGameState(game_memory *Memory)
     
     if(GameState->Initialized)
     {
-        compressed_block *CompressedBlocks = 0;
-        for(uint32 Index = 0; 
-            Index < Terrain->DynamicBlockCount; 
-            Index++)
-        {
-            compressed_block *Compressed = CompressBlock(TranArena, Terrain->DynamicBlocks + Index);
-            if(CompressedBlocks == 0)
-            {
-                CompressedBlocks = Compressed;
-            }
-        }
-        if(CompressedBlocks != 0)
-        {
-            SaveCompressedBlockArrayToFile(TranArena, GameState->Session.DynamicStore, 
-                                           GameState->Session.Id,
-                                           CompressedBlocks, Terrain->DynamicBlockCount);
-        }
+        SaveTerrain(TranArena, Terrain, &GameState->Session);
     }
     
     GameState->RenderState.Camera.Release();

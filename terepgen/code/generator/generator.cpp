@@ -103,7 +103,7 @@ DoRectangleContains(world_block_pos *Center, int32 Radius, world_block_pos *P)
 
 // NOTE: Delete blocks that are too far from the generator center
 void ClearFarawayBlocks(memory_arena *Arena, terrain* Terrain, 
-                        char* DynamicStoreName, uint32 SessionId,
+                        session_description * Session,
                         generator_position *GeneratorPos)
 {
     world_block_pos *Center = (world_block_pos *)GeneratorPos;
@@ -191,7 +191,7 @@ void ClearFarawayBlocks(memory_arena *Arena, terrain* Terrain,
         
         if(SavedBlocks != 0)
         {
-            SaveCompressedBlockArrayToFile(Arena, DynamicStoreName, SessionId,
+            SaveCompressedBlockArrayToFile(Arena, Session,
                                            SavedBlocks, SaveCount);
         }
     }
@@ -345,7 +345,7 @@ ChangeDynamicValue(block_deformer *Deformer, real32 OldVal, block_node *Node)
 internal void 
 DeformBlocks(terrain *Terrain, memory_arena *Arena, block_deformer *Deformer, 
              density_block_pos_array *BlocksToRender, int32 *MaxRenderBlocksToGenerateInFrame,
-             char* DynamicStoreName, uint32 SessionId)
+             session_description *Session)
 {
     v3 StartBlockRP = Deformer->Center - v3{Deformer->Radius, Deformer->Radius, Deformer->Radius};
     v3 EndBlockRP = Deformer->Center + v3{Deformer->Radius, Deformer->Radius, Deformer->Radius};
@@ -376,7 +376,7 @@ DeformBlocks(terrain *Terrain, memory_arena *Arena, block_deformer *Deformer,
                 if(IsAffectedByDeformer(Deformer, &Node))
                 {
                     terrain_density_block *ActDynamicBlock = GetDynamicBlock(Arena, Terrain, &Node.BlockP,
-                                                                            DynamicStoreName, SessionId);
+                                                                            Session);
                     real32 GridVal = GetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z);
                     real32 ChangedGridVal = ChangeDynamicValue(Deformer, GridVal, &Node);
                     SetGrid(&ActDynamicBlock->Grid, Node.X, Node.Y, Node.Z, ChangedGridVal);
@@ -479,7 +479,7 @@ AddCube(cube *Cube, v3 WorldMousePos, real32 Size,
 
 
 void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *Input,
-                           char* DynamicStoreName, uint32 SessionId, generator_position *GeneratorCenter,
+                           session_description *Session, generator_position *GeneratorCenter,
                            v3 WorldMousePos, v3 CameraOrigo, cube* Cube, v3 CameraP, v3 CamDir)
 {
     
@@ -534,7 +534,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             real32 PosValue = GetWorldGridValueFromV3(Terrain, CheckPos, Terrain->FixedResolution[0]);
             block_node ClickNode = ConvertRenderPosToBlockNode(CheckPos, Terrain->FixedResolution[0]);
             terrain_density_block *DynamicBlock = GetDynamicBlock(Arena, Terrain, &ClickNode.BlockP,
-                                                                  DynamicStoreName, SessionId);
+                                                                  Session);
             real32 DynamicVal = GetGrid(&DynamicBlock->Grid, ClickNode.X, ClickNode.Y, ClickNode.Z);
             real32 Value = PosValue + DynamicVal;
             if(Value < DENSITY_ISO_LEVEL)
@@ -564,7 +564,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
                 block_deformer *UsedDeformer = &GradualSphereDeformer;
                 
                 DeformBlocks(Terrain, Arena, UsedDeformer, &BlocksToRender, 
-                             &MaxRenderBlocksToGenerateInFrame, DynamicStoreName, SessionId);
+                             &MaxRenderBlocksToGenerateInFrame, Session);
                 AddCube(Cube, CheckPos, 1.0f, 
                         v4{1.0f, 0.0f, 0.0f, 1.0f}, 
                         v4{0.0f, 1.0f, 0.0f, 1.0f}, 
@@ -833,8 +833,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             Assert(!HashIsEmpty(NeighbourHash));
             Neighbours[NeighbourIndex] = Terrain->DensityBlocks + NeighbourHash->Index;
             
-            DynNeighbours[NeighbourIndex] = GetDynamicBlock(Arena, Terrain, &MappedP, 
-                                                            DynamicStoreName, SessionId);
+            DynNeighbours[NeighbourIndex] = GetDynamicBlock(Arena, Terrain, &MappedP, Session);
         }
     }
     

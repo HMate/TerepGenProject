@@ -57,9 +57,9 @@ DecompressBlock(terrain_density_block *Block, compressed_block *Source)
 };
 
 internal FileHandle
-OpenBlocksFile(char *FileName, uint32 SessionId)
+OpenBlocksFile(char* Filename, uint32 SessionId)
 {
-    FileHandle Handle = PlatformOpenOrCreateFileForWrite(FileName);
+    FileHandle Handle = PlatformOpenOrCreateFileForWrite(Filename);
     if(FileIsEmpty(Handle))
     {
         // NOTE: The file didn't exist before, so now we create its header
@@ -109,9 +109,11 @@ CompressedBlockArrayContainsWorldPos(compressed_block *BlockArray, uint32 ArrayS
 }
 
 void
-SaveCompressedBlockArrayToFile(memory_arena *Arena, char *FileName, uint32 SessionId,
+SaveCompressedBlockArrayToFile(memory_arena *Arena, session_description *Session,
                                compressed_block *BlockArray, uint32 ArraySize)
 {
+    char *FileName = Session->DynamicStore;
+    uint32 SessionId = Session->Id;
     char TempFileName[256];
     StringConcat(TempFileName, FileName, ".temp");
 	
@@ -175,11 +177,11 @@ SaveCompressedBlockArrayToFile(memory_arena *Arena, char *FileName, uint32 Sessi
 // NOTE: Loads a block from a file
 // If the block was not in the file, returns false
 internal bool32
-LoadCompressedBlockFromFile(memory_arena *Arena, char *FileName, uint32 SessionId,
+LoadCompressedBlockFromFile(memory_arena *Arena, session_description *Session,
                             terrain_density_block *DestinationBlock, world_block_pos *BlockP)
 {
-    FileHandle Handle = OpenBlocksFile(FileName, SessionId);
-    ReadBlockFileHeader(Handle, SessionId);
+    FileHandle Handle = OpenBlocksFile(Session->DynamicStore, Session->Id);
+    ReadBlockFileHeader(Handle, Session->Id);
     
     //NOTE: Read blocks until we find the one we need
     bool32 NotFound = true;
@@ -236,13 +238,12 @@ FillDynamic(terrain_density_block *Dynamic, world_block_pos *BlockP, real32 Valu
 // and load in every block at once, if they are in the area of the camera
 internal block_hash*
 CreateNewDynamicBlock(memory_arena *Arena, terrain *Terrain, 
-                      world_block_pos *BlockP, char *DynamicStoreName, uint32 SessionId)
+                      world_block_pos *BlockP, session_description *Session)
 {
     terrain_density_block *DynamicB = Terrain->DynamicBlocks + Terrain->DynamicBlockCount;
     // NOTE: Load from file, if it was saved previously!
     // bool32 Loaded = LoadBlockFromFile(GameState, GameState->Session.DynamicStore, DynamicB, BlockP);
-    bool32 Loaded = LoadCompressedBlockFromFile(Arena, DynamicStoreName, SessionId,
-                                                DynamicB, BlockP);
+    bool32 Loaded = LoadCompressedBlockFromFile(Arena, Session, DynamicB, BlockP);
     if(!Loaded)
     {
         // TODO: If this block already have a lower resolution parent, values should be taken from there
@@ -296,12 +297,12 @@ CreateNewDynamicBlock(memory_arena *Arena, terrain *Terrain,
 
 internal terrain_density_block*
 GetDynamicBlock(memory_arena *Arena, terrain *Terrain, world_block_pos *BlockP,
-                char *DynamicStoreName, uint32 SessionId)
+                session_description *Session)
 {
     block_hash *DynamicHash = GetHash(Terrain->DynamicHash, BlockP);
     if(HashIsEmpty(DynamicHash))
     {
-        DynamicHash = CreateNewDynamicBlock(Arena, Terrain, BlockP, DynamicStoreName, SessionId);
+        DynamicHash = CreateNewDynamicBlock(Arena, Terrain, BlockP, Session);
     }
     terrain_density_block *Result = Terrain->DynamicBlocks + DynamicHash->Index;
     return Result;

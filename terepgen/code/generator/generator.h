@@ -62,15 +62,14 @@ struct generator_position
     world_block_pos Centers[RESOLUTION_COUNT];
 };
 
-generator_position CalculateTerrainGeneratorPositon(terrain*, v3);
-void InitializeTerrain(terrain*);
-void ClearFarawayBlocks(memory_arena*, terrain*, 
-                        char* DynamicStoreName, uint32 SessionId, 
-                        generator_position *);
-void GenerateTerrainBlocks(memory_arena*, terrain*, game_input *Input,
-                           char* DynamicStoreName, uint32 SessionId, generator_position *,
+generator_position CalculateTerrainGeneratorPositon(terrain *, v3);
+void InitializeTerrain(terrain *);
+void SaveTerrain(memory_arena *, terrain *, session_description *);
+void ClearFarawayBlocks(memory_arena *, terrain *, session_description *, generator_position *);
+void GenerateTerrainBlocks(memory_arena *, terrain *, game_input *Input,
+                           session_description *, generator_position *,
                            v3 WorldMousePos, v3 CameraOrigo, cube *, v3 CameraP, v3 CamDir);
-void SaveCompressedBlockArrayToFile(memory_arena *Arena, char *FileName, uint32 SessionId,  
+void SaveCompressedBlockArrayToFile(memory_arena *, session_description *,  
                                     compressed_block *BlockArray, uint32 ArraySize);
 
 compressed_block *CompressBlock(memory_arena *Arena, terrain_density_block *Block);

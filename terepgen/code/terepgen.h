@@ -21,13 +21,6 @@ struct cube_frame
     vertex Vertices[CubeFrameVertexCount];
 };
 
-struct session_description
-{
-    uint32 Id;
-    // NOTE: MAX_PATH is used for ASCII file names in windows
-    char DynamicStore[MAX_PATH];
-};
-
 struct render_state
 {
     bool32 Initialized;
@@ -75,6 +68,7 @@ struct transient_state
 
 void UpdateAndRenderGame(game_memory*, game_input*, screen_info, bool32);
 void SaveGameState(game_memory*);
+void TerminateGame();
 
 #define TEREPGEN_H
 #endif
