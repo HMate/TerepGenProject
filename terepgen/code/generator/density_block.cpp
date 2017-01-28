@@ -63,14 +63,14 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
 }
 
 internal bool32
-DidDensityBlocksLoaded(world_density *World, world_block_pos *Positions, uint32 Count)
+DidDensityBlocksLoaded(terrain *Terrain, world_block_pos *Positions, uint32 Count)
 {
     bool32 Result = true;
     for(uint32 PosIndex = 0;
         PosIndex < Count;
         ++PosIndex)
     {
-        block_hash *DensityHash = GetHash(World->DensityHash, Positions + PosIndex);
+        block_hash *DensityHash = GetHash(Terrain->DensityHash, Positions + PosIndex);
         Result = Result && !HashIsEmpty(DensityHash);
     }
     
@@ -78,7 +78,7 @@ DidDensityBlocksLoaded(world_density *World, world_block_pos *Positions, uint32 
 }
 
 internal bool32
-DidBiggerMappedDensitiesLoad(world_density *World, world_block_pos *Positions, uint32 Count)
+DidBiggerMappedDensitiesLoad(terrain *Terrain, world_block_pos *Positions, uint32 Count)
 {
     bool32 Result = true;
     for(uint32 PosIndex = 0;
@@ -86,16 +86,16 @@ DidBiggerMappedDensitiesLoad(world_density *World, world_block_pos *Positions, u
         ++PosIndex)
     {
         world_block_pos *Pos = Positions + PosIndex;
-        block_hash *ResHash = GetHash(World->ResolutionMapping, Pos);
+        block_hash *ResHash = GetHash(Terrain->ResolutionMapping, Pos);
         if(HashIsEmpty(ResHash))
         {
-            ResHash = MapBlockPositionAfterParent(World, Pos);
+            ResHash = MapBlockPositionAfterParent(Terrain, Pos);
         }
         Assert(!HashIsEmpty(ResHash));
         Assert(ResHash->Index >= Pos->Resolution);
         
-        world_block_pos MappedPos = GetAndSetBiggerMappedPosition(World, Pos);
-        block_hash *DensityHash = GetHash(World->DensityHash, &MappedPos);
+        world_block_pos MappedPos = GetAndSetBiggerMappedPosition(Terrain, Pos);
+        block_hash *DensityHash = GetHash(Terrain->DensityHash, &MappedPos);
         Result = Result && !HashIsEmpty(DensityHash);
     }
     
@@ -106,27 +106,27 @@ DidBiggerMappedDensitiesLoad(world_density *World, world_block_pos *Positions, u
 
 // NOTE: XYZ are relative to the block position
 internal real32
-GetWorldGrid(world_density *World, world_block_pos *BlockP, int32 X, int32 Y, int32 Z)
+GetWorldGrid(terrain *Terrain, world_block_pos *BlockP, int32 X, int32 Y, int32 Z)
 {
     block_node Node = GetActualBlockNode(BlockP, X, Y, Z);
-    //block_hash *ResHash = GetHash(World->ResolutionMapping, &Node.BlockP);
+    //block_hash *ResHash = GetHash(Terrain->ResolutionMapping, &Node.BlockP);
     
-    block_hash *DensityHash = GetHash(World->DensityHash, &Node.BlockP);
+    block_hash *DensityHash = GetHash(Terrain->DensityHash, &Node.BlockP);
     // TODO: What if this block wasnt generated? 
     // maybe create an IsBlockValid(world_block_pos)->bool32 ?
     real32 Result = 0.0f; 
     if(!HashIsEmpty(DensityHash))
     {
-        terrain_density_block *ActDensityBlock = World->DensityBlocks + DensityHash->Index;
+        terrain_density_block *ActDensityBlock = Terrain->DensityBlocks + DensityHash->Index;
         Result = GetGrid(&ActDensityBlock->Grid, Node.X, Node.Y, Node.Z);
     }
     
     return Result;
 }
 
-// NOTE: floating values here are world grid positions cast to float, not render space values!
+// NOTE: floating values here are terrain grid positions cast to float, not render space values!
 internal real32
-GetInterpolatedWorldGrid(world_density *World, world_block_pos *BlockP, 
+GetInterpolatedWorldGrid(terrain *Terrain, world_block_pos *BlockP, 
                          real32 X, real32 Y, real32 Z)
 {
     int32 XFloor = FloorInt32(X);
@@ -138,27 +138,27 @@ GetInterpolatedWorldGrid(world_density *World, world_block_pos *BlockP,
     
     // NOTE: If every parameter is whole number, we can just give back the grid value
     if(XRemainder < 0.0001f && YRemainder < 0.0001f && ZRemainder < 0.0001f)
-        return GetWorldGrid(World, BlockP, XFloor, YFloor, ZFloor);
+        return GetWorldGrid(Terrain, BlockP, XFloor, YFloor, ZFloor);
     else if(XRemainder < 0.0001f && YRemainder < 0.0001f)
     {
-        real32 Elem1 = GetWorldGrid(World, BlockP, XFloor, YFloor, ZFloor);
-        real32 Elem2 = GetWorldGrid(World, BlockP, XFloor, YFloor, ZFloor + 1);
+        real32 Elem1 = GetWorldGrid(Terrain, BlockP, XFloor, YFloor, ZFloor);
+        real32 Elem2 = GetWorldGrid(Terrain, BlockP, XFloor, YFloor, ZFloor + 1);
     
         real32 Result = Elem1 + ZRemainder * (Elem2 - Elem1);
         return Result;
     }
     else if(XRemainder < 0.0001f)
     {
-        real32 Elem1 = GetInterpolatedWorldGrid(World, BlockP, X, (real32)YFloor, Z);
-        real32 Elem2 = GetInterpolatedWorldGrid(World, BlockP, X, (real32)(YFloor+1), Z);
+        real32 Elem1 = GetInterpolatedWorldGrid(Terrain, BlockP, X, (real32)YFloor, Z);
+        real32 Elem2 = GetInterpolatedWorldGrid(Terrain, BlockP, X, (real32)(YFloor+1), Z);
         
         real32 Result = Elem1 + YRemainder * (Elem2 - Elem1);
         return Result;
     }
     else
     {
-        real32 Elem1 = GetInterpolatedWorldGrid(World, BlockP, (real32)XFloor, Y, Z);
-        real32 Elem2 = GetInterpolatedWorldGrid(World, BlockP, (real32)(XFloor+1), Y, Z);
+        real32 Elem1 = GetInterpolatedWorldGrid(Terrain, BlockP, (real32)XFloor, Y, Z);
+        real32 Elem2 = GetInterpolatedWorldGrid(Terrain, BlockP, (real32)(XFloor+1), Y, Z);
         
         real32 Result = Elem1 + XRemainder * (Elem2 - Elem1);
         return Result;
@@ -167,13 +167,13 @@ GetInterpolatedWorldGrid(world_density *World, world_block_pos *BlockP,
 
 // NOTE: V3 contains renderspace values here
 internal real32
-GetWorldGridValueFromV3(world_density *World, v3 Pos, int32 Resolution)
+GetWorldGridValueFromV3(terrain *Terrain, v3 Pos, int32 Resolution)
 {
     // TODO: Resolution
     world_block_pos WorldOrigo{0, 0, 0, Resolution};
     v3 BlockPos = Pos/((real32)Resolution * RENDER_SPACE_UNIT);
     
-    real32 Result = GetInterpolatedWorldGrid(World, &WorldOrigo, BlockPos.X, BlockPos.Y, BlockPos.Z);
+    real32 Result = GetInterpolatedWorldGrid(Terrain, &WorldOrigo, BlockPos.X, BlockPos.Y, BlockPos.Z);
     return Result;
 }
 

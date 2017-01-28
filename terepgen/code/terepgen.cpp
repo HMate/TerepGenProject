@@ -118,7 +118,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     Assert(sizeof(game_state) < Memory->PermanentStorageSize);
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     render_state *RenderState = &GameState->RenderState;
-    world_density *World = &GameState->WorldDensity;
+    terrain *Terrain = &GameState->Terrain;
     
     if(GameState->Initialized == false)
     {
@@ -126,20 +126,20 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         InitializeArena(&GameState->WorldArena, (uint8 *)Memory->PermanentStorage + sizeof(game_state), 
                         Memory->PermanentStorageSize - sizeof(game_state));
         
-        World->FixedResolution[0] = 8;
-        World->FixedResolution[1] = 4;
-        World->FixedResolution[2] = 2;
-        World->StoreResolutionCount = RESOLUTION_COUNT-1;
-        World->MaxResolutionToRender = RESOLUTION_COUNT-2;
+        Terrain->FixedResolution[0] = 8;
+        Terrain->FixedResolution[1] = 4;
+        Terrain->FixedResolution[2] = 2;
+        Terrain->StoreResolutionCount = RESOLUTION_COUNT-1;
+        Terrain->MaxResolutionToRender = RESOLUTION_COUNT-2;
         
         LoadSessionDesc(GameState, 321421);
         
-        World->Seed = 1000;
-        World->BlockSize = real32(TERRAIN_BLOCK_SIZE);
-        SetSeed(&World->PerlinArray.Noise[0], World->Seed);
-        SetSeed(&World->PerlinArray.Noise[1], World->Seed+1);
-        SetSeed(&World->PerlinArray.Noise[2], World->Seed+2);
-        InitializeTerrain(World);
+        Terrain->Seed = 1000;
+        Terrain->BlockSize = real32(TERRAIN_BLOCK_SIZE);
+        SetSeed(&Terrain->PerlinArray.Noise[0], Terrain->Seed);
+        SetSeed(&Terrain->PerlinArray.Noise[1], Terrain->Seed+1);
+        SetSeed(&Terrain->PerlinArray.Noise[2], Terrain->Seed+2);
+        InitializeTerrain(Terrain);
         
         GameState->Initialized = true;
     }
@@ -221,12 +221,12 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     temporary_memory GeneratorMemory = BeginTemporaryMemory(TranArena);
     
     timer Clock;
-    generator_position GeneratorPosition = CalculateTerrainGeneratorPositon(World, CameraP);
-    ClearFarawayBlocks(TranArena, World, GameState->Session.DynamicStore, 
+    generator_position GeneratorPosition = CalculateTerrainGeneratorPositon(Terrain, CameraP);
+    ClearFarawayBlocks(TranArena, Terrain, GameState->Session.DynamicStore, 
                        GameState->Session.Id, &GeneratorPosition);
     Clock.Reset();
         
-    GenerateTerrainBlocks(TranArena, World, Input, 
+    GenerateTerrainBlocks(TranArena, Terrain, Input, 
                           GameState->Session.DynamicStore, GameState->Session.Id,
                           &GeneratorPosition,
                           WorldMousePos, RenderState->CameraOrigo, &GameState->Cube,
@@ -304,13 +304,13 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     DXResources->DeviceContext->PSSetSamplers(0, 1, &DXResources->TexSamplerState);
     
     for(size_t RenderBlockIndex = 0; 
-        RenderBlockIndex < World->RenderBlockCount; 
+        RenderBlockIndex < Terrain->RenderBlockCount; 
         RenderBlockIndex++)
     {
-        DXResources->SetTransformations(World->RenderBlocks[RenderBlockIndex]->Pos);
+        DXResources->SetTransformations(Terrain->RenderBlocks[RenderBlockIndex]->Pos);
         DXResources->DrawTriangles(
-            World->RenderBlocks[RenderBlockIndex]->Vertices,
-            World->RenderBlocks[RenderBlockIndex]->VertexCount);
+            Terrain->RenderBlocks[RenderBlockIndex]->Vertices,
+            Terrain->RenderBlocks[RenderBlockIndex]->VertexCount);
     }
     DXResources->SetTransformations(v3{});
     
@@ -329,16 +329,16 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         DXResources->DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
         
         for(uint32 ResolutionIndex = 0;
-            ResolutionIndex < World->StoreResolutionCount;
+            ResolutionIndex < Terrain->StoreResolutionCount;
             ResolutionIndex++)
         {
-            density_block_pos_array *BlockPositions = World->DensityPositionStore + ResolutionIndex;
+            density_block_pos_array *BlockPositions = Terrain->DensityPositionStore + ResolutionIndex;
             for(size_t BlockPosIndex = 0; 
                 (BlockPosIndex < BlockPositions->Count);
                 ++BlockPosIndex)
             {
                 world_block_pos *BlockP = BlockPositions->Pos + BlockPosIndex;
-                int32 MappedRes = GetBlockMappedResolution(World, BlockP);
+                int32 MappedRes = GetBlockMappedResolution(Terrain, BlockP);
                 if(MappedRes == BlockP->Resolution)
                 {
                     v3 RenderPos = V3FromWorldPos(*BlockP);
@@ -385,7 +385,7 @@ void
 SaveGameState(game_memory *Memory)
 {
     game_state *GameState = (game_state *)Memory->PermanentStorage;
-    world_density *World = &GameState->WorldDensity;
+    terrain *Terrain = &GameState->Terrain;
     transient_state *TranState = (transient_state *)Memory->TransientStorage;
     memory_arena *TranArena = &TranState->TranArena;
     
@@ -395,10 +395,10 @@ SaveGameState(game_memory *Memory)
     {
         compressed_block *CompressedBlocks = 0;
         for(uint32 Index = 0; 
-            Index < World->DynamicBlockCount; 
+            Index < Terrain->DynamicBlockCount; 
             Index++)
         {
-            compressed_block *Compressed = CompressBlock(TranArena, World->DynamicBlocks + Index);
+            compressed_block *Compressed = CompressBlock(TranArena, Terrain->DynamicBlocks + Index);
             if(CompressedBlocks == 0)
             {
                 CompressedBlocks = Compressed;
@@ -408,7 +408,7 @@ SaveGameState(game_memory *Memory)
         {
             SaveCompressedBlockArrayToFile(TranArena, GameState->Session.DynamicStore, 
                                            GameState->Session.Id,
-                                           CompressedBlocks, World->DynamicBlockCount);
+                                           CompressedBlocks, Terrain->DynamicBlockCount);
         }
     }
     

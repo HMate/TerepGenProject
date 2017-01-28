@@ -89,20 +89,20 @@ inline uint32 GetZeroHashValue(world_block_pos *P)
 // NOTE: This can give back a deleted hash, if it had the same key as this block,
 // and it was already deleted once, and wasn't overwritten since.
 internal block_hash *
-GetZeroHash(world_density *World, world_block_pos *P)
+GetZeroHash(terrain *Terrain, world_block_pos *P)
 {
     block_hash *Result = 0;
 
     uint32 HashValue = GetZeroHashValue(P);
-    uint32 HashMask = (ArrayCount(World->ZeroHash) - 1);
+    uint32 HashMask = (ArrayCount(Terrain->ZeroHash) - 1);
     
     for(uint32 Offset = 0;
-        Offset < ArrayCount(World->ZeroHash);
+        Offset < ArrayCount(Terrain->ZeroHash);
         ++Offset)
     {
         uint32 HashIndex = (HashValue + Offset) & HashMask;
-        Assert(HashIndex < ArrayCount(World->ZeroHash));
-        block_hash *Hash = World->ZeroHash + HashIndex;
+        Assert(HashIndex < ArrayCount(Terrain->ZeroHash));
+        block_hash *Hash = Terrain->ZeroHash + HashIndex;
         
         // NOTE: return hash, if its uninited, or it has the position we are looking for
         if(Hash->Index == HASH_UNINITIALIZED || WorldPosEquals(P, &Hash->Key))
@@ -117,20 +117,20 @@ GetZeroHash(world_density *World, world_block_pos *P)
 }
 
 internal block_hash *
-WriteZeroHash(world_density *World, world_block_pos *P)
+WriteZeroHash(terrain *Terrain, world_block_pos *P)
 {
     block_hash *Result = 0;
 
     uint32 HashValue = GetZeroHashValue(P);
-    uint32 HashMask = (ArrayCount(World->ZeroHash) - 1);
+    uint32 HashMask = (ArrayCount(Terrain->ZeroHash) - 1);
     
     for(uint32 Offset = 0;
-        Offset < ArrayCount(World->ZeroHash);
+        Offset < ArrayCount(Terrain->ZeroHash);
         ++Offset)
     {
         uint32 HashIndex = (HashValue + Offset) & HashMask;
-        Assert(HashIndex < ArrayCount(World->ZeroHash));
-        block_hash *Hash = World->ZeroHash + HashIndex;
+        Assert(HashIndex < ArrayCount(Terrain->ZeroHash));
+        block_hash *Hash = Terrain->ZeroHash + HashIndex;
         
         // NOTE: return hash, if its uninited, or it has the position we are looking for
         if(Hash->Index == HASH_UNINITIALIZED || Hash->Index == HASH_DELETED ||
@@ -150,65 +150,65 @@ WriteZeroHash(world_density *World, world_block_pos *P)
 }
 
 internal void
-InitResolutionMapping(world_density *World)
+InitResolutionMapping(terrain *Terrain)
 {
-    World->BlockMappedCount = 0;
+    Terrain->BlockMappedCount = 0;
     
     for(uint32 HashIndex = 0;
-        HashIndex < ArrayCount(World->ResolutionMapping);
+        HashIndex < ArrayCount(Terrain->ResolutionMapping);
         ++HashIndex)
     {
-        block_hash *Hash = World->ResolutionMapping + HashIndex;
+        block_hash *Hash = Terrain->ResolutionMapping + HashIndex;
         Hash->Index = HASH_UNINITIALIZED;
     }
 }
 
 internal void
-InitBlockHash(world_density *World)
+InitBlockHash(terrain *Terrain)
 {
     // TODO: Does zeroing out stored block count belong here?
-    World->DensityBlockCount = 0;
-    World->DynamicBlockCount = 0;
-    World->PoligonisedBlockCount = 0;
-    World->DeletedDensityBlockCount = 0;
-    World->DeletedDynamicBlockCount = 0;
-    World->DeletedRenderBlockCount = 0;
+    Terrain->DensityBlockCount = 0;
+    Terrain->DynamicBlockCount = 0;
+    Terrain->PoligonisedBlockCount = 0;
+    Terrain->DeletedDensityBlockCount = 0;
+    Terrain->DeletedDynamicBlockCount = 0;
+    Terrain->DeletedRenderBlockCount = 0;
     
     for(uint32 HashIndex = 0;
-        HashIndex < ArrayCount(World->DensityHash);
+        HashIndex < ArrayCount(Terrain->DensityHash);
         ++HashIndex)
     {
-        block_hash *Hash = World->DensityHash + HashIndex;
+        block_hash *Hash = Terrain->DensityHash + HashIndex;
         Hash->Index = HASH_UNINITIALIZED;
     }
     
     for(uint32 HashIndex = 0;
-        HashIndex < ArrayCount(World->DynamicHash);
+        HashIndex < ArrayCount(Terrain->DynamicHash);
         ++HashIndex)
     {
-        block_hash *Hash = World->DynamicHash + HashIndex;
+        block_hash *Hash = Terrain->DynamicHash + HashIndex;
         Hash->Index = HASH_UNINITIALIZED;
     }
     
     for(uint32 HashIndex = 0;
-        HashIndex < ArrayCount(World->RenderHash);
+        HashIndex < ArrayCount(Terrain->RenderHash);
         ++HashIndex)
     {
-        block_hash *Hash = World->RenderHash + HashIndex;
+        block_hash *Hash = Terrain->RenderHash + HashIndex;
         Hash->Index = HASH_UNINITIALIZED;
     }
-    InitResolutionMapping(World);
+    InitResolutionMapping(Terrain);
 }
 
 internal void
-InitZeroHash(world_density *World)
+InitZeroHash(terrain *Terrain)
 {
-    World->ZeroBlockCount = 0;
+    Terrain->ZeroBlockCount = 0;
     for(uint32 HashIndex = 0;
-        HashIndex < ArrayCount(World->ZeroHash);
+        HashIndex < ArrayCount(Terrain->ZeroHash);
         ++HashIndex)
     {
-        block_hash *Hash = World->ZeroHash + HashIndex;
+        block_hash *Hash = Terrain->ZeroHash + HashIndex;
         Hash->Index = HASH_UNINITIALIZED;
     }
 }

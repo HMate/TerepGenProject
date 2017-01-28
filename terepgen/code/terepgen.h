@@ -52,8 +52,8 @@ struct game_state
     // NOTE: WorldArena is a memory_arena, where dynamic stuff can be stored, 
     // that will stay from frame to frame
     memory_arena WorldArena;
-    // NOTE: WorldDensity size is constant now, that's why its not in WordArena
-    world_density WorldDensity;
+    // NOTE: Terrain size is constant now, that's why its not in WordArena
+    terrain Terrain;
     
     render_state RenderState;
     

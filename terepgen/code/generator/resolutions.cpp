@@ -107,39 +107,39 @@ GetNeighbourBlockPositionsOnLowerRes(block_lower_neighbours *NPositions, world_b
 }
 
 internal block_hash*
-MapBlockPosition(world_density *World, world_block_pos *BlockP, int32 MappingValue)
+MapBlockPosition(terrain *Terrain, world_block_pos *BlockP, int32 MappingValue)
 {
-    block_hash *ResHash = WriteHash(World->ResolutionMapping, BlockP, MappingValue);
-    World->BlockMappedCount++;
+    block_hash *ResHash = WriteHash(Terrain->ResolutionMapping, BlockP, MappingValue);
+    Terrain->BlockMappedCount++;
     
     return ResHash;
 }
 
 int32
-GetBlockMappedResolution(world_density *World, world_block_pos *BlockP)
+GetBlockMappedResolution(terrain *Terrain, world_block_pos *BlockP)
 {
-    block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+    block_hash *ResHash = GetHash(Terrain->ResolutionMapping, BlockP);
     return ResHash->Index;
 }
 
 internal block_hash*
-MapBlockPositionAfterParent(world_density *World, world_block_pos *BlockP)
+MapBlockPositionAfterParent(terrain *Terrain, world_block_pos *BlockP)
 {
     world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
-    block_hash *BPResHash = GetHash(World->ResolutionMapping, &BiggerP);
+    block_hash *BPResHash = GetHash(Terrain->ResolutionMapping, &BiggerP);
     
     if(HashIsEmpty(BPResHash))
     {
-        Assert(BiggerP.Resolution == World->FixedResolution[0]);
-        BPResHash = MapBlockPosition(World, &BiggerP, World->FixedResolution[0]);
+        Assert(BiggerP.Resolution == Terrain->FixedResolution[0]);
+        BPResHash = MapBlockPosition(Terrain, &BiggerP, Terrain->FixedResolution[0]);
     }
-    block_hash *ResHash = MapBlockPosition(World, BlockP, BPResHash->Index);
+    block_hash *ResHash = MapBlockPosition(Terrain, BlockP, BPResHash->Index);
     return ResHash;
 }
 
 // TODO: Deleting blocks shouldn't be here
 internal void 
-DowngradeMapping(world_density *World, world_block_pos *BlockP, int32 MappingValue, 
+DowngradeMapping(terrain *Terrain, world_block_pos *BlockP, int32 MappingValue, 
                  world_block_pos *DeleteQueue, int32 *DeleteCount)
 {
     uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
@@ -152,9 +152,9 @@ DowngradeMapping(world_density *World, world_block_pos *BlockP, int32 MappingVal
             LowerIndex++)
         {
             world_block_pos *LowerP = LowerBlocks.Pos + LowerIndex;
-            DowngradeMapping(World, LowerP, MappingValue, DeleteQueue, DeleteCount);
+            DowngradeMapping(Terrain, LowerP, MappingValue, DeleteQueue, DeleteCount);
         }
-        block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+        block_hash *ResHash = GetHash(Terrain->ResolutionMapping, BlockP);
         if(!HashIsEmpty(ResHash))
         {
             Assert(ResHash->Index < MappingValue);
@@ -166,11 +166,11 @@ DowngradeMapping(world_density *World, world_block_pos *BlockP, int32 MappingVal
 }
 
 internal world_block_pos 
-GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
+GetBiggerMappedPosition(terrain *Terrain, world_block_pos *BlockP)
 {
     world_block_pos Result = *BlockP;
 
-    block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+    block_hash *ResHash = GetHash(Terrain->ResolutionMapping, BlockP);
     Assert(!HashIsEmpty(ResHash));
     // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
     // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
@@ -185,14 +185,14 @@ GetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
 }
 
 internal world_block_pos 
-GetAndSetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
+GetAndSetBiggerMappedPosition(terrain *Terrain, world_block_pos *BlockP)
 {
     world_block_pos Result = *BlockP;
 
-    block_hash *ResHash = GetHash(World->ResolutionMapping, BlockP);
+    block_hash *ResHash = GetHash(Terrain->ResolutionMapping, BlockP);
     if(HashIsEmpty(ResHash))
     {
-        ResHash = MapBlockPositionAfterParent(World, BlockP);
+        ResHash = MapBlockPositionAfterParent(Terrain, BlockP);
     }
     // NOTE: If neighbour should be considered on another resolution, search for that resolution density.
     // If Index is smaller than our resolution, then we are trying to render from a smaller neighbour
@@ -207,7 +207,7 @@ GetAndSetBiggerMappedPosition(world_density *World, world_block_pos *BlockP)
 }
 
 internal void
-UpdateLowerBlocksMapping(world_density *World, world_block_pos *BlockP, int32 ResMapping)
+UpdateLowerBlocksMapping(terrain *Terrain, world_block_pos *BlockP, int32 ResMapping)
 {
     uint32 ResIndex = GetResolutionIndex(BlockP->Resolution);
     if(ResIndex < RESOLUTION_COUNT-1)
@@ -219,10 +219,10 @@ UpdateLowerBlocksMapping(world_density *World, world_block_pos *BlockP, int32 Re
             LowerIndex++)
         {
             world_block_pos *LowerP = LowerBlocks.Pos + LowerIndex;
-            block_hash *ResHash = GetHash(World->ResolutionMapping, LowerP);
+            block_hash *ResHash = GetHash(Terrain->ResolutionMapping, LowerP);
             if(HashIsEmpty(ResHash))
             {
-                MapBlockPosition(World, LowerP, ResMapping);
+                MapBlockPosition(Terrain, LowerP, ResMapping);
             }
             else
             {
@@ -234,7 +234,7 @@ UpdateLowerBlocksMapping(world_density *World, world_block_pos *BlockP, int32 Re
 }
 
 internal bool32
-AreNeighboursAreMappedSameOrBigger(world_density *World, world_block_pos *Positions, uint32 Count, int32 MappedIndex)
+AreNeighboursAreMappedSameOrBigger(terrain *Terrain, world_block_pos *Positions, uint32 Count, int32 MappedIndex)
 {
     bool32 Result = true;
     for(uint32 PosIndex = 0;
@@ -242,7 +242,7 @@ AreNeighboursAreMappedSameOrBigger(world_density *World, world_block_pos *Positi
         ++PosIndex)
     {
         world_block_pos *Pos = Positions + PosIndex;
-        block_hash *MappedHash = GetHash(World->ResolutionMapping, Pos);
+        block_hash *MappedHash = GetHash(Terrain->ResolutionMapping, Pos);
         Assert(!HashIsEmpty(MappedHash));
         Result = Result && (MappedHash->Index >= MappedIndex);
     }

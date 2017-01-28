@@ -113,6 +113,45 @@ struct density_block_pos_array
 
 constexpr int32 RESOLUTION_COUNT = 3;
 
+struct terrain
+{
+    uint32 Seed;
+    perlin_noise_array PerlinArray;
+    
+    int32 FixedResolution[RESOLUTION_COUNT];
+    uint32 StoreResolutionCount;
+    uint32 MaxResolutionToRender;
+    
+    real32 BlockSize;
+    uint32 DeletedDensityBlockCount;
+    uint32 DeletedDynamicBlockCount;
+    uint32 DeletedRenderBlockCount;
+    
+    uint32 BlockMappedCount;
+    uint32 DensityBlockCount;
+    terrain_density_block DensityBlocks[DENSITY_BLOCK_COUNT];
+    uint32 DynamicBlockCount;
+    terrain_density_block DynamicBlocks[DENSITY_BLOCK_COUNT];
+    uint32 PoligonisedBlockCount;
+    terrain_render_block PoligonisedBlocks[RENDER_BLOCK_COUNT];
+    
+    // NOTE: This must be a power of two for now!
+    block_hash DensityHash[BLOCK_HASH_SIZE];
+    block_hash DynamicHash[BLOCK_HASH_SIZE];
+    block_hash RenderHash[BLOCK_HASH_SIZE];
+    // NOTE: Index in ResolutionMapping means the Resolution that the block should be rendered
+    block_hash ResolutionMapping[BLOCK_HASH_SIZE];
+    uint32 ZeroBlockCount;
+    block_hash ZeroHash[ZERO_HASH_SIZE];
+    
+    block_pos_array RenderPositionStore[RESOLUTION_COUNT];
+    density_block_pos_array DensityPositionStore[RESOLUTION_COUNT];
+    
+    uint32 RenderBlockCount;
+    terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
+    avarage_time AvgPoligoniseTime;
+};
+
 
 
 #define TEREPGEN_TERRAIN_H

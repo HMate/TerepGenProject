@@ -235,10 +235,10 @@ FillDynamic(terrain_density_block *Dynamic, world_block_pos *BlockP, real32 Valu
 // TODO: Separate loading in compressed blocks to a separate function, 
 // and load in every block at once, if they are in the area of the camera
 internal block_hash*
-CreateNewDynamicBlock(memory_arena *Arena, world_density *World, 
+CreateNewDynamicBlock(memory_arena *Arena, terrain *Terrain, 
                       world_block_pos *BlockP, char *DynamicStoreName, uint32 SessionId)
 {
-    terrain_density_block *DynamicB = World->DynamicBlocks + World->DynamicBlockCount;
+    terrain_density_block *DynamicB = Terrain->DynamicBlocks + Terrain->DynamicBlockCount;
     // NOTE: Load from file, if it was saved previously!
     // bool32 Loaded = LoadBlockFromFile(GameState, GameState->Session.DynamicStore, DynamicB, BlockP);
     bool32 Loaded = LoadCompressedBlockFromFile(Arena, DynamicStoreName, SessionId,
@@ -246,13 +246,13 @@ CreateNewDynamicBlock(memory_arena *Arena, world_density *World,
     if(!Loaded)
     {
         // TODO: If this block already have a lower resolution parent, values should be taken from there
-        /*if(BlockP->Resolution < World->FixedResolution[0])
+        /*if(BlockP->Resolution < Terrain->FixedResolution[0])
         {
             // NOTE: Parent block should be existing at this pointer
             world_block_pos *BiggerP = GetBiggerMappedPosition(BlockP);
-            block_hash *ParentHash = GetHash(World->DynamicHash, BiggerP);
+            block_hash *ParentHash = GetHash(Terrain->DynamicHash, BiggerP);
             Assert(!HashIsEmpty(DynamicHash));
-            terrain_density_block *Parent = World->DynamicBlocks + ParentHash->Index;
+            terrain_density_block *Parent = Terrain->DynamicBlocks + ParentHash->Index;
             
             uint32 XOffset = (BlockP->BlockX - Parent->BlockX*2) * 4;
             uint32 YOffset = (BlockP->BlockY - Parent->BlockY*2) * 4;
@@ -288,21 +288,21 @@ CreateNewDynamicBlock(memory_arena *Arena, world_density *World,
             FillDynamic(DynamicB, BlockP, 0.0f);
         }
     }
-    Assert(World->DynamicBlockCount < ArrayCount(World->DynamicBlocks));
-    block_hash *DynamicHash = WriteHash(World->DynamicHash, BlockP, World->DynamicBlockCount++);
+    Assert(Terrain->DynamicBlockCount < ArrayCount(Terrain->DynamicBlocks));
+    block_hash *DynamicHash = WriteHash(Terrain->DynamicHash, BlockP, Terrain->DynamicBlockCount++);
     
     return DynamicHash;
 }
 
 internal terrain_density_block*
-GetDynamicBlock(memory_arena *Arena, world_density *World, world_block_pos *BlockP,
+GetDynamicBlock(memory_arena *Arena, terrain *Terrain, world_block_pos *BlockP,
                 char *DynamicStoreName, uint32 SessionId)
 {
-    block_hash *DynamicHash = GetHash(World->DynamicHash, BlockP);
+    block_hash *DynamicHash = GetHash(Terrain->DynamicHash, BlockP);
     if(HashIsEmpty(DynamicHash))
     {
-        DynamicHash = CreateNewDynamicBlock(Arena, World, BlockP, DynamicStoreName, SessionId);
+        DynamicHash = CreateNewDynamicBlock(Arena, Terrain, BlockP, DynamicStoreName, SessionId);
     }
-    terrain_density_block *Result = World->DynamicBlocks + DynamicHash->Index;
+    terrain_density_block *Result = Terrain->DynamicBlocks + DynamicHash->Index;
     return Result;
 }

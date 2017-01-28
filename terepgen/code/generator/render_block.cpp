@@ -35,7 +35,7 @@ GetPointNormal(terrain_density_block *Neighbours[], terrain_density_block *DynNe
 
 #define DENSITY_ISO_LEVEL 0.0f
 internal void
-CreateRenderBlock(world_density *World, terrain_render_block *RenderBlock, world_block_pos *BlockP)
+CreateRenderBlock(terrain *Terrain, terrain_render_block *RenderBlock, world_block_pos *BlockP)
 {
     block_lower_neighbours NPositions;
     GetNeighbourBlockPositionsOnLowerRes(&NPositions, BlockP);
@@ -46,17 +46,17 @@ CreateRenderBlock(world_density *World, terrain_render_block *RenderBlock, world
         NeighbourIndex++)
     {
         world_block_pos *NeighbourP = NPositions.Pos + NeighbourIndex;
-        world_block_pos MappedP = GetBiggerMappedPosition(World, NeighbourP);
+        world_block_pos MappedP = GetBiggerMappedPosition(Terrain, NeighbourP);
         Assert((MappedP.Resolution >= BlockP->Resolution/2) &&
                (MappedP.Resolution <= BlockP->Resolution*2));
         
-        block_hash *NeighbourHash = GetHash(World->DensityHash, &MappedP);
+        block_hash *NeighbourHash = GetHash(Terrain->DensityHash, &MappedP);
         Assert(!HashIsEmpty(NeighbourHash));
-        Neighbours[NeighbourIndex] = World->DensityBlocks + NeighbourHash->Index;
+        Neighbours[NeighbourIndex] = Terrain->DensityBlocks + NeighbourHash->Index;
         
-        block_hash *DynamicHash = GetHash(World->DynamicHash, &MappedP);
+        block_hash *DynamicHash = GetHash(Terrain->DynamicHash, &MappedP);
         Assert(!HashIsEmpty(DynamicHash));
-        DynNeighbours[NeighbourIndex] = World->DynamicBlocks + DynamicHash->Index;
+        DynNeighbours[NeighbourIndex] = Terrain->DynamicBlocks + DynamicHash->Index;
     }
     
     Assert(BlockP->Resolution > 0);
@@ -148,7 +148,7 @@ CreateRenderBlock(world_density *World, terrain_render_block *RenderBlock, world
 
 // NOTE: Add render block to the terrain 3d model for rendering
 internal void
-AddToTerrainModel(world_density *World, terrain_render_block *Block, v3 CameraP, v3 CamDir)
+AddToTerrainModel(terrain *Terrain, terrain_render_block *Block, v3 CameraP, v3 CamDir)
 {
     const int32 Resolution = Block->WPos.Resolution;
     const v3 DiffX = V3FromWorldPos(world_block_pos{1,0,0,Resolution});
@@ -172,10 +172,10 @@ AddToTerrainModel(world_density *World, terrain_render_block *Block, v3 CameraP,
     {
         bool32 AlreadyHaveBlock = false;
         for(uint32 BlockIndex = 0; 
-            BlockIndex < World->RenderBlockCount; 
+            BlockIndex < Terrain->RenderBlockCount; 
             BlockIndex++)
         {
-            terrain_render_block *RBlock = World->RenderBlocks[BlockIndex];
+            terrain_render_block *RBlock = Terrain->RenderBlocks[BlockIndex];
             if(WorldPosEquals(&RBlock->WPos, &Block->WPos))
             {
                 AlreadyHaveBlock = true;
@@ -183,34 +183,34 @@ AddToTerrainModel(world_density *World, terrain_render_block *Block, v3 CameraP,
         }
         if(!AlreadyHaveBlock)
         {
-            World->RenderBlocks[World->RenderBlockCount++] = Block;
-            Assert(World->RenderBlockCount < ArrayCount(World->RenderBlocks));
+            Terrain->RenderBlocks[Terrain->RenderBlockCount++] = Block;
+            Assert(Terrain->RenderBlockCount < ArrayCount(Terrain->RenderBlocks));
         }
     }  
 }
 
 // NOTE: Delete block from render hash
 internal void
-DeleteRenderBlock(world_density *World, int32 StoreIndex)
+DeleteRenderBlock(terrain *Terrain, int32 StoreIndex)
 {
-    terrain_render_block *Block = World->PoligonisedBlocks + StoreIndex;
-    terrain_render_block *Last = World->PoligonisedBlocks + (--World->PoligonisedBlockCount);
+    terrain_render_block *Block = Terrain->PoligonisedBlocks + StoreIndex;
+    terrain_render_block *Last = Terrain->PoligonisedBlocks + (--Terrain->PoligonisedBlockCount);
     world_block_pos BlockP = Block->WPos;
     world_block_pos LastP = Last->WPos;
     
-    block_hash *RemovedHash = GetHash(World->RenderHash, &BlockP);
+    block_hash *RemovedHash = GetHash(Terrain->RenderHash, &BlockP);
     Assert(StoreIndex == RemovedHash->Index);
     Assert(!HashIsEmpty(RemovedHash));
-    block_hash *LastHash = GetHash(World->RenderHash, &LastP);
+    block_hash *LastHash = GetHash(Terrain->RenderHash, &LastP);
     Assert(!HashIsEmpty(LastHash));
     
     LastHash->Index = StoreIndex;
     RemovedHash->Index = HASH_DELETED;
-    World->DeletedRenderBlockCount++;
+    Terrain->DeletedRenderBlockCount++;
     
     // NOTE: If we are not deleting the last block, 
     // than we are filling the deleted blocks space with the contents of the last block
-    if(StoreIndex != (int32)World->PoligonisedBlockCount)
+    if(StoreIndex != (int32)Terrain->PoligonisedBlockCount)
     {
         *Block = *Last;
     }
@@ -218,35 +218,35 @@ DeleteRenderBlock(world_density *World, int32 StoreIndex)
 
 // NOTE: Delete block that was rendered, either as a render block or zero block
 internal void
-DeleteFromTerrainModel(world_density *World, world_block_pos *BlockP)
+DeleteFromTerrainModel(terrain *Terrain, world_block_pos *BlockP)
 {
-    block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
-    block_hash *ZeroHash = GetZeroHash(World, BlockP);
+    block_hash *RenderHash = GetHash(Terrain->RenderHash, BlockP);
+    block_hash *ZeroHash = GetZeroHash(Terrain, BlockP);
     if(!HashIsEmpty(RenderHash))
     {
-        DeleteRenderBlock(World, RenderHash->Index);
+        DeleteRenderBlock(Terrain, RenderHash->Index);
     }
     if(!HashIsEmpty(ZeroHash))
     {
         ZeroHash->Index = HASH_DELETED;
-        World->ZeroBlockCount--;
+        Terrain->ZeroBlockCount--;
     }
 }
 
 inline bool32 
-IsBlockInTerrainModel(world_density *World, world_block_pos *BlockP)
+IsBlockInTerrainModel(terrain *Terrain, world_block_pos *BlockP)
 {
     bool32 Result = false;
     
-    block_hash *RenderHash = GetHash(World->RenderHash, BlockP);
-    block_hash *ZeroHash = GetZeroHash(World, BlockP);
+    block_hash *RenderHash = GetHash(Terrain->RenderHash, BlockP);
+    block_hash *ZeroHash = GetZeroHash(Terrain, BlockP);
     Result = !(HashIsEmpty(RenderHash) && HashIsEmpty(ZeroHash));
     
     return Result;
 }
 
 internal bool32
-AreBlocksInTerrainModel(world_density *World, world_block_pos *Positions, uint32 Count)
+AreBlocksInTerrainModel(terrain *Terrain, world_block_pos *Positions, uint32 Count)
 {
     bool32 Result = true;
     for(uint32 PosIndex = 0;
@@ -254,8 +254,8 @@ AreBlocksInTerrainModel(world_density *World, world_block_pos *Positions, uint32
         ++PosIndex)
     {
         world_block_pos *Pos = Positions + PosIndex;
-        block_hash *RenderHash = GetHash(World->RenderHash, Pos);
-        block_hash *ZeroHash = GetZeroHash(World, Pos);
+        block_hash *RenderHash = GetHash(Terrain->RenderHash, Pos);
+        block_hash *ZeroHash = GetZeroHash(Terrain, Pos);
         if(HashIsEmpty(RenderHash) && HashIsEmpty(ZeroHash))
         {
             Result = false;
