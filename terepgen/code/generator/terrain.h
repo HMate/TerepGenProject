@@ -84,7 +84,7 @@ struct terrain_render_block
     world_block_pos WPos;
     uint32 VertexCount;
     vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];
-};//280'016 B
+};//veretx size: 40B -> 280'028 B wo resolution
 
 // NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
 #define POS_GRID_SIZE(n) ((uint32)(((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1)

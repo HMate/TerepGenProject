@@ -477,21 +477,17 @@ AddCube(cube *Cube, v3 WorldMousePos, real32 Size,
     Cube->Vertices[35] = Vertex(Corner7, Normal5, ColorG);
 }
 
-
-void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *Input,
-                           session_description *Session, generator_position *GeneratorCenter,
-                           v3 WorldMousePos, v3 CameraOrigo, cube* Cube, v3 CameraP, v3 CamDir)
+// NOTE: Returns number of generated density blocks
+int32 GenerateDensityBlocks(terrain* Terrain, int32 MaxBlocksToGenerate)
 {
-    
-    // NOTE: Generate density blocks
-    int32 MaxDensityBlocksToGenerateInFrame = 3;
+    int32 BlocksToGenerate = MaxBlocksToGenerate;
     for(uint32 ResolutionIndex = 0;
         ResolutionIndex < Terrain->StoreResolutionCount;
         ResolutionIndex++)
     {
         density_block_pos_array *BlockPositions = Terrain->DensityPositionStore + ResolutionIndex;
         for(size_t PosIndex = 0; 
-            (PosIndex < BlockPositions->Count) && (MaxDensityBlocksToGenerateInFrame > 0) ;
+            (PosIndex < BlockPositions->Count) && (BlocksToGenerate > 0) ;
             ++PosIndex)
         {
             world_block_pos *BlockP = BlockPositions->Pos + PosIndex;
@@ -500,7 +496,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             // and it was already deleted once, and wasn't overwritten since.
             if(HashIsEmpty(DensityHash))
             {
-                MaxDensityBlocksToGenerateInFrame--;
+                BlocksToGenerate--;
                 // NOTE: Initialize block
                 uint32 BlockIndex = Terrain->DensityBlockCount;
                 terrain_density_block *DensityBlock = Terrain->DensityBlocks + BlockIndex;
@@ -512,6 +508,15 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             }
         }
     }
+    return MaxBlocksToGenerate - BlocksToGenerate;
+}
+
+void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *Input,
+                           session_description *Session, generator_position *GeneratorCenter,
+                           v3 WorldMousePos, v3 CameraOrigo, cube* Cube, v3 CameraP, v3 CamDir)
+{
+    int32 MaxDensityBlocksToGenerate = 3;
+    int32 DensityBlocksGenerated = GenerateDensityBlocks(Terrain, MaxDensityBlocksToGenerate);
     
     int32 MaxRenderBlocksToGenerateInFrame = 6;
     density_block_pos_array BlocksToRender;
@@ -577,7 +582,8 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
     
     // NOTE: 
     // If all the lower blocks of a block are generated, then the lower blocks can be mix rendered
-    // If a mix rendered blocks neigbours are done generating their lower blocks, then they can be generated normally
+    // If a mix rendered blocks neigbours are done generating their lower blocks, 
+    // then they can be generated normally
     
     int32 DeleteRenderBlockCount = 0;
     world_block_pos DeleteRenderBlockQueue[1000];
@@ -718,7 +724,8 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             world_block_pos BiggerP = GetBiggerResBlockPosition(BlockP);
             lower_blocks Siblings;
             GetLowerResBlockPositions(&Siblings, &BiggerP);
-            bool32 SiblingDensitiesLoaded = DidDensityBlocksLoaded(Terrain, Siblings.Pos, ArrayCount(Siblings.Pos));
+            bool32 SiblingDensitiesLoaded = DidDensityBlocksLoaded(Terrain, Siblings.Pos, 
+                                                                    ArrayCount(Siblings.Pos));
             if(ResHash->Index > LowestResUsed && SiblingDensitiesLoaded)
             {
                 // NOTE: We can upgrade it, and its siblings to a smaller resolution
@@ -730,7 +737,8 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
                     world_block_pos *SiblingP = Siblings.Pos + SiblingIndex;
                     auto SiblingHash = GetHash(Terrain->ResolutionMapping, SiblingP);
                     Assert(!HashIsEmpty(SiblingHash));                    
-                    Assert(SiblingHash->Index == LowestResUsed*2 || SiblingHash->Index == LowestResUsed);
+                    Assert(SiblingHash->Index == LowestResUsed*2 || 
+                            SiblingHash->Index == LowestResUsed);
                     SiblingHash->Index = LowestResUsed;
                     UpdateLowerBlocksMapping(Terrain, SiblingP, LowestResUsed);
                 }
@@ -809,6 +817,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
     
     // NOTE: Before rendering, check for every block that their neighbours are mapped right 
     // and their densities are loaded.
+    // This is basically a big assert for resolutions, and loading in dynamic blocks
     for(uint32 RenderIndex = 0;
         RenderIndex < BlocksToRender.Count;
         RenderIndex++)
