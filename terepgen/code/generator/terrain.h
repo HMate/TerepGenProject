@@ -52,7 +52,7 @@ struct block_hash
 {
     world_block_pos Key;
     int32 Index;
-};
+}; // 5*4= 20 B
 
 const int32 NeighbourSameResCount = 27;
 struct block_same_res_neighbours
@@ -84,7 +84,7 @@ struct terrain_render_block
     world_block_pos WPos;
     uint32 VertexCount;
     vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];
-};//veretx size: 40B -> 280'028 B wo resolution
+};// 12B+16B+4B + 7000*vertex size: 40B -> 280'032 B wo resolution
 
 // NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
 #define POS_GRID_SIZE(n) ((uint32)(((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1)
@@ -107,9 +107,13 @@ struct density_block_pos_array
 };
 
 #define DENSITY_BLOCK_COUNT 8000
+// 2064B*8000 = 16125 kB
 #define RENDER_BLOCK_COUNT 1500
+// 280032B*1500 = 410203 kB
 #define BLOCK_HASH_SIZE 32768
+// 20B*32768 = 640 kB
 #define ZERO_HASH_SIZE 65536
+// 20B*65536 = 1280 kB
 
 constexpr int32 RESOLUTION_COUNT = 3;
 
