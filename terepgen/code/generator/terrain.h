@@ -28,6 +28,8 @@ struct terrain_density_block
     static_grid3D Grid;
 };//2'064 B
 
+// NOTE: A compressed_node stores a value, 
+// and a count of how many adjacent fields have this value in a block
 struct compressed_node
 {
     uint16 Count;

@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <crtdbg.h>
+#include <stdio.h>
 
 #define global_variable static
 #define local_persist static
@@ -114,6 +115,9 @@ CheckMemoryArena(memory_arena *Arena)
     Assert(Arena->TempCount == 0);
 }
 
+#include "terepgen_math.h"
+#include "terepgen_vector.h"
+
 struct screen_info
 {
     int32 Width;
@@ -191,5 +195,18 @@ CopyInput(game_input* NewInput, game_input *OldInput)
     NewInput->ShowDebugAxis = OldInput->ShowDebugAxis;
 }
 
+
+struct vertex
+{
+    // NOTE: position is in left handed coordinate system
+    // +X points right initially, -X points left
+    // +Y is vertical axis and points up 
+    // -Z points through screen to user initially, +Z points toward screen 
+    real32 X, Y, Z;
+    real32 NX, NY, NZ;
+    v4 Color;
+};
+
+vertex Vertex(v3 Pos, v3 Norm, v4 Color);
 #define TEREPGEN_TYPES_H
 #endif

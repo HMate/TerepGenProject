@@ -16,5 +16,10 @@ struct perlin_noise_array
     perlin_noise_generator Noise[3];
 };
 
+void SetSeed(perlin_noise_generator *Generator, uint32 NewSeed);
+real32 RandomFloat(perlin_noise_generator *Generator, real32 Row, real32 Column);
+real32 RandomFloat(perlin_noise_generator *Generator, real32 Plane, real32 Row, real32 Column);
+real32 RandomFloat(perlin_noise_generator *Generator, v3 WorldPos);
+
 #define TEREPGEN_RANDOM_H
 #endif

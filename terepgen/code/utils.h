@@ -1,3 +1,8 @@
+#if !defined(TEREPGEN_UTILS_H)
+/*
+    Terep generátor by Hidvégi Máté @2017
+
+*/
 
 // NOTE: String utils
 
@@ -43,3 +48,5 @@ StringConcat(char* Result, char* Part0, char* Part1)
 	Result[i] = '\0';
 }
 
+#define TEREPGEN_UTILS_H
+#endif

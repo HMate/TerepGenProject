@@ -44,7 +44,8 @@ set CommonLinkerFlags= -incremental:no -opt:ref^
 )
  
 REM List the cpp files to compile here
-set CompiledFiles= ..\code\windows_terepgen.cpp ..\code\terepgen.cpp ..\code\generator\generator.cpp
+set CompiledFiles= ..\code\windows_terepgen.cpp ..\code\terepgen.cpp ..\code\generator\generator.cpp^
+ ..\code\renderer\renderer.cpp
 
 if not exist ..\build mkdir ..\build
 pushd ..\build

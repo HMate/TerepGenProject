@@ -78,7 +78,7 @@ Lerp(real32 A, real32 B, real32 X)
 
 // Perlin noise
 
-internal void 
+void 
 SetSeed(perlin_noise_generator *Generator, uint32 NewSeed)
 {
     Generator->Seed = NewSeed;
@@ -113,7 +113,7 @@ SetSeed(perlin_noise_generator *Generator, uint32 NewSeed)
     }
 }
 
-internal real32 
+real32 
 RandomFloat(perlin_noise_generator *Generator, real32 Row, real32 Column)
 {
     real32 RowMod = ModReal32(Row, (real32)RANDOM_TEX_SIZE);
@@ -151,7 +151,7 @@ RandomFloat(perlin_noise_generator *Generator, real32 Row, real32 Column)
     return Result;
 }
 
-internal real32 
+real32 
 RandomFloat(perlin_noise_generator *Generator, real32 Plane, real32 Row, real32 Column)
 {
     real32 PlaneMod = ModReal32(Plane, (real32)RANDOM_TEX_SIZE);
@@ -212,7 +212,7 @@ RandomFloat(perlin_noise_generator *Generator, real32 Plane, real32 Row, real32 
     return Result;
 }
 
-internal real32 
+real32 
 RandomFloat(perlin_noise_generator *Generator, v3 WorldPos)
 {
     real32 Result = RandomFloat(Generator, WorldPos.X, WorldPos.Y, WorldPos.Z);

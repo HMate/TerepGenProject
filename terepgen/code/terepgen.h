@@ -12,8 +12,7 @@
 #include "terepgen_random.h"
 
 #include "generator\generator.h"
-
-#include "terepgen_dx_renderer.h"
+#include "renderer\renderer.h"
 
 #define CubeFrameVertexCount 24
 struct cube_frame

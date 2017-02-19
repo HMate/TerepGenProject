@@ -5,25 +5,10 @@
 */
 
 #include "..\terepgen_types.h"
-#include "..\terepgen_math.h"
 #include "..\terepgen_grid.h"
-#include "..\terepgen_vector.h"
 #include "..\terepgen_random.h"
 #include "..\platform.h"
 #include "..\utils.h"
-
-struct vertex
-{
-    // NOTE: position is in left handed coordinate system
-    // +X points right initially, -X points left
-    // +Y is vertical axis and points up 
-    // -Z points through screen to user initially, +Z points toward screen 
-    real32 X, Y, Z;
-    real32 NX, NY, NZ;
-    v4 Color;
-};
-
-vertex Vertex(v3 Pos, v3 Norm, v4 Color);
 
 #include "terrain.h"
 

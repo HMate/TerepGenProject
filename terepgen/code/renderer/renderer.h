@@ -1,8 +1,13 @@
-#if !defined(TEREPGEN_DX_RENDERER_H)
+#if !defined(TEREPGEN_RENDERER_H)
 /*
-    Terep gener√°tor by Hidv√©gi M√°t√© @2015
+    Terep gener·tor by HidvÈgi M·tÈ @2015
 
 */
+
+#include "..\terepgen_types.h"
+#include "..\terepgen_random.h"
+#include "..\platform.h"
+#include "..\utils.h"
 
 #include <d3dcompiler.h>
 #include <dxgi.h>
@@ -124,5 +129,5 @@ private:
     void SetSceneConstants();
 };
 
-#define TEREPGEN_DX_RENDERER_H
+#define TEREPGEN_RENDERER_H
 #endif

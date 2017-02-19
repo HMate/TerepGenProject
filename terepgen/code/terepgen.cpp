@@ -4,12 +4,10 @@
 */
 
 #include "terepgen.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "external\stb\stb_image.h"
 
 #include "generator\generator.h"
 #include "terepgen_random.cpp"
-#include "terepgen_dx_renderer.cpp"
+#include "renderer\renderer.h"
 
 internal int32 
 getGridSize(const int32 n)
@@ -93,7 +91,7 @@ LoadSessionDesc(game_state *GameState, uint32 SessionID)
         if(ReadSession.Id == SessionID)
         {
             NotFound = false;
-            // NOTE: Set the file pointer to the begging of the block, to overwrite it
+            // NOTE: Set the file pointer to the begining of the block, to overwrite it
             GameState->Session = ReadSession;
         }
     }

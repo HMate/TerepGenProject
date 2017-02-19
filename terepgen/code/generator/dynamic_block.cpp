@@ -6,6 +6,7 @@ CompressBlock(memory_arena *TranArena, terrain_density_block *Block)
     compressed_block *Result = PushStruct(TranArena, compressed_block);
     Result->Pos = Block->Pos;
     Result->NodeCount = 1;
+    
     compressed_node *CurrentNode = PushStruct(TranArena, compressed_node);
     CurrentNode->Count = 1;
     CurrentNode->Value = Block->Grid.Elements[0];
@@ -63,6 +64,7 @@ OpenBlocksFile(char* Filename, uint32 SessionId)
     if(FileIsEmpty(Handle))
     {
         // NOTE: The file didn't exist before, so now we create its header
+        // NOTE: Write out SessionId
         uint32 *Data = &SessionId;
         uint32 Length = 4;
         PlatformWriteFile(Handle, Data, Length);
@@ -74,6 +76,7 @@ OpenBlocksFile(char* Filename, uint32 SessionId)
 internal void
 ReadBlockFileHeader(FileHandle Handle, uint32 SessionId)
 {
+    // NOTE: Read SessionId
     char HeaderValue[4];
     uint32 HeaderLength = 4;
     uint32 BytesRead = PlatformReadFile(Handle, HeaderValue, HeaderLength);
