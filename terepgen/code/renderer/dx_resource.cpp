@@ -123,6 +123,7 @@ LoadBackground(dx_resource *DXResources, memory_arena *Arena, ID3D11ShaderResour
                 Cloud += RandomFloat(&Perlin, 8.0f*SkyPos)*4.0f;
                 Cloud += RandomFloat(&Perlin, 20.0f*SkyPos)*2.0f;
                 Cloud += RandomFloat(&Perlin, 40.0f*SkyPos)*1.0f;
+                // NOTE: clip to 0.0-1.0
                 Cloud = (Cloud / 30.0f) + 0.5f;
                 Cloud *= Abs(ClampReal32(SkyPos.Y+0.4f, 0.0f, 1.0f));
                 

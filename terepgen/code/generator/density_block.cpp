@@ -2,17 +2,43 @@
     Terep generátor by Hidvégi Máté @2017
 */
 
+internal real32
+GetPointDensity(perlin_noise_array *PNArray, v3 Pos)
+{
+    
+    real32 DensityValue = 0;
+    //win32_clock Clock;
+    // DensityValue += RandomFloat(&PNArray->Noise[0], Pos * 256.03f) * 0.0036025f;
+    // DensityValue += RandomFloat(&PNArray->Noise[1], Pos * 128.96f) * 0.0078125f;
+    DensityValue += RandomFloat(&PNArray->Noise[2], Pos * 64.01f)  * 0.015625f;
+    //Clock.PrintMiliSeconds("Perlin gen time:");
+    
+    DensityValue += RandomFloat(&PNArray->Noise[0], Pos * 32.03f) * 0.03125f;
+    DensityValue += RandomFloat(&PNArray->Noise[1], Pos * 16.16f) * 0.0625f;
+    // DensityValue += RandomFloat(&PNArray->Noise[2], Pos * 7.91f)   * 0.125f;
+    
+    // DensityValue += RandomFloat(&PNArray->Noise[0], Pos * 4.03f) * 0.25f;
+    DensityValue += RandomFloat(&PNArray->Noise[1], Pos * 1.96f) * 0.5f;
+    // DensityValue += RandomFloat(&PNArray->Noise[2], Pos * 1.01f) * 1.0f;
+    DensityValue += RandomFloat(&PNArray->Noise[2], Pos * 0.491f) * 1.0f;
+    
+    DensityValue += RandomFloat(&PNArray->Noise[0], Pos * 0.023f) * 4.0f;
+    DensityValue += RandomFloat(&PNArray->Noise[1], Pos * 0.00646f) * 16.0f;
+    return DensityValue ;
+}
+
 // NOTE: Block Resolution gives how frequent is the sampling from the noise function
 // This way a bigger area can be stored in the same block, 
 // if at rendering we only use every BlockResolution'th value too.
 internal void 
-GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNArray, 
-                    world_block_pos *WorldP)
+GenerateDensityBlock(terrain_density_block *DensityBlock, perlin_noise_array *PNArray, 
+                     world_block_pos *WorldP)
 {
     DensityBlock->Pos = *WorldP;
     real32 BlockResolution = (real32)WorldP->Resolution * RENDER_SPACE_UNIT;
     
     v3 BlockPos = V3FromWorldPos(*WorldP);
+    const real32 Scale = 50.0f;
     
     DensityBlock->Grid.Dimension = GRID_DIMENSION;
     uint32 TerrainDimension = DensityBlock->Grid.Dimension;
@@ -28,34 +54,12 @@ GenerateDensityGrid(terrain_density_block *DensityBlock, perlin_noise_array *PNA
                 Z < TerrainDimension;
                 ++Z)
             {
-                real32 DensityValue = BlockPos.Y + ((Y) * BlockResolution);
-                // real32 DensityValue = 0;
-                
                 real32 WorldX = BlockPos.X + ((X) * BlockResolution);
                 real32 WorldY = BlockPos.Y + ((Y) * BlockResolution);
                 real32 WorldZ = BlockPos.Z + ((Z) * BlockResolution);
-                
-                v3 WorldPos = v3{WorldX, WorldY, WorldZ} / 32.0f;
-                real32 Scale = 50.0f;
-                             
-                //win32_clock Clock;
-                // DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 256.03f) * Scale * 0.0036025f;
-                // DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 128.96f) * Scale * 0.0078125f;
-                DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 64.01f)  * Scale * 0.015625f;
-                //Clock.PrintMiliSeconds("Perlin gen time:");
-                
-                DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 32.03f) * Scale * 0.03125f;
-                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 16.16f) * Scale * 0.0625f;
-                // DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 7.91f)  * Scale * 0.125f;
-                
-                // DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 4.03f) * Scale * 0.25f;
-                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 1.96f) * Scale * 0.5f;
-                // DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 1.01f) * Scale * 1.0f;
-                DensityValue += RandomFloat(&PNArray->Noise[2], WorldPos * 0.491f) * Scale * 1.0f;
-                
-                DensityValue += RandomFloat(&PNArray->Noise[0], WorldPos * 0.023f) * Scale * 4.0f;
-                DensityValue += RandomFloat(&PNArray->Noise[1], WorldPos * 0.00646f) * Scale * 16.0f;
-                
+                const v3 WPos = v3{WorldX, WorldY, WorldZ} / 32.0f;
+                                
+                real32 DensityValue = WorldY + GetPointDensity(PNArray, WPos) * Scale;
                 SetGrid(&DensityBlock->Grid, X, Y, Z, DensityValue);
             }
         }

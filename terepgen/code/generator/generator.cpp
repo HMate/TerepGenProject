@@ -500,7 +500,7 @@ int32 GenerateDensityBlocks(terrain* Terrain, int32 MaxBlocksToGenerate)
                 uint32 BlockIndex = Terrain->DensityBlockCount;
                 terrain_density_block *DensityBlock = Terrain->DensityBlocks + BlockIndex;
                 
-                GenerateDensityGrid(DensityBlock, &Terrain->PerlinArray, BlockP);
+                GenerateDensityBlock(DensityBlock, &Terrain->PerlinArray, BlockP);
                 
                 Assert(Terrain->DensityBlockCount < ArrayCount(Terrain->DensityBlocks));
                 DensityHash = WriteHash(Terrain->DensityHash, BlockP, Terrain->DensityBlockCount++);

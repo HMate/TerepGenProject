@@ -5,9 +5,7 @@
 
 #include "terepgen.h"
 
-#include "generator\generator.h"
 #include "terepgen_random.cpp"
-#include "renderer\renderer.h"
 
 internal int32 
 getGridSize(const int32 n)
@@ -352,7 +350,8 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
             }
         }
         
-        DXResources->DrawTriangles(GameState->DebugBlockFrames->Vertices, CubeFrameVertexCount*GameState->DebugBlockFrameCount);
+        DXResources->DrawTriangles(GameState->DebugBlockFrames->Vertices, 
+                                    CubeFrameVertexCount*GameState->DebugBlockFrameCount);
         DXResources->SetTransformations(v3{});
     }
     
