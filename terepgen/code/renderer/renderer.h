@@ -76,15 +76,17 @@ struct dx_resource
     void ClearViews();
     
     HRESULT CreateVertexBuffer(ID3D11Buffer** Buffer, uint32 Size, void *Content=NULL);
+    HRESULT CreateVertexBufferImmutable(ID3D11Buffer** Buffer, uint32 Size, void *Content);
     void LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize);
     void SetTransformations(v3 Translation);
     void SetDrawModeDefault(void);
     void SetDrawModeWireframe(void);
     
-    void DrawBackground(v3 *Vertices, uint32 VertCount);
+    void DrawBackground(v3 *Vertices, uint32 VertexCount);
     void DrawTriangles(vertex *Vertices, uint32 VertexCount);
-    void DrawLines(vertex *Vertices, uint32 VertCount);
+    void DrawLines(vertex *Vertices, uint32 VertexCount);
     void DrawDebugTriangle();
+    void DrawVertices(ID3D11Buffer** Buffer, uint32 VertexCount);
     
     HRESULT Resize(uint32 ScreenWidth, uint32 ScreenHeight);
     char* GetDebugMessage(DWORD dwErrorMsgId);

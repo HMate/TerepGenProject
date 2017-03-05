@@ -739,28 +739,14 @@ void dx_resource::DrawBackground(v3 *Vertices, uint32 VertCount)
 
 void dx_resource::DrawTriangles(vertex *Vertices, uint32 VertCount)
 {
-    LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
-       
-    uint32 stride = sizeof(vertex);
-    uint32 offset = 0;
-    LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount); 
-    
-    DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DeviceContext->Draw(VertCount, 0);
+    LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount);
+    DrawVertices(&VertexBuffer, VertCount);
 }
 
 void dx_resource::DrawLines(vertex *Vertices, uint32 VertCount)
-{      
-    LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
-    DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
-       
-    uint32 stride = sizeof(vertex);
-    uint32 offset = 0;
-    LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount);    
-    
-    DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-    DeviceContext->Draw(VertCount, 0);
+{
+    LoadResource(VertexBuffer, Vertices, sizeof(vertex) * VertCount);
+    DrawVertices(&VertexBuffer, VertCount);
 }
 
 void dx_resource::DrawDebugTriangle()
@@ -774,6 +760,17 @@ void dx_resource::DrawDebugTriangle()
                                       Vertex(v3{-0.8f, -0.7f, 1.0f}, Normal, Color),
                                       Vertex(v3{-1.0f, 0.0f , 1.0f}, Normal, Color)};
     Assert(!"Curently not implemented!");
+}
+
+void dx_resource::DrawVertices(ID3D11Buffer** Buffer, uint32 VertexCount)
+{
+    LoadResource(ObjectConstantBuffer, &ObjectConstants, sizeof(ObjectConstants));
+    DeviceContext->VSSetConstantBuffers(1, 1, &ObjectConstantBuffer); 
+       
+    uint32 stride = sizeof(vertex);
+    uint32 offset = 0;   
+    DeviceContext->IASetVertexBuffers(0, 1, Buffer, &stride, &offset);
+    DeviceContext->Draw(VertexCount, 0);
 }
 
 HRESULT dx_resource::CreateVertexBuffer(ID3D11Buffer** Buffer, uint32 Size, void *Content)
@@ -801,6 +798,34 @@ HRESULT dx_resource::CreateVertexBuffer(ID3D11Buffer** Buffer, uint32 Size, void
     }else{
         HResult = Device->CreateBuffer(&BufferDesc, NULL, Buffer);
     }
+    if(FAILED(HResult)) 
+    {
+        logger::DebugPrint("Failed to create vertex buffer with size %d: %s",  Size, GetDebugMessage(HResult));
+    }
+    return HResult;
+}
+
+HRESULT dx_resource::CreateVertexBufferImmutable(ID3D11Buffer** Buffer, uint32 Size, void *Content)
+{
+    D3D11_BUFFER_DESC BufferDesc;
+    ZeroMemory(&BufferDesc, sizeof(BufferDesc));
+    BufferDesc.Usage = D3D11_USAGE_IMMUTABLE;  
+    // NOTE: above 120MB vx buffer size dx11 crashes
+    // NOTE: at vertex size = 48 B, MaxVC = 2621440 is 120MB
+    // TODO: Need to profile if drawing is faster with lower buffer size.
+    // BufferDesc.ByteWidth = sizeof(vertex) * 2621440; // Max buffer size at 48B vertices
+    BufferDesc.ByteWidth = sizeof(vertex) * Size;
+    BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    //BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    
+    Assert(BufferDesc.ByteWidth <= MEGABYTE(120));
+    
+    D3D11_SUBRESOURCE_DATA Data;
+    Data.pSysMem = Content;
+    Data.SysMemPitch = 0;
+    Data.SysMemSlicePitch = 0;
+    
+    HRESULT HResult = Device->CreateBuffer(&BufferDesc, &Data, Buffer);
     if(FAILED(HResult)) 
     {
         logger::DebugPrint("Failed to create vertex buffer with size %d: %s",  Size, GetDebugMessage(HResult));

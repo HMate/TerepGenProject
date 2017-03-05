@@ -221,9 +221,10 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     ClearFarawayBlocks(TranArena, Terrain, &GameState->Session, &GeneratorPosition);
     Clock.Reset();
         
+    dx_resource *DXResources = &RenderState->DXResources;
     GenerateTerrainBlocks(TranArena, Terrain, Input, &GameState->Session, &GeneratorPosition,
                           WorldMousePos, RenderState->CameraOrigo, &GameState->Cube,
-                          CameraP, CamDir);
+                          CameraP, CamDir, DXResources);
         
     real64 TimeAddToRender = Clock.GetSecondsElapsed();
     
@@ -233,7 +234,6 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     
     Clock.Reset();
     
-    dx_resource *DXResources = &RenderState->DXResources;
     DXResources->LoadResource(Camera->SceneConstantBuffer,
                   &Camera->SceneConstants, sizeof(Camera->SceneConstants));
     
@@ -300,10 +300,12 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         RenderBlockIndex < Terrain->RenderBlockCount; 
         RenderBlockIndex++)
     {
-        DXResources->SetTransformations(Terrain->RenderBlocks[RenderBlockIndex]->Pos);
-        DXResources->DrawTriangles(
-            Terrain->RenderBlocks[RenderBlockIndex]->Vertices,
-            Terrain->RenderBlocks[RenderBlockIndex]->VertexCount);
+        terrain_block_model *Block = Terrain->RenderBlocks[RenderBlockIndex];
+        DXResources->SetTransformations(Block->Pos);
+        DXResources->DrawVertices(&(Block->Buffer), Block->VertexCount);
+        // DXResources->DrawTriangles(
+            // Terrain->RenderBlocks[RenderBlockIndex]->Vertices,
+            // Terrain->RenderBlocks[RenderBlockIndex]->VertexCount);
     }
     DXResources->SetTransformations(v3{});
     
@@ -376,7 +378,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
 }
 
 void
-SaveGameState(game_memory *Memory)
+FreeGameState(game_memory *Memory)
 {
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     terrain *Terrain = &GameState->Terrain;
@@ -388,6 +390,16 @@ SaveGameState(game_memory *Memory)
     if(GameState->Initialized)
     {
         SaveTerrain(TranArena, Terrain, &GameState->Session);
+        for(size_t BlockIndex = 0; 
+            BlockIndex < Terrain->PoligonisedBlockCount; 
+            BlockIndex++)
+        {
+            terrain_block_model Block = Terrain->PoligonisedBlocks[BlockIndex];
+            if(Block.Buffer)
+            {
+                Block.Buffer->Release();
+            }
+        }
     }
     
     GameState->RenderState.Camera.Release();

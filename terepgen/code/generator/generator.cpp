@@ -204,7 +204,7 @@ void ClearFarawayBlocks(memory_arena *Arena, terrain* Terrain,
             StoreIndex < Terrain->PoligonisedBlockCount; 
             ++StoreIndex)
         {
-            terrain_render_block *Block = Terrain->PoligonisedBlocks + StoreIndex;
+            terrain_block_model *Block = Terrain->PoligonisedBlocks + StoreIndex;
             world_block_pos BlockP = WorldPosFromV3(Block->Pos, Terrain->FixedResolution[0]);
             uint32 ResIndex = GetResolutionIndex(BlockP.Resolution);
             if(!DoRectangleContains(Center + ResIndex, LoadSpaceRadius, &BlockP))
@@ -512,7 +512,8 @@ int32 GenerateDensityBlocks(terrain* Terrain, int32 MaxBlocksToGenerate)
 
 void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *Input,
                            session_description *Session, generator_position *GeneratorCenter,
-                           v3 WorldMousePos, v3 CameraOrigo, cube* Cube, v3 CameraP, v3 CamDir)
+                           v3 WorldMousePos, v3 CameraOrigo, cube* Cube, v3 CameraP, v3 CamDir,
+                           dx_resource *DXResources)
 {
     int32 MaxDensityBlocksToGenerate = 3;
     int32 DensityBlocksGenerated = GenerateDensityBlocks(Terrain, MaxDensityBlocksToGenerate);
@@ -860,11 +861,21 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
         
         {
             AvgClock.Reset();
-            CreateRenderBlock(Terrain, Terrain->PoligonisedBlocks + Terrain->PoligonisedBlockCount, BlockP);
+            //terrain_render_block *RenderBlock = Terrain->PoligonisedBlocks + Terrain->PoligonisedBlockCount;
+            terrain_render_block RenderBlock;
+            CreateRenderBlock(Terrain, &RenderBlock, BlockP);
             AvgClock.CalculateAverageTime(&Terrain->AvgPoligoniseTime);
             
-            if(Terrain->PoligonisedBlocks[Terrain->PoligonisedBlockCount].VertexCount != 0)
+            if(RenderBlock.VertexCount != 0)
             {
+                terrain_block_model *Model = Terrain->PoligonisedBlocks + Terrain->PoligonisedBlockCount;
+                
+                Model->Pos = RenderBlock.Pos;
+                Model->WPos = RenderBlock.WPos;
+                Model->VertexCount = RenderBlock.VertexCount;
+                DXResources->CreateVertexBufferImmutable(&(Model->Buffer), 
+                                                         Model->VertexCount, RenderBlock.Vertices);                
+                
                 WriteHash(Terrain->RenderHash, BlockP, Terrain->PoligonisedBlockCount++);
                 Assert(Terrain->PoligonisedBlockCount < ArrayCount(Terrain->PoligonisedBlocks));
             }
@@ -902,7 +913,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
                     block_hash *Hash = GetHash(Terrain->RenderHash, SiblingP);
                     if(!HashIsEmpty(Hash))
                     {
-                        AddToTerrainModel(Terrain, Terrain->PoligonisedBlocks + Hash->Index, 
+                        QueueForRendering(Terrain, Terrain->PoligonisedBlocks + Hash->Index, 
                                           CameraP, CamDir);
                     }
                 }

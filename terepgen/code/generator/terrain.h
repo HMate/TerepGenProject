@@ -88,6 +88,15 @@ struct terrain_render_block
     vertex Vertices[RENDER_BLOCK_VERTEX_COUNT];
 };// 12B+16B+4B + 7000*vertex size: 40B -> 280'032 B wo resolution
 
+#include <d3d11.h>
+struct terrain_block_model
+{
+    v3 Pos;
+    world_block_pos WPos;
+    uint32 VertexCount;
+    ID3D11Buffer *Buffer;
+};
+
 // NOTE: (4/3)n^3 + 2n^2 + (8/3)n + 1
 #define POS_GRID_SIZE(n) ((uint32)(((4.0*(n)*(n)*(n)) + (n)*8.0 )/3.0 ) + (2*(n)*(n)) + 1)
 #define RENDERED_BLOCK_RADIUS 8
@@ -146,7 +155,7 @@ struct terrain
     uint32 DynamicBlockCount;
     terrain_density_block DynamicBlocks[DENSITY_BLOCK_COUNT];
     uint32 PoligonisedBlockCount;
-    terrain_render_block PoligonisedBlocks[RENDER_BLOCK_COUNT];
+    terrain_block_model PoligonisedBlocks[RENDER_BLOCK_COUNT];
     
     // NOTE: This must be a power of two for now!
     block_hash DensityHash[BLOCK_HASH_SIZE];
@@ -161,9 +170,10 @@ struct terrain
     density_block_pos_array DensityPositionStore[RESOLUTION_COUNT];
     
     uint32 RenderBlockCount;
-    terrain_render_block *RenderBlocks[RENDER_BLOCK_COUNT];
+    terrain_block_model *RenderBlocks[RENDER_BLOCK_COUNT];
     avarage_time AvgPoligoniseTime;
 };
+
 
 
 

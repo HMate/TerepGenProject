@@ -66,7 +66,7 @@ struct transient_state
 };
 
 void UpdateAndRenderGame(game_memory*, game_input*, screen_info, bool32);
-void SaveGameState(game_memory*);
+void FreeGameState(game_memory*);
 void TerminateGame();
 
 #define TEREPGEN_H

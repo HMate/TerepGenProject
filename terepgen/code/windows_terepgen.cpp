@@ -520,7 +520,7 @@ WinMain(HINSTANCE Instance,
                 FrameClock.Reset();
             }
             
-            SaveGameState(&Memory);
+            FreeGameState(&Memory);
         }
     }
     

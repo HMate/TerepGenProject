@@ -47,13 +47,15 @@ struct generator_position
     world_block_pos Centers[RESOLUTION_COUNT];
 };
 
+#include "..\renderer\renderer.h"
 generator_position CalculateTerrainGeneratorPositon(terrain *, v3);
 void InitializeTerrain(terrain *);
 void SaveTerrain(memory_arena *, terrain *, session_description *);
 void ClearFarawayBlocks(memory_arena *, terrain *, session_description *, generator_position *);
 void GenerateTerrainBlocks(memory_arena *, terrain *, game_input *Input,
                            session_description *, generator_position *,
-                           v3 WorldMousePos, v3 CameraOrigo, cube *, v3 CameraP, v3 CamDir);
+                           v3 WorldMousePos, v3 CameraOrigo, cube *, v3 CameraP, v3 CamDir,
+                           dx_resource *DXResources);
 void SaveCompressedBlockArrayToFile(memory_arena *, session_description *,  
                                     compressed_block *BlockArray, uint32 ArraySize);
 

@@ -148,7 +148,7 @@ CreateRenderBlock(terrain *Terrain, terrain_render_block *RenderBlock, world_blo
 
 // NOTE: Add render block to the terrain 3d model for rendering
 internal void
-AddToTerrainModel(terrain *Terrain, terrain_render_block *Block, v3 CameraP, v3 CamDir)
+QueueForRendering(terrain *Terrain, terrain_block_model *Block, v3 CameraP, v3 CamDir)
 {
     const int32 Resolution = Block->WPos.Resolution;
     const v3 DiffX = V3FromWorldPos(world_block_pos{1,0,0,Resolution});
@@ -175,7 +175,7 @@ AddToTerrainModel(terrain *Terrain, terrain_render_block *Block, v3 CameraP, v3 
             BlockIndex < Terrain->RenderBlockCount; 
             BlockIndex++)
         {
-            terrain_render_block *RBlock = Terrain->RenderBlocks[BlockIndex];
+            terrain_block_model *RBlock = Terrain->RenderBlocks[BlockIndex];
             if(WorldPosEquals(&RBlock->WPos, &Block->WPos))
             {
                 AlreadyHaveBlock = true;
@@ -193,8 +193,8 @@ AddToTerrainModel(terrain *Terrain, terrain_render_block *Block, v3 CameraP, v3 
 internal void
 DeleteRenderBlock(terrain *Terrain, int32 StoreIndex)
 {
-    terrain_render_block *Block = Terrain->PoligonisedBlocks + StoreIndex;
-    terrain_render_block *Last = Terrain->PoligonisedBlocks + (--Terrain->PoligonisedBlockCount);
+    terrain_block_model *Block = Terrain->PoligonisedBlocks + StoreIndex;
+    terrain_block_model *Last = Terrain->PoligonisedBlocks + (--Terrain->PoligonisedBlockCount);
     world_block_pos BlockP = Block->WPos;
     world_block_pos LastP = Last->WPos;
     
@@ -212,6 +212,10 @@ DeleteRenderBlock(terrain *Terrain, int32 StoreIndex)
     // than we are filling the deleted blocks space with the contents of the last block
     if(StoreIndex != (int32)Terrain->PoligonisedBlockCount)
     {
+        if(Block->Buffer) 
+        {
+            Block->Buffer->Release();
+        }
         *Block = *Last;
     }
 }
