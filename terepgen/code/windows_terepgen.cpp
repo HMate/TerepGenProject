@@ -96,6 +96,17 @@ void logger::DebugPrint(char *Text, uint32 Arg1)
 #endif
 }
 
+void logger::DebugPrint(char *Text, uint32 Arg1, char *Arg2)
+{
+#if TEREPGEN_DEBUG
+    char DebugBuffer[256];
+    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s\n", Text);
+    char DebugBuffer2[256];
+    sprintf_s(DebugBuffer2, DebugBuffer, Arg1, Arg2);
+    OutputDebugStringA(DebugBuffer2);
+#endif
+}
+
 void logger::DebugPrint(char *Text, real32 Arg1)
 {
 #if TEREPGEN_DEBUG

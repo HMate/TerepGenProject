@@ -125,7 +125,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
         Terrain->FixedResolution[0] = 8;
         Terrain->FixedResolution[1] = 4;
         Terrain->FixedResolution[2] = 2;
-        Terrain->StoreResolutionCount = RESOLUTION_COUNT-1;
+        Terrain->StoreResolutionCount = RESOLUTION_COUNT-2;
         Terrain->MaxResolutionToRender = RESOLUTION_COUNT-2;
         
         LoadSessionDesc(GameState, 321421);

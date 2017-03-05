@@ -74,10 +74,13 @@ struct dx_resource
     void Release();
     
     void ClearViews();
+    
+    HRESULT CreateVertexBuffer(ID3D11Buffer** Buffer, uint32 Size, void *Content=NULL);
     void LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize);
     void SetTransformations(v3 Translation);
     void SetDrawModeDefault(void);
     void SetDrawModeWireframe(void);
+    
     void DrawBackground(v3 *Vertices, uint32 VertCount);
     void DrawTriangles(vertex *Vertices, uint32 VertexCount);
     void DrawLines(vertex *Vertices, uint32 VertCount);

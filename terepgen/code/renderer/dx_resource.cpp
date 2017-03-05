@@ -471,28 +471,10 @@ HRESULT dx_resource::Initialize(memory_arena *Arena, uint32 ScreenWidth, uint32 
 #else
     this->MaxVertexCount = RENDER_BLOCK_VERTEX_COUNT;
 #endif
-    
-    D3D11_BUFFER_DESC BufferDesc;
-    ZeroMemory(&BufferDesc, sizeof(BufferDesc));
-    BufferDesc.Usage = D3D11_USAGE_DYNAMIC;  
+    logger::DebugPrint("VertBuff Max Vertex Count: %d",  MaxVertexCount);
     // TODO: Instead of MaxVertexCount, i should use the count from CreateRenderVertices here.
     // Its more precise, but then i cant change the number of vertices.
-    // NOTE: above 120MB vx buffer size dx11 crashes
-    // NOTE: at vertex xize = 48 B, MaxVC = 2621440 is 120MB
-    // TODO: Need to profile if drawing is faster with lower buffer size.
-    // BufferDesc.ByteWidth = sizeof(vertex) * 2621440; // Max buffer size at 48B vertices
-    BufferDesc.ByteWidth = sizeof(vertex) * MaxVertexCount;        
-    BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;   
-    BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    
-    Assert(BufferDesc.ByteWidth <= MEGABYTE(120));
-#if TEREPGEN_DEBUG
-    char DebugBuffer[256];
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] VertBuff Max Vertex Count: %d\n", MaxVertexCount);
-    OutputDebugStringA(DebugBuffer);
-#endif  
-
-    HResult = Device->CreateBuffer(&BufferDesc, NULL, &VertexBuffer);
+    HResult = CreateVertexBuffer(&VertexBuffer, this->MaxVertexCount);
     if(FAILED(HResult)) return HResult;
         
     HResult = LoadJPGFromFile(this, "grass.jpg", &GrassTexture);
@@ -794,6 +776,38 @@ void dx_resource::DrawDebugTriangle()
     Assert(!"Curently not implemented!");
 }
 
+HRESULT dx_resource::CreateVertexBuffer(ID3D11Buffer** Buffer, uint32 Size, void *Content)
+{
+    D3D11_BUFFER_DESC BufferDesc;
+    ZeroMemory(&BufferDesc, sizeof(BufferDesc));
+    BufferDesc.Usage = D3D11_USAGE_DYNAMIC;  
+    // NOTE: above 120MB vx buffer size dx11 crashes
+    // NOTE: at vertex size = 48 B, MaxVC = 2621440 is 120MB
+    // TODO: Need to profile if drawing is faster with lower buffer size.
+    // BufferDesc.ByteWidth = sizeof(vertex) * 2621440; // Max buffer size at 48B vertices
+    BufferDesc.ByteWidth = sizeof(vertex) * Size;
+    BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    
+    Assert(BufferDesc.ByteWidth <= MEGABYTE(120));
+    HRESULT HResult;
+    if(Content != NULL)
+    {
+        D3D11_SUBRESOURCE_DATA Data;
+        Data.pSysMem = Content;
+        Data.SysMemPitch = 0;
+        Data.SysMemSlicePitch = 0;
+        HResult = Device->CreateBuffer(&BufferDesc, &Data, Buffer);
+    }else{
+        HResult = Device->CreateBuffer(&BufferDesc, NULL, Buffer);
+    }
+    if(FAILED(HResult)) 
+    {
+        logger::DebugPrint("Failed to create vertex buffer with size %d: %s",  Size, GetDebugMessage(HResult));
+    }
+    return HResult;
+}
+
 void dx_resource::LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 ResourceSize)
 {
     // NOTE: This kind of resource mapping is optimized for per frame updating 
@@ -802,8 +816,7 @@ void dx_resource::LoadResource(ID3D11Resource *Buffer, void *Resource, uint32 Re
     // TODO: Conscutive calls for vertex buffers should use this: D3D11_MAP_WRITE_NO_OVERWRITE
     HRESULT HResult;
     D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-    HResult = DeviceContext->Map(Buffer, NULL,
-                    D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
+    HResult = DeviceContext->Map(Buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &MappedSubresource);
     if(FAILED(HResult))
     {
         logger::DebugPrint("Load Resource failed: %s", GetDebugMessage(HResult));

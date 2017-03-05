@@ -517,7 +517,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
     int32 MaxDensityBlocksToGenerate = 3;
     int32 DensityBlocksGenerated = GenerateDensityBlocks(Terrain, MaxDensityBlocksToGenerate);
     
-    int32 MaxRenderBlocksToGenerateInFrame = 6;
+    int32 MaxRenderBlocksToGenerateInFrame = 4;
     density_block_pos_array BlocksToRender;
     BlocksToRender.Count = 0;
 
@@ -875,7 +875,6 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             }
         }
     }
-    
     
     Terrain->RenderBlockCount = 0;
     for(uint32 ResolutionIndex = 0;

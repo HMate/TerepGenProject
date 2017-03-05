@@ -33,6 +33,7 @@ struct logger
     static void DebugPrint(char *Text);
     static void DebugPrint(char *Text, char *Arg1);
     static void DebugPrint(char *Text, uint32 Arg1);
+    static void DebugPrint(char *Text, uint32 Arg1, char *Arg2);
     static void DebugPrint(char *Text, real32 Arg1);
     static void DebugPrint(char *Text, real32 Arg1, real32 Arg2);
     static void DebugPrint(char *Text, real64 Arg1);
