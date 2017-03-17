@@ -226,7 +226,7 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
                           WorldMousePos, RenderState->CameraOrigo, &GameState->Cube,
                           CameraP, CamDir, DXResources);
         
-    real64 TimeAddToRender = Clock.GetSecondsElapsed();
+    real64 TimeGenerate = Clock.GetSecondsElapsed();
     
     //
     // RENDER
@@ -368,12 +368,8 @@ UpdateAndRenderGame(game_memory *Memory, game_input *Input, screen_info ScreenIn
     
     
     // logger::PerfPrint("Avg poligonise: %f", GameState->AvgPoligoniseTime * 1000.0);
-    
-    // logger::PerfPrint("Generate density time: %f", TimeGenerateDensity * 1000.0);
-    // logger::PerfPrint("Right click time: %f", TimeRightClick * 1000.0);
-    // logger::PerfPrint("Generate render: %f for %d blocks", TimeGenerateRender * 1000.0, RenderCount);
-    // logger::PerfPrint("Add to render time: %f", TimeAddToRender * 1000.0);
-    // logger::PerfPrint("Render time: %f", TimeToRender * 1000.0);
+    // logger::PerfPrint("Add to generate: %f ms", TimeGenerate * 1000.0);
+    // logger::PerfPrint("Render time: %f ms", TimeToRender * 1000.0);
     
 }
 

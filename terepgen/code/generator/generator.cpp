@@ -516,7 +516,10 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
                            dx_resource *DXResources)
 {
     int32 MaxDensityBlocksToGenerate = 3;
+    
+    timer DensityClock;
     int32 DensityBlocksGenerated = GenerateDensityBlocks(Terrain, MaxDensityBlocksToGenerate);
+    // DensityClock.PrintMiliSeconds("Density:");
     
     int32 MaxRenderBlocksToGenerateInFrame = 4;
     density_block_pos_array BlocksToRender;
@@ -580,6 +583,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
     }
 
     
+    timer LODClock;
     // NOTE: 
     // If all the lower blocks of a block are generated, then the lower blocks can be mix rendered
     // If a mix rendered blocks neigbours are done generating their lower blocks, 
@@ -646,6 +650,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             LowestResUsed = Min(LowestResUsed, ResHash->Index);
         }
     }
+    // LODClock.PrintMiliSeconds("Map resolutions:");
     
     bool32 EverybodyIsRenderedOnCorrectResolution = true;
     // NOTE: Select the next blocks that we can render.
@@ -674,6 +679,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             }
         }
     }
+    // LODClock.PrintMiliSeconds("Select render_blocks:");
     
     // NOTE: if everbody is rendered on the resolution it should be rendered, 
     // then we can upgrade a block to a new resolution
@@ -787,12 +793,14 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             }
         }
     }
+    // LODClock.PrintMiliSeconds("Upgrade Resoltuion:");
     
     for(int32 DelIndex = 0; DelIndex < DeleteRenderBlockCount; DelIndex++)
     {
         world_block_pos *BlockP = DeleteRenderBlockQueue + DelIndex;
         DeleteFromTerrainModel(Terrain, BlockP);
     }
+    // LODClock.PrintMiliSeconds("Delete render blocks:");
     
     // NOTE: Remove duplicates from BlocksToRender
     for(uint32 RenderIndex = 0;
@@ -814,6 +822,7 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             }
         }
     }
+    // LODClock.PrintMiliSeconds("Remove duplicates:");
     
     // NOTE: Before rendering, check for every block that their neighbours are mapped right 
     // and their densities are loaded.
@@ -845,9 +854,12 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
             DynNeighbours[NeighbourIndex] = GetDynamicBlock(Arena, Terrain, &MappedP, Session);
         }
     }
+    // LODClock.PrintMiliSeconds("NeighbourCheck:");
     
     
-    timer AvgClock;
+    // logger::PerfPrint("Block count: %f", BlocksToRender.Count);
+    // timer PoligoniseClock;
+    timer FullPoligoniseClock;
     // NOTE: These blocks may have been rendered once, but now they have to be generated again
     for(uint32 RenderIndex = 0;
         RenderIndex < BlocksToRender.Count;
@@ -860,11 +872,11 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
         Assert(HashIsEmpty(GetZeroHash(Terrain, BlockP)));
         
         {
-            AvgClock.Reset();
+            // PoligoniseClock.Reset();
             //terrain_render_block *RenderBlock = Terrain->PoligonisedBlocks + Terrain->PoligonisedBlockCount;
             terrain_render_block RenderBlock;
             CreateRenderBlock(Terrain, &RenderBlock, BlockP);
-            AvgClock.CalculateAverageTime(&Terrain->AvgPoligoniseTime);
+            // PoligoniseClock.CalculateAverageTime(&Terrain->AvgPoligoniseTime);
             
             if(RenderBlock.VertexCount != 0)
             {
@@ -878,14 +890,18 @@ void GenerateTerrainBlocks(memory_arena *Arena, terrain* Terrain, game_input *In
                 
                 WriteHash(Terrain->RenderHash, BlockP, Terrain->PoligonisedBlockCount++);
                 Assert(Terrain->PoligonisedBlockCount < ArrayCount(Terrain->PoligonisedBlocks));
+                
+                // PoligoniseClock.PrintMiliSeconds("Gen render_block:");
             }
             else
             {
                 WriteZeroHash(Terrain, BlockP);
                 Terrain->ZeroBlockCount++;
             }
+            
         }
     }
+    // FullPoligoniseClock.PrintMiliSeconds("Full gen render_block:");
     
     Terrain->RenderBlockCount = 0;
     for(uint32 ResolutionIndex = 0;

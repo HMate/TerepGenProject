@@ -159,20 +159,24 @@ real64 timer::GetSecondsElapsed()
 
 void timer::PrintMiliSeconds(char *PrintText)
 {
+#if TEREPGEN_PERF
     real64 SecondsElapsed = GetSecondsElapsed();
     char DebugBuffer[256];
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f ms\n",
+    sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s %f ms\n",
         PrintText, SecondsElapsed * 1000.0);
     OutputDebugStringA(DebugBuffer);
+#endif
 }
 
 void timer::PrintSeconds(char *PrintText)
 {
+#if TEREPGEN_PERF
     real64 SecondsElapsed = GetSecondsElapsed();
     char DebugBuffer[256];
-    sprintf_s(DebugBuffer, "[TEREPGEN_DEBUG] %s %f s\n",
+    sprintf_s(DebugBuffer, "[TEREPGEN_PERF] %s %f s\n",
         PrintText, SecondsElapsed);
     OutputDebugStringA(DebugBuffer);
+#endif
 }
 
 void timer::CalculateAverageTime(avarage_time *Avarage)
@@ -511,9 +515,9 @@ WinMain(HINSTANCE Instance,
                 // FrameClock.PrintMiliSeconds("Frame time:");
                 // logger::PerfPrint("---------------------------");
                 FrameClock.CalculateAverageTime(&GameState->FrameAvg);
-                if(GameState->FrameAvg.MeasureCount > 50.0f)
+                if(GameState->FrameAvg.MeasureCount > 20.0f)
                 {
-                    // logger::PerfPrint("Avg frame time: %f", GameState->FrameAvg.AvgTime * 1000.0);
+                    logger::PerfPrint("Avg frame time: %f ms", GameState->FrameAvg.AvgTime * 1000.0);
                     GameState->FrameAvg.MeasureCount = 0.0f;
                     GameState->FrameAvg.AvgTime = 0.0f;
                 }

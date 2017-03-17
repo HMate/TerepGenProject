@@ -13,7 +13,7 @@ REM load_msvc.bat set up the enviroment, so msvc cl.exe can be called
 REM eg. it contains a similar line : call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
 call "..\misc\load_msvc.bat"
 
-set debugBuild= 1
+set debugBuild= 0
 
 if %debugBuild% == 1 (
 echo Debug build
@@ -50,9 +50,13 @@ set CompiledFiles= ..\code\windows_terepgen.cpp ..\code\terepgen.cpp ..\code\gen
 if not exist ..\build mkdir ..\build
 pushd ..\build
 cl %CommonCompilerFlags% %CompiledFiles% /link %CommonLinkerFlags%
-if not exist Debug mkdir Debug
-xcopy /Y /Q ..\data Debug
-xcopy /Y /Q terepgen.exe Debug
+
+if %debugBuild% == 1 (
+    if not exist Debug mkdir Debug
+    xcopy /Y /Q ..\data Debug
+    xcopy /Y /Q terepgen.exe Debug
+)
+
 popd
 
 REM Restore codepage
